@@ -1021,7 +1021,7 @@ const c = edgeCurve(n);
 function fmt(v) {
   if (v < 10) return v.toFixed(1);
   if (v < 1000) return Math.floor(v).toString();
-  const u = ['k', 'M', 'B', 'T'];
+  const u = ['k', 'M', 'B', 'T', 'Q', 'Qi', 'Sx'];
   let i = -1;
   while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
   return v.toFixed(v < 100 ? 1 : 0) + u[i];
@@ -2505,11 +2505,13 @@ function enableHacks() {
   for (const k of Object.keys(GROVE)) {
     META.up[k] = GROVE[k].max;
   }
-  META.rings = Math.max(META.rings, 9999);
+  META.rings = Math.max(META.rings, 1e9);
   META.totalRings = Math.max(META.totalRings || 0, META.rings);
-  saveMeta();
+  // Flood every current resource pool.
+  S.sap = 1e15; S.resin = 1e15; S.amber = 1e15;
+  saveMeta(); save();
   grantAchievement('hacker');
-  toast('💻 HACKER MODE — everything unlocked.');
+  toast('💻 HACKER MODE — infinite resources.');
   sfx('buy');
   renderGrove();
 }
@@ -2650,6 +2652,13 @@ function frame(now) {
     S.sap += S.incomeS * dt;
     S.resin += S.incomeR * dt;
     if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
+    // Hacker mode: refill pools every frame so purchases never drain them.
+    if (META && META.hacks) {
+      if (S.sap < 1e14) S.sap = 1e15;
+      if (S.resin < 1e14) S.resin = 1e15;
+      if (S.amber < 1e14) S.amber = 1e15;
+      if (META.rings < 1e8) META.rings = 1e9;
+    }
     const ek = clamp(dt * 0.8, 0, 1);
     S.ema.s = lerp(S.ema.s, S.incomeS, ek);
     S.ema.r = lerp(S.ema.r, S.incomeR, ek);
