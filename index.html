@@ -40,9 +40,9 @@
   #restore { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #restore:hover { border-color:#6f9a75; background:#243827; }
-  #reset { width:100%; background:#241a18; border:1px solid #5a3530; color:#dba79e;
-    border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; }
-  #reset:hover { border-color:#8a4f47; background:#31201d; }
+  #reset { background:#241a18; border:1px solid #5a3530; color:#dba79e;
+    border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1; }
+  #reset:hover { border-color:#8a4f47; background:#31201d; color:#f3c3ba; }
   #hardreset { width:100%; background:#2a1212; border:1px solid #6e1f1f; color:#f0a8a8;
     border-radius:10px; padding:8px 10px; font-size:12px; cursor:pointer; margin-top:14px;
     text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
@@ -143,8 +143,9 @@
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
     #settings { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
-    #settings .srow, #restore, #reset { font-size:14px; }
-    #restore, #reset { padding:11px 10px; }
+    #settings .srow, #restore { font-size:14px; }
+    #restore { padding:11px 10px; }
+    #reset { padding:7px 9px; font-size:13px; }
     #hint { top:calc(env(safe-area-inset-top) + 66px); max-width:calc(100vw - 24px); font-size:12px; padding:7px 12px; }
     #toast { top:calc(env(safe-area-inset-top) + 116px); max-width:calc(100vw - 28px); }
     #panel { left:max(8px, env(safe-area-inset-left)); right:max(8px, env(safe-area-inset-right));
@@ -195,12 +196,13 @@
     <span class="statrate" id="amberrate"></span>
     <span class="statdetail" id="amberdetail"></span>
   </div>
+  <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;"></span>
+  <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="gear" aria-label="Settings">⚙</button>
 </div>
 <div id="settings">
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <button id="restore">Restore backup</button>
-  <button id="reset">Cut down the tree 🪓</button>
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
 <div id="hint"></div>
@@ -230,10 +232,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ---------- tuning ----------
 const CFG = {
-  leafBase: 1, leafGrowth: 1.5,         // sap/s per leaf, growth per level
+  leafBase: 1, leafGrowth: 1.4,         // sap/s per leaf, growth per level
   ampBase: 2, ampStep: 0.5,             // multiplier, gain per level
   refRatioBase: 18, refRatioStep: 0.9, refRatioMin: 6, // sap per resin
-  capDischargeTime: 6, capBonusBase: 1.5, capBonusStep: 0.15,
+  capDischargeTime: 6, capBonusBase: 2.0, capBonusStep: 0.25,
   edgeBaseCap: 6, edgeCapGrowth: 1.7,   // branch throughput
   baseKids: { core: 3, amp: 3, ref: 2, cap: 2, leaf: 0 },
   maxKidsCap: 5,
@@ -267,6 +269,7 @@ const GROVE = {
   seasoned:  { name:'Seasoned Leaves', glyph:'🍃', tier:2, parent:'vitality',  max:4,  cost:l=>2+l*2, desc:'New leaves begin +1 level higher per level' },
   nest:      { name:'Nest Egg',        glyph:'🥚', tier:2, parent:'girth',     max:6,  cost:l=>2+l,   desc:'New trees start with more sap and a little amber' },
   windfall:  { name:'Windfall',        glyph:'💰', tier:2, parent:'endurance', max:10, cost:l=>2+l,   desc:'+20% rings earned when you cut down, per level' },
+  swatpower: { name:'Strong Swat',     glyph:'👊', tier:2, parent:'endurance', max:1,  cost:_=>5,     desc:'Clicking a critter deals 2 damage instead of 1' },
   // Tier 3 — deeper.
   resonant:  { name:'Born Resonant',   glyph:'💠', tier:3, parent:'seasoned',  max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level' },
   deeproots: { name:'Deep Roots',      glyph:'🌱', tier:3, parent:'windfall',  max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
@@ -306,20 +309,27 @@ const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring;
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
+const BLOOM_MULT = 3;
+const BLOOM_DUR  = 30;
+const bloomMult  = () => (S.bloomT > 0 ? BLOOM_MULT : 1);
 const woodMult   = () => Math.pow(1.25, S.roots.wood);
 const shearsMult = () => Math.pow(1.25, S.roots.shears);
 // tier-5 deep-root multipliers
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult();
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult();
 const leafGiftDelay = n => clamp(40 / Math.max(leafRate(n), 0.75), 28, 90);
-const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp;
+const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n);
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
-const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult();
-const capBonus = n => CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade');
+const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n);
+const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n);
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
+const POLISH_PCT  = 0.06;
+const polishMult  = n => 1 + POLISH_PCT * (n.polish || 0);
+const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'cap';
+const costPolish  = n => Math.ceil(8 * Math.pow(1.55, n.polish || 0));
 const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult();
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
@@ -332,11 +342,11 @@ const maxKids  = n => {
 const GROW = {
   leaf: { cur: 'sap',   cost: () => 15 * Math.pow(1.4, Math.max(0, S.counts.leaf - 1)) * thriftMult(),
           label: 'Grow leaf', sub: '+1/s producer' },
-  amp:  { cur: 'sap',   cost: () => 60 * Math.pow(1.9, S.counts.amp) * thriftMult(),
+  amp:  { cur: 'sap',   cost: () => 70 * Math.pow(2.0, S.counts.amp) * thriftMult(),
           label: 'Grow amplifier', sub: '×2 to passing flow' },
-  ref:  { cur: 'sap',   cost: () => 300 * Math.pow(2.5, S.counts.ref) * thriftMult(),
+  ref:  { cur: 'sap',   cost: () => 350 * Math.pow(2.6, S.counts.ref) * thriftMult(),
           label: 'Grow refinery', sub: 'turns sap into resin' },
-  cap:  { cur: 'resin', cost: () => 20 * Math.pow(2.2, S.counts.cap) * thriftMult(),
+  cap:  { cur: 'resin', cost: () => 15 * Math.pow(2.0, S.counts.cap) * thriftMult(),
           label: 'Grow capacitor', sub: 'stores flow, bursts it boosted' },
 };
 const growUnlocked = t =>
@@ -459,7 +469,7 @@ function startLvl(type) {
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: 0,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
@@ -480,7 +490,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0 };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0 };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -554,7 +564,9 @@ function computeFlow(dt) {
         if (n.giftT <= 0) {
           n.giftAge = 0;
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12);
-          n.giftGain = Math.max(8, Math.round((leafRate(n) * 18 + n.lvl * 5) * SP().gold));
+          n.giftBig = Math.random() < 0.08;
+          if (n.giftBig) n.giftLife *= 1.6;
+          n.giftGain = Math.max(8, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 12 + S.sap * 0.05 + leafRate(n) * 6) * SP().gold));
           n.giftA = jitter(n.id) * TAU;
         }
       }
@@ -646,16 +658,25 @@ function harvestLeaf(id) {
   if (!n || n.type !== 'leaf') return false;
   if (!n.giftGain) return false;
   const gain = n.giftGain;
+  const wasBig = !!n.giftBig;
   S.pristine = false;
   n.giftGain = 0;
   n.giftAge = 0;
   n.giftLife = 0;
+  n.giftBig = false;
   n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
   S.sap += gain;
+  if (wasBig) {
+    S.bloomT = Math.max(S.bloomT || 0, BLOOM_DUR);
+    toast(`Big gold leaf! ×${BLOOM_MULT} production for ${BLOOM_DUR}s`);
+    spawnBurst(n.x, n.y, '#ff8a3a', 24, 160, 1.1);
+    spawnFloaty(n.x, n.y, `+${gain} sap · ✨ BLOOM ×${BLOOM_MULT}`, '#ff8a3a');
+  } else {
+    spawnFloaty(n.x, n.y, `+${gain} sap`, '#f0c469');
+    spawnBurst(n.x, n.y, '#f0d36d', 14, 105, 0.75);
+  }
   sfx('burst');
-  spawnFloaty(n.x, n.y, `+${gain} sap`, '#f0c469');
-  spawnBurst(n.x, n.y, '#f0d36d', 14, 105, 0.75);
-  pulseNode(n, 1.1, 0.95);
+  pulseNode(n, wasBig ? 1.4 : 1.1, wasBig ? 1.2 : 0.95);
   buildPanel(); save();
   return true;
 }
@@ -689,6 +710,17 @@ function graft(id) {
   sfx('buy');
   pulseNode(n, 0.7, 0.65);
   spawnBurst(n.x, n.y, '#f08a6a', 11, 68, 0.65);
+  buildPanel(); save();
+}
+function polish(id) {
+  const n = N(id);
+  if (!canPolish(n)) return;
+  const c = costPolish(n);
+  if (S.resin < c) return;
+  S.resin -= c; n.polish = (n.polish || 0) + 1; S.pristine = false;
+  sfx('buy');
+  pulseNode(n, 0.6, 0.5);
+  spawnBurst(n.x, n.y, '#f0b07e', 9, 58, 0.55);
   buildPanel(); save();
 }
 function doPrune(id) {
@@ -933,6 +965,7 @@ function updateDrops(dt) {
           n.giftGain = 0;
           n.giftAge = 0;
           n.giftLife = 0;
+          n.giftBig = false;
           n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
         }
       }
@@ -1021,9 +1054,10 @@ function spawnCritter() {
   });
 }
 function scareCritters(nodeId) {
+  const dmg = 1 + (metaLvl('swatpower') > 0 ? 1 : 0);
   for (const c of critters) {
     if (c.nodeId === nodeId && c.state === 'sitting') {
-      c.hp--;
+      c.hp -= dmg;
       c.jolt = 1;
       if (c.hp <= 0) {
         c.state = 'leaving';
@@ -1335,23 +1369,25 @@ function draw(time) {
         const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
         const br = rr * (0.26 + 0.08 * scale);
         const glow = ctx.createRadialGradient(bx, by, br * 0.25, bx, by, br * 2.5);
-        glow.addColorStop(0, `rgba(240,211,109,${0.24 * alpha})`);
-        glow.addColorStop(1, 'rgba(240,211,109,0)');
+        const goldR = n.giftBig ? 255 : 240, goldG = n.giftBig ? 150 : 211, goldB = n.giftBig ? 70 : 109;
+        glow.addColorStop(0, `rgba(${goldR},${goldG},${goldB},${(n.giftBig ? 0.36 : 0.24) * alpha})`);
+        glow.addColorStop(1, `rgba(${goldR},${goldG},${goldB},0)`);
         ctx.fillStyle = glow;
         ctx.beginPath(); ctx.arc(bx, by, br * 2.5, 0, TAU); ctx.fill();
         ctx.save();
         ctx.translate(bx, by);
         ctx.rotate(a + Math.PI / 5);
-        ctx.scale(0.55 + scale * 0.75, 0.55 + scale * 0.75);
+        const bigScale = n.giftBig ? 1.6 : 1;
+        ctx.scale((0.55 + scale * 0.75) * bigScale, (0.55 + scale * 0.75) * bigScale);
         ctx.beginPath();
         ctx.moveTo(0, -br * 1.6);
         ctx.quadraticCurveTo(br * 1.2, -br * 0.3, 0, br * 1.5);
         ctx.quadraticCurveTo(-br * 1.2, -br * 0.3, 0, -br * 1.6);
         ctx.closePath();
-        ctx.fillStyle = `rgba(240,211,109,${0.5 + 0.35 * alpha})`;
+        ctx.fillStyle = `rgba(${goldR},${goldG},${goldB},${0.5 + 0.35 * alpha})`;
         ctx.fill();
         ctx.lineWidth = 1 * cam.scale;
-        ctx.strokeStyle = `rgba(255,240,180,${0.7 * alpha})`;
+        ctx.strokeStyle = n.giftBig ? `rgba(255,210,140,${0.85 * alpha})` : `rgba(255,240,180,${0.7 * alpha})`;
         ctx.stroke();
         ctx.restore();
       }
@@ -1480,15 +1516,16 @@ cv.addEventListener('pointerdown', e => {
   const isFirstPointer = pointers.size === 0;
   cv.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  let downHitRoot = null, downHit = null;
   if (isFirstPointer) {
-    const targetRoot = pickRoot(e.clientX, e.clientY);
-    const target = targetRoot ?? pickCore(e.clientX, e.clientY) ?? pickBranch(e.clientX, e.clientY);
-    selectedRoot = targetRoot;
-    selected = targetRoot ? null : target;
-    buildPanel();
+    downHitRoot = pickRoot(e.clientX, e.clientY);
+    downHit = downHitRoot ?? pickCore(e.clientX, e.clientY) ?? pickBranch(e.clientX, e.clientY);
+    // Defer applying the selection until pointerup, so dragging from empty
+    // space (or from a node) doesn't clobber the existing selection.
   }
   activePointer = { id: e.pointerId, x: e.clientX, y: e.clientY, ox: cam.ox, oy: cam.oy, moved: false,
-    target: isFirstPointer ? (selectedRoot || selected) : null };
+    target: isFirstPointer ? (downHitRoot || downHit) : null,
+    hitRoot: downHitRoot, hit: downHit, firstPointer: isFirstPointer };
   if (pointers.size === 2) {
     const pts = [...pointers.values()];
     const ax = pts[0].x, ay = pts[0].y, bx = pts[1].x, by = pts[1].y;
@@ -1518,7 +1555,6 @@ cv.addEventListener('pointermove', e => {
     cam.manual = true;
     cam.centering = false;
     drag = null;
-    selectedRoot = null;
   }
   if (activePointer && activePointer.id === e.pointerId) {
     const dx = e.clientX - activePointer.x, dy = e.clientY - activePointer.y;
@@ -1529,7 +1565,6 @@ cv.addEventListener('pointermove', e => {
       cam.centering = false;
       cam.ox = activePointer.ox + dx;
       cam.oy = activePointer.oy + dy;
-      selectedRoot = null;
     }
   }
   if (drag && drag.moved) {
@@ -1552,21 +1587,34 @@ cv.addEventListener('pointerup', e => {
     const wasDragged = activePointer.moved;
     const targetId = activePointer.target;
     const clickX = activePointer.x, clickY = activePointer.y;
+    const apFirst = activePointer.firstPointer;
+    const apHitRoot = activePointer.hitRoot;
+    const apHit = activePointer.hit;
     activePointer = null;
     if (wasDragged) {
       drag = null;
       return;
     }
-    // hit-test critters at their drawn position (offset above node)
+    // True click (no drag): apply the deferred selection now.
+    if (apFirst) {
+      selectedRoot = apHitRoot;
+      selected = apHitRoot ? null : apHit;
+      buildPanel();
+    }
+    // hit-test critters at their drawn position (offset above node).
+    // A critter overlaps its node, so a direct critter-hit must skip the
+    // node-click scare or the critter would take 2 damage per click.
+    let hitCritter = false;
     for (const c of critters) {
       const cpx = sx(c.x), cpy = sy(c.y) - (c.type === 'bird' ? 10 : 8) * cam.scale;
       if (Math.hypot(clickX - cpx, clickY - cpy) < 20 * cam.scale) {
         scareCritters(c.nodeId);
+        hitCritter = true;
         break;
       }
     }
     if (targetId && N(targetId)) {
-      scareCritters(targetId);
+      if (!hitCritter) scareCritters(targetId);
       if (targetId === S.rootId) centerOnWorld(0, 0);
       if (N(targetId).type === 'leaf') harvestLeaf(targetId);
     }
@@ -1621,21 +1669,24 @@ function buildPanel() {
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Enrich leaf', `at max level ${lvlMax(n)} — grow Verdance`, costUp(n), 'sap', 'data-maxed="1"')
       : actBtn('up', 'Enrich leaf', `${fmt(leafRate(n))}/s → ${fmt(leafRate({ lvl: n.lvl + 1 }))}/s`, costUp(n), 'sap'));
+    if (canPolish(n)) acts.push(actBtn('polish', 'Polish leaf', `polish ${(n.polish || 0)} → ${(n.polish || 0) + 1} · resin lacquer · +6% sap/s`, costPolish(n), 'resin'));
     acts.push(actBtn('burst', n.giftGain ? 'Harvest gold leaf' : 'Waiting', n.giftGain
       ? `grab ${fmt(n.giftGain)} sap before it fades`
       : `next gold leaf in ${fmt(Math.max(0, n.giftT || 0))}s`, 0, 'sap'));
   } else if (n.type === 'amp') {
-    title = `Amplifier ×${ampMult(n).toFixed(1)} · lv ${n.lvl}/${lvlMax(n)}`;
+    title = `Amplifier ×${ampMult(n).toFixed(1)} · lv ${n.lvl}/${lvlMax(n)}${n.polish ? ` · ✨${n.polish}` : ''}`;
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Strengthen', `at max level ${lvlMax(n)} — grow Vigor`, costUp(n), 'sap', 'data-maxed="1"')
       : actBtn('up', 'Strengthen', `×${ampMult(n).toFixed(1)} → ×${ampMult({ lvl: n.lvl + 1 }).toFixed(1)}`, costUp(n), 'sap'));
+    if (canPolish(n)) acts.push(actBtn('polish', 'Polish amplifier', `polish ${(n.polish || 0)} → ${(n.polish || 0) + 1} · resin lacquer · +6% multiplier`, costPolish(n), 'resin'));
   } else if (n.type === 'ref') {
     title = `Refinery · lv ${n.lvl}`;
   } else {
-    title = `Capacitor ×${capBonus(n).toFixed(2)} · lv ${n.lvl}/${lvlMax(n)}`;
+    title = `Capacitor ×${capBonus(n).toFixed(2)} · lv ${n.lvl}/${lvlMax(n)}${n.polish ? ` · ✨${n.polish}` : ''}`;
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Deepen well', `at max level ${lvlMax(n)} — grow Surge`, costUp(n), 'resin', 'data-maxed="1"')
       : actBtn('up', 'Deepen well', `stores ${fmt(capSize(n))} → ${fmt(capSize({ lvl: n.lvl + 1 }))}, ×${capBonus(n).toFixed(2)} → ×${capBonus({ lvl: n.lvl + 1 }).toFixed(2)}`, costUp(n), 'resin'));
+    if (canPolish(n)) acts.push(actBtn('polish', 'Polish capacitor', `polish ${(n.polish || 0)} → ${(n.polish || 0) + 1} · resin lacquer · +6% storage & burst`, costPolish(n), 'resin'));
   }
   const kidsLeft = maxKids(n) - n.children.length;
   if (kidsLeft > 0) {
@@ -1732,6 +1783,7 @@ panel.addEventListener('click', e => {
   else if (act === 'up') upgrade(selected);
   else if (act === 'edge') thicken(selected);
   else if (act === 'graft') graft(selected);
+  else if (act === 'polish') polish(selected);
   else if (act === 'burst') harvestLeaf(selected);
   else if (act === 'prune') {
     if (!armPrune) {
@@ -1785,6 +1837,11 @@ function refreshHud() {
     if (n.type === 'leaf') leafOut += n.out || 0;
     else if (n.type === 'ref') refOut += n.outR || 0;
   }
+  const bb = document.getElementById('bloombadge');
+  if (bb) {
+    if (S.bloomT > 0) { bb.style.display = ''; bb.textContent = `✨ Bloom ×${BLOOM_MULT} · ${Math.ceil(S.bloomT)}s`; }
+    else if (bb.style.display !== 'none') { bb.style.display = 'none'; }
+  }
   elSap.textContent = fmt(S.sap) + ' sap';
   elSapRate.textContent = '+' + fmt(S.ema.s) + '/s';
   elSapDetail.textContent = `Leaves ${fmt(leafOut)}/s · leaking ${fmt(S.wasteSap)}/s sap`;
@@ -1812,18 +1869,18 @@ function save() {
   }
   const nodes = Object.values(S.nodes).map(n => ({
     id: n.id, type: n.type, parent: n.parent, children: n.children, lvl: n.lvl, edgeLvl: n.edgeLvl,
-    extraKids: n.extraKids, life: n.life, buf: n.buf, discharging: n.discharging,
-    giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0 }));
+    extraKids: n.extraKids, polish: n.polish || 0, life: n.life, buf: n.buf, discharging: n.discharging,
+    giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts,
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0,
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, nodes }));
 }
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0,
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0,
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -1833,10 +1890,10 @@ function load() {
     graftsBought: d.graftsBought || 0, ms: d.ms || {},
     incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0 };
   for (const m of d.nodes) {
-    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, life: 0, buf: { s: 0, r: 0 }, discharging: false,
+    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, life: 0, buf: { s: 0, r: 0 }, discharging: false,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
-      giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0,
+      giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
       fx: { pop: 0, flash: 0, ...(m.fx || {}) } };
   }
   for (const id in S.nodes) {
@@ -2035,6 +2092,7 @@ function frame(now) {
   computeFlow(dt);
   S.sap += S.incomeS * dt;
   S.resin += S.incomeR * dt;
+  if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
   const ek = clamp(dt * 0.8, 0, 1);
   S.ema.s = lerp(S.ema.s, S.incomeS, ek);
   S.ema.r = lerp(S.ema.r, S.incomeR, ek);
