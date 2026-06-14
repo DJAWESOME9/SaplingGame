@@ -49,6 +49,15 @@
     text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
   #hardreset:hover { border-color:#a82c2c; background:#3a1818; color:#ffd0d0; }
   #hardreset .sublabel { display:block; font-size:10px; opacity:.7; font-weight:400; text-transform:none; letter-spacing:0; margin-top:2px; }
+  #savecode { width:100%; box-sizing:border-box; margin-top:10px; min-height:64px; max-height:140px; resize:vertical;
+    background:#0f1611; border:1px solid #2e3f31; color:#cfdcc9; border-radius:8px; padding:6px 8px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; line-height:1.3; word-break:break-all; }
+  #savecode:focus { outline:none; border-color:#6a8a6e; }
+  .saverow { display:flex; gap:6px; margin-top:6px; }
+  .saverow button { flex:1 1 0; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
+    border-radius:8px; padding:7px 8px; font-size:12px; cursor:pointer; }
+  .saverow button:hover { border-color:#6f9a75; background:#243827; }
+  .savehint { color:#7d8c7e; font-size:10.5px; line-height:1.3; margin-top:5px; }
   #hint { position:fixed; top:58px; left:50%; transform:translateX(-50%); max-width:520px; text-align:center;
     background:rgba(20,30,22,.88); border:1px solid #34453634; border-radius:10px; padding:8px 16px;
     font-size:13px; color:#cfdcc9; pointer-events:none; transition:opacity .4s; }
@@ -59,7 +68,12 @@
   #panel { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:380px; max-width:92vw;
     background:rgba(16,24,18,.94); border:1px solid #2e3f31; border-radius:14px; padding:14px 16px;
     display:none; backdrop-filter:blur(6px); }
-  #panel h3 { margin:0 0 2px; font-size:15px; }
+  #panel h3 { margin:0 0 2px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  #panel h3 .lockbtn { margin-left:auto; background:transparent; border:1px solid #3a4a3c; color:#8aa08c;
+    border-radius:6px; padding:2px 7px; font-size:13px; line-height:1; cursor:pointer; }
+  #panel h3 .lockbtn:hover { border-color:#6a8a6e; color:#cfe3d1; }
+  #panel h3 .lockbtn.on { border-color:#b6905a; color:#f0c469; background:rgba(120,80,30,.18); }
+  #panel.locked .prune { display:none; }
   #panel .stats { font-size:12px; color:#93a895; margin-bottom:10px; font-variant-numeric:tabular-nums; }
   #panel .stats .warn { color:#e2766a; }
   #panel .acts { display:flex; flex-wrap:wrap; gap:8px; }
@@ -204,6 +218,9 @@
 <div id="settings">
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <button id="restore">Restore backup</button>
+  <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
+  <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
+  <div class="savehint">Export to copy your save out, paste a code in and Import to load it (current save is stashed to backup).</div>
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
 <div id="hint"></div>
@@ -470,7 +487,7 @@ function startLvl(type) {
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: 0,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: 0, locked: false,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
@@ -630,8 +647,10 @@ function computeFlow(dt) {
 
 // ---------- actions ----------
 function grow(parentId, type) {
+  { const p = N(parentId); if (p && p.locked) return; }
   const p = N(parentId), g = GROW[type];
   if (!g || !growUnlocked(type)) return;
+  if (type === 'ref' && p && p.type === 'ref') return; // refineries can't feed refineries
   if (S.counts[type] >= typeMax(type)) return;
   const cost = g.cost();
   if (S[g.cur] < cost || p.children.length >= maxKids(p)) return;
@@ -683,6 +702,7 @@ function harvestLeaf(id) {
 }
 function upgrade(id) {
   const n = N(id), c = costUp(n), cur = upCur(n);
+  if (n.locked) return;
   if (n.lvl >= lvlMax(n)) return;
   if (S[cur] < c) return;
   S[cur] -= c; n.lvl++; S.pristine = false;
@@ -697,6 +717,7 @@ function upgrade(id) {
 }
 function thicken(id) {
   const n = N(id), c = costEdge(n);
+  if (n.locked) return;
   if (S.sap < c) return;
   S.sap -= c; n.edgeLvl++; S.ms.thickened = true; S.pristine = false;
   sfx('buy');
@@ -706,6 +727,7 @@ function thicken(id) {
 }
 function graft(id) {
   const n = N(id), c = costGraft();
+  if (n.locked) return;
   if (S.resin < c || maxKids(n) >= CFG.maxKidsCap) return;
   S.resin -= c; n.extraKids++; S.graftsBought++; S.pristine = false;
   sfx('buy');
@@ -715,6 +737,7 @@ function graft(id) {
 }
 function polish(id) {
   const n = N(id);
+  if (n.locked) return;
   if (!canPolish(n)) return;
   const c = costPolish(n);
   if (S.resin < c) return;
@@ -724,7 +747,7 @@ function polish(id) {
   spawnBurst(n.x, n.y, '#f0b07e', 9, 58, 0.55);
   buildPanel(); save();
 }
-function doPrune(id) {
+function doPrune(id) { const __n = N(id); if (__n && __n.locked) return;
   const n = N(id);
   if (!n || n.parent == null) return;
   S.pristine = false;
@@ -1643,6 +1666,11 @@ cv.addEventListener('wheel', e => {
 
 // ---------- panel ----------
 const panel = document.getElementById('panel');
+const SPEND_ACTS = new Set(['up', 'edge', 'graft', 'polish', 'grow']);
+function lockBtn(n) {
+  const on = !!n.locked;
+  return `<button class="lockbtn ${on ? 'on' : ''}" data-act="lock" title="${on ? 'Unlock — allow upgrades and pruning' : 'Lock — hide upgrade buttons and prevent pruning'}">${on ? '🔒' : '🔓'}</button>`;
+}
 function actBtn(act, label, sub, cost, cur, extra) {
   return `<button data-act="${act}" ${extra || ''} data-cost="${cost}" data-cur="${cur}">
     ${label} — <span class="cost-${cur}">${fmt(cost)} ${cur}</span><small>${sub}</small></button>`;
@@ -1693,6 +1721,7 @@ function buildPanel() {
   if (kidsLeft > 0) {
     for (const t of ['leaf', 'amp', 'ref', 'cap']) {
       if (!growUnlocked(t)) continue;
+      if (t === 'ref' && n.type === 'ref') continue; // refineries can't feed refineries
       const g = GROW[t];
       if (S.counts[t] >= typeMax(t)) {
         acts.push(actBtn('grow', g.label, `at max ${typeMax(t)} — deepen your roots`, g.cost(), g.cur, `data-type="${t}" data-maxed="1"`));
@@ -1706,11 +1735,15 @@ function buildPanel() {
   if (n.parent != null) {
     acts.push(actBtn('edge', 'Thicken branch', `cap ${fmt(edgeCap(n))}/s → ${fmt(edgeCap({ edgeLvl: n.edgeLvl + 1 }) )}/s`, costEdge(n), 'sap'));
   }
-  let html = `<h3>${title}</h3><div class="stats" id="pstats"></div><div class="acts">${acts.join('')}</div>`;
-  if (n.parent != null) {
+  // When locked, hide every action that spends resources or commits a change.
+  // 'burst' (harvesting a gold leaf) stays available since it's a one-shot reward.
+  const visibleActs = n.locked ? acts.filter(a => !SPEND_ACTS.has((a.match(/data-act="([^"]+)"/) || [])[1])) : acts;
+  let html = `<h3>${title}${lockBtn(n)}</h3><div class="stats" id="pstats"></div><div class="acts">${visibleActs.join('')}</div>`;
+  if (n.parent != null && !n.locked) {
     html += `<button class="prune" data-act="prune">Prune branch — <span class="cost-amber">+${pruneGain(n)} amber</span>
       <small>sacrifice this whole branch; its lifetime flow becomes amber</small></button>`;
   }
+  panel.classList.toggle('locked', !!n.locked);
   panel.innerHTML = html;
   panel.style.display = 'block'; 
   refreshPanel();
@@ -1780,6 +1813,7 @@ panel.addEventListener('click', e => {
   const act = b.dataset.act;
   if (act === 'root') { if (selectedRoot) buyRoot(selectedRoot); return; }
   if (selected == null) return;
+  if (act === 'lock') { const n = N(selected); if (n) { n.locked = !n.locked; sfx('plink'); buildPanel(); save(); } return; }
   if (act === 'grow') grow(selected, b.dataset.type);
   else if (act === 'up') upgrade(selected);
   else if (act === 'edge') thicken(selected);
@@ -1870,7 +1904,7 @@ function save() {
   }
   const nodes = Object.values(S.nodes).map(n => ({
     id: n.id, type: n.type, parent: n.parent, children: n.children, lvl: n.lvl, edgeLvl: n.edgeLvl,
-    extraKids: n.extraKids, polish: n.polish || 0, life: n.life, buf: n.buf, discharging: n.discharging,
+    extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, life: n.life, buf: n.buf, discharging: n.discharging,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
@@ -1891,7 +1925,7 @@ function load() {
     graftsBought: d.graftsBought || 0, ms: d.ms || {},
     incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0 };
   for (const m of d.nodes) {
-    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, life: 0, buf: { s: 0, r: 0 }, discharging: false,
+    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, buf: { s: 0, r: 0 }, discharging: false,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
       giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
@@ -2052,6 +2086,53 @@ grove.addEventListener('click', e => {
   if (e.target.id === 'groveClose' || e.target.id === 'plantBtn') { closeGrove(); return; }
 });
 document.getElementById('reset').addEventListener('click', openGrove);
+// ---------- save code: export/import via base64 ----------
+function makeSaveCode() {
+  const blob = {
+    v: 1,
+    t: Date.now(),
+    save: localStorage.getItem(KEY) || null,
+    meta: localStorage.getItem(MKEY) || null,
+  };
+  const json = JSON.stringify(blob);
+  // UTF-8 safe base64 (handles emoji in species names etc.)
+  return btoa(unescape(encodeURIComponent(json)));
+}
+function applySaveCode(code) {
+  if (!code || !code.trim()) throw new Error('empty code');
+  let json;
+  try { json = decodeURIComponent(escape(atob(code.trim()))); }
+  catch (e) { throw new Error('not a valid save code'); }
+  let blob;
+  try { blob = JSON.parse(json); }
+  catch (e) { throw new Error('save code is corrupted'); }
+  if (!blob || blob.v !== 1) throw new Error('unrecognized save code version');
+  if (blob.save) JSON.parse(blob.save); // validate inner JSON
+  if (blob.meta) JSON.parse(blob.meta);
+  // Stash current save before overwriting
+  const cur = localStorage.getItem(KEY);
+  if (cur) localStorage.setItem(KEY + '-prereset', cur);
+  if (blob.save) localStorage.setItem(KEY, blob.save); else localStorage.removeItem(KEY);
+  if (blob.meta) localStorage.setItem(MKEY, blob.meta);
+  // Block autosave from clobbering the imported state during the reload.
+  window.__SAPLING_WIPED = true;
+  location.reload();
+}
+document.getElementById('exportSave').addEventListener('click', () => {
+  const ta = document.getElementById('savecode');
+  ta.value = makeSaveCode();
+  ta.focus(); ta.select();
+  try { navigator.clipboard?.writeText(ta.value); toast('Save code copied to clipboard'); }
+  catch (e) { toast('Save code ready — copy it from the box'); }
+});
+document.getElementById('importSave').addEventListener('click', () => {
+  const ta = document.getElementById('savecode');
+  const code = ta.value;
+  if (!code.trim()) { toast('Paste a save code into the box first'); return; }
+  if (!confirm('Load this save code? Your current tree and rings will be replaced (the old save is stashed for Restore backup).')) return;
+  try { applySaveCode(code); }
+  catch (e) { toast('Import failed: ' + (e.message || e)); }
+});
 document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Hard reset: erase your tree, all rings, every upgrade, and every backup. There is no undo. Continue?')) return;
   if (!confirm('Really? This will wipe ALL Sapling progress. Type-equivalent of starting over from scratch.')) return;
