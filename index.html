@@ -61,6 +61,11 @@
   #trophy { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#caa64f;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #trophy:hover, #trophy.open { border-color:#d9b864; color:#f0d9a0; }
+  #pestbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
+    border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1; }
+  #pestbtn:hover { border-color:#8fc299; color:#cfe3d1; }
+  #pestbtn.on { background:#1d2c20; border-color:#8fc299; color:#cfe3d1; }
+  #pestbtn.cantafford { opacity:.45; cursor:not-allowed; }
   #achievements { position:fixed; top:52px; right:16px; width:280px; max-height:60vh; overflow-y:auto;
     display:none; background:rgba(16,24,18,.96); border:1px solid #3a3a2e; border-radius:12px; padding:14px;
     backdrop-filter:blur(6px); z-index:55; }
@@ -284,6 +289,7 @@
   </div>
   <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
+  <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="gear" aria-label="Settings">⚙</button>
 </div>
@@ -383,6 +389,7 @@ const GROVE = {
   eternalSap:{ name:'Eternal Sap',    glyph:'♾️', tier:4, parent:'patience',   max:4, cost:l=>10+l*4, desc:'+4h to the offline production cap per level' },
   mythos:    { name:'Mythos',         glyph:'📜', tier:4, parent:'lacquer',    max:5, cost:l=>12+l*5, desc:'New branches start with +1 polish per level' },
   empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
+  pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -460,6 +467,11 @@ const activeBloom    = () => (S.bloomT > 0 && BLOOMS[S.bloomKind]) ? BLOOMS[S.bl
 const bloomLeafMult  = () => { const b = activeBloom(); return b && b.leafMult ? b.leafMult() : 1; };
 const bloomRefMult   = () => { const b = activeBloom(); return b && b.refMult ? b.refMult() : 1; };
 const bloomCapMult   = () => { const b = activeBloom(); return b && b.capMult ? b.capMult() : 1; };
+// Pesticide: toggle that blocks critters at a constant production penalty.
+const pesticideOwned = () => metaLvl('pesticide') > 0;
+const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
+const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
+const pesticideMult  = () => pesticideOn() ? 0.85 : 1;
 // Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
 const bloomMult      = bloomLeafMult;
 // Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
@@ -471,7 +483,7 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult();
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult();
 const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray'));
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n);
 const refRatio = n => Math.max(CFG.refRatioMin,
@@ -657,7 +669,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3' };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3', pesticideOn: false };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1253,6 +1265,7 @@ function scareCritters(nodeId) {
 }
 function updateCritters(dt) {
   critterSpawnT -= dt;
+  if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); return; }
   if (critterSpawnT <= 0) {
     spawnCritter();
     critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble'));
@@ -2084,6 +2097,7 @@ function refreshHud() {
   elAmber.textContent = fmt(S.amber) + ' amber';
   elAmberRate.textContent = 'from pruning';
   elAmberDetail.textContent = `Branches remember ${fmt(S.maxLife)} lifetime flow`;
+  refreshPesticide();
   elHint.textContent = hintText();
 }
 
@@ -2105,14 +2119,14 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3',
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3', pesticideOn: !!S.pesticideOn,
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, nodes }));
 }
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3',
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3', pesticideOn: !!d.pesticideOn,
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -2417,6 +2431,42 @@ cheat?.addEventListener('keydown', e => {
 // Also fire as the user types — codes can be matched without pressing Enter once a unique match is hit.
 cheat?.addEventListener('input', () => {
   if (checkCheat(cheat.value)) cheat.value = '';
+});
+
+// ---------- pesticide toggle ----------
+const pestBtn = document.getElementById('pestbtn');
+function refreshPesticide() {
+  if (!pestBtn) return;
+  if (!pesticideOwned()) { pestBtn.style.display = 'none'; return; }
+  pestBtn.style.display = '';
+  const on = pesticideOn();
+  pestBtn.classList.toggle('on', on);
+  if (on) {
+    pestBtn.textContent = '🧴 ON · −15%';
+    pestBtn.title = 'Pesticide active — no critters, but leaf production is −15%. Click to turn off.';
+    pestBtn.classList.remove('cantafford');
+  } else {
+    const cost = pesticideCost();
+    pestBtn.textContent = `🧴 OFF · ${fmt(cost)} sap to arm`;
+    pestBtn.title = `Spray pesticide for ${fmt(cost)} sap (≈30s of current production). Stops critters spawning, costs −15% leaf production while active.`;
+    pestBtn.classList.toggle('cantafford', S.sap < cost);
+  }
+}
+pestBtn?.addEventListener('click', () => {
+  if (!pesticideOwned()) return;
+  if (pesticideOn()) {
+    S.pesticideOn = false;
+    toast('🧴 Pesticide off');
+  } else {
+    const cost = pesticideCost();
+    if (S.sap < cost) { toast(`Need ${fmt(cost)} sap to spray pesticide.`); return; }
+    S.sap -= cost;
+    S.pesticideOn = true;
+    toast(`🧴 Pesticide armed — ${fmt(cost)} sap spent`);
+    sfx('plink');
+  }
+  refreshPesticide();
+  save();
 });
 
 // ---------- achievements panel ----------
