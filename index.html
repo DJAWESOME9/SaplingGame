@@ -43,6 +43,11 @@
   #reset { width:100%; background:#241a18; border:1px solid #5a3530; color:#dba79e;
     border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; }
   #reset:hover { border-color:#8a4f47; background:#31201d; }
+  #hardreset { width:100%; background:#2a1212; border:1px solid #6e1f1f; color:#f0a8a8;
+    border-radius:10px; padding:8px 10px; font-size:12px; cursor:pointer; margin-top:14px;
+    text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+  #hardreset:hover { border-color:#a82c2c; background:#3a1818; color:#ffd0d0; }
+  #hardreset .sublabel { display:block; font-size:10px; opacity:.7; font-weight:400; text-transform:none; letter-spacing:0; margin-top:2px; }
   #hint { position:fixed; top:58px; left:50%; transform:translateX(-50%); max-width:520px; text-align:center;
     background:rgba(20,30,22,.88); border:1px solid #34453634; border-radius:10px; padding:8px 16px;
     font-size:13px; color:#cfdcc9; pointer-events:none; transition:opacity .4s; }
@@ -196,6 +201,7 @@
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <button id="restore">Restore backup</button>
   <button id="reset">Cut down the tree 🪓</button>
+  <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
 <div id="hint"></div>
 <div id="toast"></div>
@@ -253,14 +259,33 @@ const SPECIES = {
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
-  vitality:  { name:'Vitality',        glyph:'🌿', max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
-  seasoned:  { name:'Seasoned Leaves', glyph:'🍃', max:4,  cost:l=>2+l*2, desc:'New leaves begin +1 level higher per level' },
-  resonant:  { name:'Born Resonant',   glyph:'💠', max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level (×3 multiplier at level 2)' },
-  girth:     { name:'Heartgirth',      glyph:'🪵', max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
-  endurance: { name:'Endurance',       glyph:'🛌', max:8,  cost:l=>1+l,   desc:'+2h of offline growth per level' },
-  nest:      { name:'Nest Egg',        glyph:'🥚', max:6,  cost:l=>2+l,   desc:'New trees start with more sap and a little amber' },
-  windfall:  { name:'Windfall',        glyph:'💰', max:10, cost:l=>2+l,   desc:'+20% rings earned when you cut down, per level' },
-  deeproots: { name:'Deep Roots',      glyph:'🌱', max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
+  // Tier 1 — always available after first cut.
+  vitality:  { name:'Vitality',        glyph:'🌿', tier:1, parent:null,     max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
+  girth:     { name:'Heartgirth',      glyph:'🪵', tier:1, parent:null,     max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
+  endurance: { name:'Endurance',       glyph:'🛌', tier:1, parent:null,     max:8,  cost:l=>1+l,   desc:'+2h of offline growth per level' },
+  // Tier 2 — branches from each tier-1 node.
+  seasoned:  { name:'Seasoned Leaves', glyph:'🍃', tier:2, parent:'vitality',  max:4,  cost:l=>2+l*2, desc:'New leaves begin +1 level higher per level' },
+  nest:      { name:'Nest Egg',        glyph:'🥚', tier:2, parent:'girth',     max:6,  cost:l=>2+l,   desc:'New trees start with more sap and a little amber' },
+  windfall:  { name:'Windfall',        glyph:'💰', tier:2, parent:'endurance', max:10, cost:l=>2+l,   desc:'+20% rings earned when you cut down, per level' },
+  // Tier 3 — deeper.
+  resonant:  { name:'Born Resonant',   glyph:'💠', tier:3, parent:'seasoned',  max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level' },
+  deeproots: { name:'Deep Roots',      glyph:'🌱', tier:3, parent:'windfall',  max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
+  // Species unlocks — single-purchase nodes that grant access to a tree type.
+  unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
+  unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
+  unlock_grape: { name:'Graft Grape',  glyph:'🍇', tier:3, parent:'resonant',  max:1, cost:_=>8,  desc:'Unlocks Grape as a tree species', unlocks:'grape' },
+  unlock_maple: { name:'Graft Maple',  glyph:'🍁', tier:2, parent:'girth',     max:1, cost:_=>6,  desc:'Unlocks Maple as a tree species', unlocks:'maple' },
+  unlock_pine:  { name:'Graft Pine',   glyph:'🌲', tier:2, parent:'endurance', max:1, cost:_=>6,  desc:'Unlocks Pine as a tree species', unlocks:'pine' },
+};
+// helper: does the player own (or have unlocked) a species?
+const speciesUnlocked = sp => {
+  if (sp === 'oak') return true;
+  for (const k in GROVE) if (GROVE[k].unlocks === sp && metaLvl(k) > 0) return true;
+  return false;
+};
+const groveAvailable = k => {
+  const g = GROVE[k];
+  return !g.parent || metaLvl(g.parent) > 0;
 };
 let META;
 const MKEY = 'sapling-meta-v1';
@@ -273,7 +298,7 @@ function loadMeta() {
   if (typeof META.treesCut !== 'number') META.treesCut = 0;
   if (!SPECIES[META.species]) META.species = 'oak';
 }
-function saveMeta() { try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} }
+function saveMeta() { if (window.__SAPLING_WIPED) return; try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} }
 const metaLvl = k => (META && META.up[k]) || 0;
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
 const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * SP().leaf;
@@ -394,7 +419,7 @@ const typeMax = t =>
   t === 'cap' ? 2 + rootLvl('wells') : Infinity;
 const lvlMax = n => ({
   leaf: 10 + 2 * rootLvl('verdance'),
-  amp:  5 + 2 * rootLvl('vigor'),
+  amp:  3 + 2 * rootLvl('vigor'),
   ref:  4 + 2 * rootLvl('distill'),
   cap:  4 + 2 * rootLvl('surge'),
 }[n.type] || 99);
@@ -1776,6 +1801,7 @@ function refreshHud() {
 // ---------- save / load ----------
 const KEY = 'sapling-save-v1';
 function save() {
+  if (window.__SAPLING_WIPED) return;
   const prev = localStorage.getItem(KEY);
   if (prev) {
     localStorage.setItem(KEY + '-bak', prev);
@@ -1862,7 +1888,7 @@ document.addEventListener('pointerdown', e => {
 volSlider.value = AU.vol;
 volSlider.addEventListener('input', () => { setVol(parseFloat(volSlider.value)); sfx('plink'); });
 // ---------- the grove: prestige overlay ----------
-const RING_K = 1500;            // bigger = rings rarer (tunable)
+const RING_K = 6000;            // bigger = rings rarer (tunable)
 const grove = document.getElementById('grove');
 function treeValue() {
   let life = 0;
@@ -1885,19 +1911,38 @@ function renderGrove() {
       <button id="cutBtn" ${gain > 0 ? '' : 'disabled'}>Cut it down 🪓</button>
     </div>
     <div class="cutnote">Felling banks the rings and regrows a fresh sapling. Rings and eternal upgrades are kept forever; the old tree is stashed (Restore backup can bring it back).</div>`;
-  document.getElementById('groveups').innerHTML = Object.keys(GROVE).map(k => {
-    const g = GROVE[k], lvl = metaLvl(k), maxed = lvl >= g.max, cost = g.cost(lvl);
-    const afford = META.rings >= cost && !maxed;
-    return `<div class="gcard ${maxed ? 'maxed' : ''}">
-      <div class="gtitle"><span class="gglyph">${g.glyph}</span>${g.name}${g.max > 1 ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>
-      <div class="gdesc">${g.desc}</div>
-      <button class="gbuy" data-up="${k}" ${afford ? '' : 'disabled'}>${maxed ? 'Fully grown' : `${lvl > 0 ? 'Deepen' : 'Unlock'} · ${ringWord(cost)}`}</button>
+  // Grove upgrades are locked until the player has felled at least one tree.
+  if (META.treesCut === 0) {
+    document.getElementById('groveups').innerHTML = `<div class="gcard" style="grid-column:1/-1;text-align:center;opacity:.7">
+      <div class="gdesc">Eternal upgrades unlock after your first cut. Grow the sapling and fell it to begin the skill tree.</div>
     </div>`;
-  }).join('');
+  } else {
+    // Group nodes by tier; only show nodes whose parent is purchased (or that have no parent).
+    const tiers = {};
+    for (const k of Object.keys(GROVE)) {
+      if (!groveAvailable(k)) continue;
+      const t = GROVE[k].tier || 1;
+      (tiers[t] = tiers[t] || []).push(k);
+    }
+    const tierKeys = Object.keys(tiers).map(Number).sort((a,b) => a-b);
+    document.getElementById('groveups').innerHTML = tierKeys.map(t => `
+      <div class="gtier" style="grid-column:1/-1;font-size:11px;color:#7d8c7e;text-transform:uppercase;letter-spacing:.08em;margin-top:${t===tierKeys[0]?0:6}px">Tier ${t}</div>
+      ${tiers[t].map(k => {
+        const g = GROVE[k], lvl = metaLvl(k), maxed = lvl >= g.max, cost = g.cost(lvl);
+        const afford = META.rings >= cost && !maxed;
+        return `<div class="gcard ${maxed ? 'maxed' : ''}">
+          <div class="gtitle"><span class="gglyph">${g.glyph}</span>${g.name}${g.max > 1 ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>
+          <div class="gdesc">${g.desc}</div>
+          <button class="gbuy" data-up="${k}" ${afford ? '' : 'disabled'}>${maxed ? (g.unlocks ? 'Unlocked ✓' : 'Fully grown') : `${lvl > 0 ? 'Deepen' : 'Unlock'} · ${ringWord(cost)}`}</button>
+        </div>`;
+      }).join('')}
+    `).join('');
+  }
   document.getElementById('grovespecies').innerHTML = Object.keys(SPECIES).map(k => {
-    const s = SPECIES[k], sel = META.species === k;
-    return `<div class="scard ${sel ? 'sel' : ''}" data-sp="${k}">
+    const s = SPECIES[k], sel = META.species === k, unlocked = speciesUnlocked(k);
+    return `<div class="scard ${sel ? 'sel' : ''} ${unlocked ? '' : 'locked'}" data-sp="${k}" style="${unlocked ? '' : 'opacity:.45;cursor:not-allowed'}">
       ${sel ? '<div class="sbadge">growing</div>' : ''}
+      ${unlocked ? '' : '<div class="sbadge" style="background:#3a2820;color:#dba79e">🔒 locked</div>'}
       <div class="sglyph">${s.glyph}</div>
       <div class="sname">${s.name}</div>
       <div class="sperk">＋ ${s.perk}</div>
@@ -1939,7 +1984,7 @@ grove.addEventListener('click', e => {
   const sp = e.target.closest('.scard[data-sp]');
   if (sp) {
     const k = sp.dataset.sp;
-    if (SPECIES[k] && META.species !== k) {
+    if (SPECIES[k] && META.species !== k && speciesUnlocked(k)) {
       META.species = k; saveMeta();
       sfx('buy'); replantIfPristine(); renderGrove();
     }
@@ -1949,6 +1994,17 @@ grove.addEventListener('click', e => {
   if (e.target.id === 'groveClose' || e.target.id === 'plantBtn') { closeGrove(); return; }
 });
 document.getElementById('reset').addEventListener('click', openGrove);
+document.getElementById('hardreset').addEventListener('click', () => {
+  if (!confirm('Hard reset: erase your tree, all rings, every upgrade, and every backup. There is no undo. Continue?')) return;
+  if (!confirm('Really? This will wipe ALL Sapling progress. Type-equivalent of starting over from scratch.')) return;
+  // Block autosave from re-writing in-memory state during the reload.
+  window.__SAPLING_WIPED = true;
+  for (const k of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY]) {
+    localStorage.removeItem(k);
+  }
+  location.reload();
+});
+
 document.getElementById('restore').addEventListener('click', () => {
   const slots = ['-prereset', '-snap', '-bak'].map(s => {
     try { return JSON.parse(localStorage.getItem(KEY + s)); } catch (e) { return null; }
