@@ -67,6 +67,13 @@
   #pestbtn:hover { border-color:#8fc299; color:#cfe3d1; }
   #pestbtn.on { background:#1d2c20; border-color:#8fc299; color:#cfe3d1; }
   #pestbtn.cantafford { opacity:.45; cursor:not-allowed; }
+  #acornbtn { pointer-events:auto; background:none; border:1px solid #5a4a2a; color:#caa64f;
+    border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1;
+    min-width:130px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #acornbtn:hover { border-color:#d9b864; color:#f0d9a0; background:#1d1a10; }
+  #acornbtn.ripe { background:#2a200f; border-color:#d9b864; color:#f0d9a0; }
+  @keyframes acornpulse { 0%,100% { box-shadow:0 0 0 0 rgba(240,217,160,0); } 50% { box-shadow:0 0 0 6px rgba(240,217,160,.18); } }
+  #acornbtn.ripe { animation: acornpulse 1.6s ease-in-out infinite; }
   #achievements { position:fixed; top:52px; right:16px; width:280px; max-height:60vh; overflow-y:auto;
     display:none; background:rgba(16,24,18,.96); border:1px solid #3a3a2e; border-radius:12px; padding:14px;
     backdrop-filter:blur(6px); z-index:55; }
@@ -102,7 +109,9 @@
   .savehint { color:#7d8c7e; font-size:10.5px; line-height:1.3; margin-top:5px; }
   #hint { position:fixed; top:58px; left:50%; transform:translateX(-50%); max-width:520px; text-align:center;
     background:rgba(20,30,22,.88); border:1px solid #34453634; border-radius:10px; padding:8px 16px;
-    font-size:13px; color:#cfdcc9; pointer-events:none; transition:opacity .4s; }
+    font-size:13px; color:#cfdcc9; pointer-events:auto; cursor:pointer; transition:opacity .4s; user-select:none; }
+  #hint:hover { background:rgba(28,40,30,.94); border-color:#4a5f4d34; }
+  #hint:active { transform:translateX(-50%) scale(0.98); }
   #hint:empty { opacity:0; }
   #toast { position:fixed; top:110px; left:50%; transform:translateX(-50%); background:rgba(40,32,14,.92);
     border:1px solid #6a5526; border-radius:10px; padding:10px 18px; font-size:13px; color:#f0d9a0;
@@ -158,6 +167,41 @@
     .introbox h2 { font-size:20px; }
     .introlede, .introlist li { font-size:12.5px; }
   }
+  /* ---- Pantheon: tree-gods minigame ---- */
+  #pantheon { position:fixed; inset:0; display:none; z-index:55; background:rgba(8,6,16,.82);
+    backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:24px 16px; }
+  #pantheon.open { display:block; }
+  .panbox { max-width:760px; margin:0 auto; background:rgba(20,14,34,.97);
+    border:1px solid #3a2d56; border-radius:18px; padding:22px 24px 26px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .panhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .panhead h2 { margin:0; font-size:22px; color:#dec4ff; letter-spacing:.04em; }
+  #panClose { background:none; border:1px solid #3a2d56; color:#a995cc; border-radius:8px;
+    width:32px; height:32px; font-size:18px; cursor:pointer; line-height:1; }
+  #panClose:hover { border-color:#a374df; color:#f0d9ff; }
+  .pansub { color:#a995cc; font-size:13px; line-height:1.5; margin:8px 0 18px; }
+  .panslots { display:flex; gap:12px; justify-content:center; margin-bottom:22px; }
+  .panslot { width:120px; height:140px; border:2px dashed #3a2d56; border-radius:14px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    background:rgba(20,14,30,.6); position:relative; cursor:pointer; transition:border-color .15s; }
+  .panslot:hover { border-color:#a374df; }
+  .panslot.filled { border-style:solid; border-color:#a374df; background:rgba(50,34,90,.6); }
+  .panslot .pg { font-size:36px; line-height:1; }
+  .panslot .pn { font-size:12px; color:#dec4ff; font-weight:600; letter-spacing:.04em; }
+  .panslot .pe { font-size:10px; color:#7d8c7e; }
+  .pangrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+  .godcard { background:rgba(24,18,40,.7); border:1px solid #3a2d56; border-radius:12px; padding:12px 14px;
+    display:flex; flex-direction:column; gap:6px; }
+  .godcard.unlocked { border-color:#a374df; }
+  .godcard.slotted { background:rgba(58,40,98,.75); }
+  .godhead { display:flex; align-items:center; gap:10px; }
+  .godhead .gh { font-size:26px; }
+  .godhead .gn { font-size:15px; font-weight:700; color:#f0d9ff; }
+  .godperk { font-size:11.5px; color:#a5e9b8; }
+  .godbane { font-size:11.5px; color:#df9090; }
+  .godbtn { margin-top:6px; background:#2a1f48; border:1px solid #4a3580; color:#dec4ff;
+    border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .godbtn:hover:not(:disabled) { background:#3a2d68; border-color:#a374df; }
+  .godbtn:disabled { opacity:.45; cursor:not-allowed; }
   /* ---- The Grove: prestige overlay ---- */
   #grove { position:fixed; inset:0; display:none; z-index:50; background:rgba(6,10,7,.82);
     backdrop-filter:blur(4px); overflow-y:auto; overscroll-behavior:contain; padding:24px 16px; }
@@ -196,6 +240,9 @@
     padding:7px 9px; font-size:12.5px; cursor:pointer; text-align:center; }
   .gbuy:hover:not(:disabled) { border-color:#6f9a75; background:#243827; }
   .gbuy:disabled { opacity:.4; cursor:default; }
+  .gbuyrow { display:flex; gap:4px; }
+  .gbuyrow .gbuy { flex:1 1 0; min-width:0; padding:6px 4px 7px; font-size:11.5px; line-height:1.15; }
+  .gbuyrow .gbuy small { display:block; font-size:9.5px; opacity:.78; margin-top:1px; letter-spacing:.02em; }
   .speciesgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
   .scard { border:1px solid #2e3f31; background:rgba(20,30,22,.6); border-radius:12px; padding:12px;
     cursor:pointer; position:relative; transition:border-color .14s ease, transform .14s ease, background .14s ease; }
@@ -246,6 +293,41 @@
     .gbuy { padding:10px 9px; }
     .speciesgrid { grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px; }
     .scard { padding:11px; }
+    /* Pantheon */
+    .panbox { padding:18px 14px 20px; border-radius:14px; }
+    .panhead h2 { font-size:19px; }
+    .pansub { font-size:12.5px; }
+    .panslots { gap:8px; flex-wrap:wrap; }
+    .panslot { width:31%; min-width:0; height:118px; }
+    .panslot .pg { font-size:30px; }
+    .pangrid { grid-template-columns:1fr; }
+    .godcard { padding:11px 12px; }
+    /* Achievements list narrows */
+    #achievements { right:max(6px, env(safe-area-inset-right)); width:min(280px, calc(100vw - 18px)); max-height:70vh; }
+    /* Cheat input + save code wider tap area */
+    #cheatcode { padding:10px 9px; font-size:13px; }
+    #savecode { font-size:11px; }
+    .saverow button { padding:10px 8px; font-size:13px; }
+    /* Bulk-buy buttons need extra space for the small text */
+    .gbuyrow { gap:3px; }
+    .gbuyrow .gbuy { padding:9px 4px; font-size:12px; }
+    .gbuyrow .gbuy small { font-size:9.5px; }
+    /* Top-bar buttons stay tappable */
+    #pestbtn, #acornbtn, #trophy, #reset, #gear { padding:8px 10px; min-height:36px; }
+    #pestbtn { min-width:140px; }
+    #acornbtn { min-width:110px; }
+  }
+  @media (max-width: 420px) {
+    /* Topbar wraps so cards plus action buttons all fit on tiny screens */
+    #topbar { flex-wrap:wrap; row-gap:6px; }
+    #topbar .statcard { flex:1 1 30%; }
+    #pestbtn, #acornbtn, #trophy, #reset, #gear, #bloombadge { flex:0 0 auto; }
+    /* Pantheon slots stack vertically when even three across is too tight */
+    .panslots { justify-content:flex-start; }
+    .panslot { width:48%; height:106px; }
+    /* Bulk-buy stacks vertically below ~360px width */
+    .gbuyrow { flex-wrap:wrap; }
+    .gbuyrow .gbuy { flex:1 1 30%; min-width:0; }
   }
   /* on touch devices, drop sticky hover lifts that linger after a tap */
   @media (hover: none) {
@@ -294,6 +376,7 @@
   <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
+  <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="gear" aria-label="Settings">⚙</button>
 </div>
@@ -317,6 +400,14 @@
 <div id="hint"></div>
 <div id="toast"></div>
 <div id="panel"></div>
+<div id="pantheon" role="dialog" aria-labelledby="panTitle">
+  <div class="panbox">
+    <div class="panhead"><h2 id="panTitle">🏛️ The Pantheon</h2><button id="panClose">✕</button></div>
+    <p class="pansub">Slot a tree-god into each pedestal. Their blessings and banes apply globally, every tree, until removed.</p>
+    <div class="panslots" id="panSlots"></div>
+    <div id="panGods" class="pangrid"></div>
+  </div>
+</div>
 <div id="grove">
   <div class="grovebox">
     <div class="grovehead">
@@ -403,6 +494,7 @@ const GROVE = {
   pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
   // Extra mid-tier — fill out the tree
   crescent:  { name:'Crescent',        glyph:'🌙', tier:3, parent:'nest',       max:4, cost:l=>3+l*2, desc:'New trees start with +25 amber per level' },
+  squirrelry:{ name:'Squirrelry',      glyph:'🐿️', tier:3, parent:'nest',       max:5, cost:l=>4+l*2, desc:'Acorns ripen 10% faster per level' },
   bountiful: { name:'Bountiful',       glyph:'🌾', tier:3, parent:'vitality',   max:5, cost:l=>3+l*2, desc:'+10% resin yield per level' },
   // Tier 5 — endgame mythics, deliberately pricey
   worldtree: { name:'Worldtree',       glyph:'🌳', tier:5, parent:'ascendance', max:3, cost:l=>200+l*150, desc:'+50% to all leaf production per level' },
@@ -411,6 +503,7 @@ const GROVE = {
   polishMastery: { name:'Polish Mastery', glyph:'🪞', tier:5, parent:'empyrean', max:3, cost:l=>200+l*120, desc:'Each polish stack is ×2 effective per level (stacks multiplicatively)' },
   symbiosis: { name:'Symbiosis',       glyph:'🤝', tier:5, parent:'pesticide',  max:1, cost:_=>400,        desc:'Pesticide no longer costs −15% production' },
   godseed:   { name:'Godseed',         glyph:'🌟', tier:5, parent:'worldtree',  max:1, cost:_=>1000,       desc:'Resin and capacitor flow both ×3' },
+  canopycharm:{ name:'Canopy Charm',   glyph:'🍂', tier:5, parent:'worldtree',  max:3, cost:l=>150+l*100, desc:'Acorns ripen 20% faster per level, +1 max ripe slot per level' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -430,13 +523,77 @@ const groveAvailable = k => {
 };
 let META;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [null, null, null], pantheonOpened: false });
+// ---------- acorns + pantheon ----------
+const ACORN_INTERVAL_MS = 60 * 60 * 1000;  // 60 real-world minutes per acorn (active play); offline counts at 10% rate
+const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
+const acornInterval = () => ACORN_INTERVAL_MS * Math.pow(0.9, metaLvl('squirrelry')) * Math.pow(0.8, metaLvl('canopycharm'));
+const acornRipeCap  = () => ACORN_RIPE_CAP + metaLvl('canopycharm');
+const PANTHEON_SLOTS    = 3;
+const PANTHEON_OPEN_COST = 3;              // acorns to first unlock the panel
+const PANTHEON = {
+  helios:  { name:'Helios',  glyph:'☀️', cost:2,
+    perk:'+60% leaf production', bane:'Gold leaves ripen 50% slower',
+    leafMult:1.60, goldDelayMult:1.50 },
+  selene:  { name:'Selene',  glyph:'🌙', cost:2,
+    perk:'Gold leaves pay ×2 sap', bane:'Leaf production −15%',
+    leafMult:0.85, goldPayoutMult:2.00 },
+  boreas:  { name:'Boreas',  glyph:'🌬️', cost:2,
+    perk:'Amplifier multiplier ×1.5', bane:'Branch capacity −25%',
+    ampMult:1.50, edgeMult:0.75 },
+  demeter: { name:'Demeter', glyph:'🌾', cost:2,
+    perk:'Refineries yield +75%', bane:'Capacitor storage −30%',
+    refMult:1.75, capStorageMult:0.70 },
+  atlas:   { name:'Atlas',   glyph:'🪨', cost:2,
+    perk:'Branch capacity ×1.5', bane:'Amplifier multiplier −15%',
+    edgeMult:1.50, ampMult:0.85 },
+  charon:  { name:'Charon',  glyph:'⚰️', cost:3,
+    perk:'Pruning gives ×2 amber', bane:'Sap production −15%',
+    amberMult:2.00, leafMult:0.85 },
+};
+const activeGods = () => (META && META.pantheonSlots ? META.pantheonSlots : []).filter(k => k && PANTHEON[k]);
+const godProductOf = key => activeGods().reduce((m, g) => m * (PANTHEON[g][key] || 1), 1);
+const pantheonLeafMult     = () => godProductOf('leafMult');
+const pantheonAmpMult      = () => godProductOf('ampMult');
+const pantheonRefMult      = () => godProductOf('refMult');
+const pantheonCapStorMult  = () => godProductOf('capStorageMult');
+const pantheonEdgeMult     = () => godProductOf('edgeMult');
+const pantheonGoldDelay    = () => godProductOf('goldDelayMult');
+const pantheonGoldPayout   = () => godProductOf('goldPayoutMult');
+const pantheonAmberMult    = () => godProductOf('amberMult');
+const ACORN_UNLOCK_SAP = 1_000_000;
+const acornsRipe   = () => (META && META.canopy && META.canopy.ripe) || 0;
+const acornsBanked = () => (META && META.acorns) || 0;
+// Acorns stay locked until 1M lifetime sap has been produced. Once you have any
+// acorns banked or ripe (across a save migration or restored backup), they stay
+// unlocked — the threshold is a one-time gate.
+const acornsUnlocked = () => (META && (META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP) || acornsBanked() > 0 || acornsRipe() > 0;
+function tickAcorns(ms) {
+  if (!META || !META.canopy) return;
+  META.canopy.growMs -= ms;
+  const cap = acornRipeCap(), interval = acornInterval();
+  while (META.canopy.growMs <= 0 && META.canopy.ripe < cap) {
+    META.canopy.ripe++;
+    META.canopy.growMs += interval;
+  }
+  if (META.canopy.ripe >= cap) META.canopy.growMs = interval;
+}
+
 function loadMeta() {
   try { META = JSON.parse(localStorage.getItem(MKEY)); } catch (e) { META = null; }
   if (!META || typeof META !== 'object') META = newMeta();
   META.up = META.up || {};
   META.achievements = META.achievements || {};
   if (typeof META.hacks !== 'boolean') META.hacks = false;
+  if (typeof META.acorns !== 'number') META.acorns = 0;
+  if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
+  if (!META.canopy || typeof META.canopy !== 'object') META.canopy = { ripe: 0, growMs: ACORN_INTERVAL_MS };
+  if (typeof META.canopy.growMs !== 'number') META.canopy.growMs = ACORN_INTERVAL_MS;
+  if (typeof META.canopy.ripe !== 'number') META.canopy.ripe = 0;
+  if (!META.godsUnlocked) META.godsUnlocked = {};
+  if (!Array.isArray(META.pantheonSlots)) META.pantheonSlots = [null, null, null];
+  while (META.pantheonSlots.length < PANTHEON_SLOTS) META.pantheonSlots.push(null);
+  if (typeof META.pantheonOpened !== 'boolean') META.pantheonOpened = false;
   if (typeof META.rings !== 'number') META.rings = 0;
   if (typeof META.treesCut !== 'number') META.treesCut = 0;
   if (typeof META.totalRings !== 'number') META.totalRings = META.rings || 0;
@@ -499,6 +656,10 @@ const ACHIEVEMENTS = {
   polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
   // Offline
   offline:    { name:'Welcome Back',     glyph:'😴', desc:'Earned sap while away from the game.' },
+  acornBank:  { name:'Squirrel',         glyph:'🌰', desc:'Bank your first ripe acorn.' },
+  pantheonOpen: { name:'Pantheon Stirs', glyph:'🏛️', desc:'Wake the Pantheon by banking enough acorns.' },
+  godSlotted: { name:'Devotee',          glyph:'🙏', desc:'Slot a tree-god into a pedestal.' },
+  founders:   { name:'Founders',         glyph:'🌳', desc:'Summon every founder.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -552,12 +713,12 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult();
-const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray'));
-const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n);
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult();
+const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay();
+const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
-const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n);
+const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n) * pantheonCapStorMult();
 const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult() * (metaLvl('godseed') > 0 ? 3 : 1);
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
 const POLISH_PCT  = 0.06;
@@ -566,7 +727,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(20 * Math.pow(1.8, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult();
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult();
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -704,7 +865,7 @@ const branchLife = n => {
 const PRUNE_DAMP_K = 0.015;
 const pruneDamp = parent => 1 / (1 + (parent && parent.amberEarned ? parent.amberEarned : 0) * PRUNE_DAMP_K);
 const pruneGain = n => {
-  const raw = Math.sqrt(branchLife(n) / CFG.pruneK) * shearsMult() * SP().ring;
+  const raw = Math.sqrt(branchLife(n) / CFG.pruneK) * shearsMult() * SP().ring * pantheonAmberMult();
   const parent = n.parent != null ? N(n.parent) : null;
   return Math.floor(raw * pruneDamp(parent));
 };
@@ -750,7 +911,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3', pesticideOn: false };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3', pesticideOn: false, dismissedHints: [] };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -827,7 +988,7 @@ function computeFlow(dt) {
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12);
           n.giftBig = Math.random() < 0.06;
           if (n.giftBig) n.giftLife *= 1.6;
-          n.giftGain = Math.max(6, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.03 + leafRate(n) * 5) * SP().gold));
+          n.giftGain = Math.max(6, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.03 + leafRate(n) * 5) * SP().gold * pantheonGoldPayout()));
           n.giftA = jitter(n.id) * TAU;
         }
       }
@@ -835,7 +996,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * (1 + 0.10 * metaLvl('bountiful')) * (metaLvl('godseed') > 0 ? 3 : 1); s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * (1 + 0.10 * metaLvl('bountiful')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -2122,6 +2283,14 @@ const elSap = document.getElementById('sap'), elSapRate = document.getElementByI
       elAmber = document.getElementById('amber'), elAmberRate = document.getElementById('amberrate'),
       elAmberDetail = document.getElementById('amberdetail'),
       elHint = document.getElementById('hint');
+elHint?.addEventListener('click', () => {
+  const cur = elHint.textContent;
+  if (!cur) return;
+  S.dismissedHints = S.dismissedHints || [];
+  if (!S.dismissedHints.includes(cur)) S.dismissedHints.push(cur);
+  elHint.textContent = '';
+  save();
+});
 function hintText() {
   const total = S.counts.leaf + S.counts.amp + S.counts.ref + S.counts.cap;
   // Urgent: a ripe gold leaf is time-limited, surface it ahead of progression hints.
@@ -2165,6 +2334,14 @@ function hintText() {
   if (S.counts.leaf + S.counts.amp >= 4 && !S.ms.locked) return 'Tap the 🔓 lock on any node\'s panel to protect it from accidental upgrades or pruning.';
   // first cut nudge
   if (META && META.treesCut === 0 && S.maxLife >= 4000) return '🪓 The tree is sizable. Tap the Cut button to fell it for rings and unlock eternal upgrades.';
+  // Acorn unlock progress — surfaced once you have most of the way there.
+  if (!acornsUnlocked()) {
+    const sapNow = (META && META.lifetimeSap) || 0;
+    if (sapNow >= ACORN_UNLOCK_SAP * 0.5) {
+      const left = Math.max(0, ACORN_UNLOCK_SAP - sapNow);
+      return `🌰 The canopy stirs — produce ${fmt(left)} more sap to bloom your first acorn.`;
+    }
+  }
   return '';
 }
 function refreshHud() {
@@ -2195,6 +2372,7 @@ function refreshHud() {
   elAmberRate.textContent = 'from pruning';
   elAmberDetail.textContent = `Branches remember ${fmt(S.maxLife)} lifetime flow`;
   refreshPesticide();
+  refreshAcorns();
   // Resource / scale milestones — cheap checks, idempotent grants.
   if (S.sap >= 10000) grantAchievement('sap10k');
   if (S.sap >= 1000000) grantAchievement('sap1m');
@@ -2210,7 +2388,11 @@ function refreshHud() {
   if (_totalNodes >= 60) grantAchievement('nodes60');
   if (META.rings >= 100) grantAchievement('rings100');
   if (META.rings >= 1000) grantAchievement('rings1000');
-  elHint.textContent = hintText();
+  {
+    const _h = hintText();
+    const _muted = (S.dismissedHints || []).includes(_h);
+    elHint.textContent = (_h && !_muted) ? _h : '';
+  }
 }
 
 // ---------- save / load ----------
@@ -2231,14 +2413,14 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3', pesticideOn: !!S.pesticideOn,
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3', pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, nodes }));
 }
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3', pesticideOn: !!d.pesticideOn,
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3', pesticideOn: !!d.pesticideOn, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -2282,6 +2464,10 @@ function load() {
     if (S.incomeR * away * offlineRate > 0.05) msg += ` and ${fmt(S.incomeR * away * offlineRate)} resin`;
     toast(msg + '.');
   }
+  // Offline acorn ripening — 10% of the away time counts toward growth.
+  if (away > 30 && acornsUnlocked()) {
+    tickAcorns(away * 1000 * 0.1);
+  }
 }
 let toastTimer = null;
 function toast(msg) {
@@ -2318,6 +2504,38 @@ function replantIfPristine() {
   // while the sapling is untouched, keep re-applying live grove/species choices to it
   if (S && S.pristine) { newGame(); computeFlow(0); buildPanel(); save(); }
 }
+function groveBuyPreview(k, n) {
+  // Returns { count, cost, perLevel: [...] } describing how many would be
+  // bought toward target n, given current rings and the level cap.
+  const g = GROVE[k];
+  let lvl = metaLvl(k), count = 0, cost = 0, ringsLeft = META.rings;
+  const tier = (g && g.tier) || 1;
+  while (count < n && lvl < g.max) {
+    const next = Math.ceil(g.cost(lvl) * Math.pow(1.8, tier - 1));
+    if (ringsLeft < next) break;
+    ringsLeft -= next; cost += next; lvl++; count++;
+  }
+  return { count, cost };
+}
+function buyGrove(k, n) {
+  const g = GROVE[k];
+  let bought = 0;
+  while (bought < n && metaLvl(k) < g.max) {
+    const c = costGrove(k);
+    if (META.rings < c) break;
+    META.rings -= c;
+    META.up[k] = (META.up[k] || 0) + 1;
+    bought++;
+    if (g.tier >= 4) grantAchievement('groveT4');
+  }
+  if (g.unlocks && bought > 0) {
+    const have = Object.keys(SPECIES).filter(speciesUnlocked);
+    if (have.length >= 2) grantAchievement('species2');
+    if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
+  }
+  if (bought > 0) { sfx('buy'); saveMeta(); replantIfPristine(); renderGrove(); }
+  return bought;
+}
 function renderGrove() {
   const ringWord = n => `${n} ring${n === 1 ? '' : 's'}`;
   document.getElementById('ringtotal').textContent = `· ${ringWord(META.rings)} to spend`;
@@ -2351,7 +2569,17 @@ function renderGrove() {
         return `<div class="gcard ${maxed ? 'maxed' : ''}">
           <div class="gtitle"><span class="gglyph">${g.glyph}</span>${g.name}${g.max > 1 ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>
           <div class="gdesc">${g.desc}</div>
-          <button class="gbuy" data-up="${k}" ${afford ? '' : 'disabled'}>${maxed ? (g.unlocks ? 'Unlocked ✓' : 'Fully grown') : `${lvl > 0 ? 'Deepen' : 'Unlock'} · ${ringWord(cost)}`}</button>
+          ${maxed ? `<button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>` : (() => {
+            const p1 = groveBuyPreview(k, 1);
+            const p10 = groveBuyPreview(k, 10);
+            const pMax = groveBuyPreview(k, Infinity);
+            const mk = (label, prev) => {
+              const head = label === '1' ? (lvl > 0 ? 'Deepen' : 'Unlock') : '×' + label;
+              const sub = prev.count > 0 ? `<small>${prev.count} lv · ${ringWord(prev.cost)}</small>` : '<small>—</small>';
+              return `<button class="gbuy" data-up="${k}" data-amt="${label}" ${prev.count > 0 ? '' : 'disabled'}>${head}<br>${sub}</button>`;
+            };
+            return `<div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
+          })()}
         </div>`;
       }).join('')}
     `).join('');
@@ -2429,18 +2657,9 @@ grove.addEventListener('click', e => {
   if (e.target === grove) { closeGrove(); return; }   // click backdrop to dismiss
   const up = e.target.closest('button[data-up]');
   if (up) {
-    const k = up.dataset.up, g = GROVE[k], lvl = metaLvl(k);
-    if (g && lvl < g.max && META.rings >= costGrove(k)) {
-      META.rings -= costGrove(k); META.up[k] = lvl + 1;
-      if (g.tier >= 4) grantAchievement('groveT4');
-      if (g.unlocks) {
-        const have = Object.keys(SPECIES).filter(speciesUnlocked);
-        if (have.length >= 2) grantAchievement('species2');
-        if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
-      }
-      saveMeta();
-      sfx('buy'); replantIfPristine(); renderGrove();
-    }
+    const k = up.dataset.up;
+    const amt = up.dataset.amt === 'max' ? Infinity : (parseInt(up.dataset.amt, 10) || 1);
+    buyGrove(k, amt);
     return;
   }
   const sp = e.target.closest('.scard[data-sp]');
@@ -2506,6 +2725,41 @@ document.getElementById('importSave').addEventListener('click', () => {
 // ---------- cheat codes / easter egg ----------
 const cheat = document.getElementById('cheatcode');
 const sethEl = document.getElementById('sethatubby');
+// Founder codes — one-shot ×3 leaf production for 30s each.
+const FOUNDERS = [
+  { key:'eliya',  glyph:'🌱', color:'#9fd9a8' },
+  { key:'seth',   glyph:'🦊', color:'#e0a060' },
+  { key:'ethan',  glyph:'🐲', color:'#80b8e0' },
+  { key:'ekap',   glyph:'🪶', color:'#cdbf9a' },
+  { key:'adam',   glyph:'🍎', color:'#df8a8a' },
+  { key:'jacob',  glyph:'🪓', color:'#c5a07a' },
+];
+function summonFounder(key) {
+  META.foundersUsed = META.foundersUsed || {};
+  if (META.foundersUsed[key]) {
+    toast(`${key.charAt(0).toUpperCase() + key.slice(1)} already passed through. He waves.`);
+    return;
+  }
+  const f = FOUNDERS.find(x => x.key === key);
+  if (!f) return;
+  META.foundersUsed[key] = true;
+  // Register a per-founder bloom kind so the topbar badge shows their name.
+  const bloomKey = 'founder_' + key;
+  BLOOMS[bloomKey] = BLOOMS[bloomKey] || {
+    name: key.charAt(0).toUpperCase() + key.slice(1),
+    icon: f.glyph, color: f.color, dur: 30, weight: 0,
+    leafMult: () => 3, descOf: () => '×3 leaf production',
+  };
+  S.bloomKind = bloomKey;
+  S.bloomT = Math.max(S.bloomT || 0, 30);
+  toast(`${f.glyph} ${BLOOMS[bloomKey].name} appears! ×3 production for 30s`);
+  sfx('buy');
+  saveMeta();
+  // Check for the full set.
+  if (FOUNDERS.every(x => META.foundersUsed[x.key])) {
+    grantAchievement('founders');
+  }
+}
 function summonSethatubby() {
   // One-shot easter egg — re-entering the code after the first summon does nothing visible.
   if (META.achievements && META.achievements.sethatubby) {
@@ -2552,6 +2806,9 @@ function checkCheat(raw) {
     enableHacks();
     return true;
   }
+  for (const f of FOUNDERS) {
+    if (v === f.key) { summonFounder(f.key); return true; }
+  }
   return false;
 }
 cheat?.addEventListener('keydown', e => {
@@ -2562,6 +2819,130 @@ cheat?.addEventListener('keydown', e => {
 // Also fire as the user types — codes can be matched without pressing Enter once a unique match is hit.
 cheat?.addEventListener('input', () => {
   if (checkCheat(cheat.value)) cheat.value = '';
+});
+
+// ---------- pantheon minigame ----------
+const pantheon = document.getElementById('pantheon');
+function pantheonAvailable() {
+  return META && META.pantheonOpened;
+}
+function renderPantheon() {
+  if (!pantheon) return;
+  const slots = META.pantheonSlots || [];
+  const slotsEl = document.getElementById('panSlots');
+  slotsEl.innerHTML = slots.map((k, i) => {
+    if (!k) return `<div class="panslot" data-slot="${i}"><div class="pg">＋</div><div class="pn">EMPTY</div><div class="pe">click to fill</div></div>`;
+    const g = PANTHEON[k];
+    return `<div class="panslot filled" data-slot="${i}" data-unslot="1"><div class="pg">${g.glyph}</div><div class="pn">${g.name.toUpperCase()}</div><div class="pe">click to remove</div></div>`;
+  }).join('');
+  const godsEl = document.getElementById('panGods');
+  godsEl.innerHTML = Object.keys(PANTHEON).map(k => {
+    const g = PANTHEON[k];
+    const unlocked = !!(META.godsUnlocked || {})[k];
+    const slotted = slots.includes(k);
+    const canAfford = META.acorns >= g.cost;
+    let btn;
+    if (!unlocked) {
+      btn = `<button class="godbtn" data-act="unlock" data-god="${k}" ${canAfford ? '' : 'disabled'}>Unlock · 🌰 ${g.cost}</button>`;
+    } else if (slotted) {
+      btn = `<button class="godbtn" data-act="unslot" data-god="${k}">Remove from pedestal</button>`;
+    } else {
+      const hasOpen = slots.some(x => !x);
+      btn = `<button class="godbtn" data-act="slot" data-god="${k}" ${hasOpen ? '' : 'disabled'}>${hasOpen ? 'Slot' : 'No open slot'}</button>`;
+    }
+    return `<div class="godcard ${unlocked ? 'unlocked' : ''} ${slotted ? 'slotted' : ''}">
+      <div class="godhead"><span class="gh">${unlocked ? g.glyph : '❓'}</span><span class="gn">${unlocked ? g.name : '???'}</span></div>
+      <div class="godperk">＋ ${unlocked ? g.perk : '???'}</div>
+      <div class="godbane">−${unlocked ? ' ' + g.bane : ' ???'}</div>
+      ${btn}
+    </div>`;
+  }).join('');
+}
+function openPantheon() {
+  pantheon.classList.add('open');
+  renderPantheon();
+}
+function closePantheon() { pantheon.classList.remove('open'); }
+pantheon?.addEventListener('click', e => {
+  if (e.target === pantheon || e.target.id === 'panClose') { closePantheon(); return; }
+  const slotEl = e.target.closest('.panslot');
+  if (slotEl) {
+    const i = +slotEl.dataset.slot;
+    if (slotEl.dataset.unslot === '1') {
+      META.pantheonSlots[i] = null; saveMeta(); renderPantheon();
+    }
+    return;
+  }
+  const btn = e.target.closest('button.godbtn');
+  if (!btn) return;
+  const k = btn.dataset.god, act = btn.dataset.act;
+  if (act === 'unlock') {
+    const g = PANTHEON[k];
+    if (META.acorns < g.cost) return;
+    META.acorns -= g.cost;
+    META.godsUnlocked = META.godsUnlocked || {};
+    META.godsUnlocked[k] = true;
+    saveMeta(); renderPantheon();
+    sfx('buy');
+    return;
+  }
+  if (act === 'slot') {
+    const slots = META.pantheonSlots;
+    const idx = slots.findIndex(x => !x);
+    if (idx >= 0) { slots[idx] = k; saveMeta(); renderPantheon(); sfx('plink'); grantAchievement('godSlotted'); }
+    return;
+  }
+  if (act === 'unslot') {
+    const slots = META.pantheonSlots;
+    const idx = slots.findIndex(x => x === k);
+    if (idx >= 0) { slots[idx] = null; saveMeta(); renderPantheon(); }
+    return;
+  }
+});
+
+// ---------- acorn UI: bank ripe via button click, open pantheon on right-click / long-press ----------
+const acornBtn = document.getElementById('acornbtn');
+function refreshAcorns() {
+  if (!acornBtn) return;
+  const ripe = acornsRipe(), bank = acornsBanked();
+  if (!acornsUnlocked() && bank === 0 && !pantheonAvailable()) {
+    acornBtn.style.display = 'none';
+    return;
+  }
+  if (ripe === 0 && bank === 0 && !pantheonAvailable()) {
+    acornBtn.style.display = 'none';
+    return;
+  }
+  acornBtn.style.display = '';
+  acornBtn.classList.toggle('ripe', ripe > 0);
+  acornBtn.textContent = ripe > 0 ? `🌰 ${bank} · +${ripe} ripe!` : `🌰 ${bank}`;
+  acornBtn.title = ripe > 0 ? `Tap to bank ${ripe} ripe acorn${ripe===1?'':'s'} · long-press for Pantheon` :
+    pantheonAvailable() ? `${bank} acorn${bank===1?'':'s'} banked · long-press / right-click for Pantheon` :
+    `${bank} acorn${bank===1?'':'s'} banked · bank ${PANTHEON_OPEN_COST} to unlock the Pantheon`;
+}
+acornBtn?.addEventListener('click', () => {
+  // First click banks ripe; if none ripe and Pantheon unlocked, open it; otherwise prompt to unlock.
+  if (acornsRipe() > 0) {
+    META.acorns = (META.acorns || 0) + META.canopy.ripe;
+    META.canopy.ripe = 0;
+    grantAchievement('acornBank');
+    toast(`🌰 Banked ${META.canopy ? '' : ''}acorns — ${META.acorns} total`);
+    saveMeta();
+    refreshAcorns();
+    if (!META.pantheonOpened && META.acorns >= PANTHEON_OPEN_COST) {
+      META.pantheonOpened = true; saveMeta();
+      grantAchievement('pantheonOpen');
+      toast('🏛️ The Pantheon stirs awake — long-press the acorn to open it.');
+    }
+    return;
+  }
+  if (META.pantheonOpened) openPantheon();
+  else toast(`Bank ${PANTHEON_OPEN_COST} acorns to wake the Pantheon (${acornsBanked()}/${PANTHEON_OPEN_COST}).`);
+});
+// Right-click acornbtn always opens pantheon (once unlocked)
+acornBtn?.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (META.pantheonOpened) openPantheon();
 });
 
 // ---------- pesticide toggle ----------
@@ -2593,8 +2974,19 @@ pestBtn?.addEventListener('click', () => {
     if (S.sap < cost) { toast(`Need ${fmt(cost)} sap to spray pesticide.`); return; }
     S.sap -= cost;
     S.pesticideOn = true;
+    // Sweep every bug currently sitting on the tree — they flee immediately.
+    let routed = 0;
+    for (const c of critters) {
+      if (c.state !== 'leaving') {
+        c.state = 'leaving';
+        c.leaveX = c.x + (Math.random() - 0.5) * 240;
+        c.leaveY = c.y - 200 - Math.random() * 100;
+        c.jolt = 1;
+        routed++;
+      }
+    }
     grantAchievement('pesticide');
-    toast(`🧴 Pesticide armed — ${fmt(cost)} sap spent`);
+    toast(`🧴 Pesticide armed — ${fmt(cost)} sap spent${routed ? `, ${routed} critter${routed === 1 ? '' : 's'} routed` : ''}`);
     sfx('plink');
   }
   refreshPesticide();
@@ -2676,7 +3068,13 @@ function frame(now) {
     computeFlow(dt);
     S.sap += S.incomeS * dt;
     S.resin += S.incomeR * dt;
+    // Lifetime sap drives the acorn unlock — accumulate raw income, never the
+    // hacker-mode refill below.
+    if (S.incomeS > 0) META.lifetimeSap = (META.lifetimeSap || 0) + S.incomeS * dt;
     if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
+    // Acorn ripening — driven by active-play wall-clock; offline time is
+    // handled separately in load() at a 10% rate.
+    if (META && META.canopy && acornsUnlocked()) tickAcorns(dt * 1000);
     // Hacker mode: refill pools every frame so purchases never drain them.
     if (META && META.hacks) {
       if (S.sap < 1e14) S.sap = 1e15;
