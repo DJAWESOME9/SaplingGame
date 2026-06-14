@@ -69,7 +69,7 @@
   #pestbtn.cantafford { opacity:.45; cursor:not-allowed; }
   #acornbtn { pointer-events:auto; background:none; border:1px solid #5a4a2a; color:#caa64f;
     border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1;
-    min-width:130px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    min-width:168px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
   #acornbtn:hover { border-color:#d9b864; color:#f0d9a0; background:#1d1a10; }
   #acornbtn.ripe { background:#2a200f; border-color:#d9b864; color:#f0d9a0; }
   @keyframes acornpulse { 0%,100% { box-shadow:0 0 0 0 rgba(240,217,160,0); } 50% { box-shadow:0 0 0 6px rgba(240,217,160,.18); } }
@@ -315,7 +315,7 @@
     /* Top-bar buttons stay tappable */
     #pestbtn, #acornbtn, #trophy, #reset, #gear { padding:8px 10px; min-height:36px; }
     #pestbtn { min-width:140px; }
-    #acornbtn { min-width:110px; }
+    #acornbtn { min-width:148px; font-size:12px; }
   }
   @media (max-width: 420px) {
     /* Topbar wraps so cards plus action buttons all fit on tiny screens */
@@ -578,6 +578,23 @@ function tickAcorns(ms) {
   }
   if (META.canopy.ripe >= cap) META.canopy.growMs = interval;
 }
+function fmtAcornTimer(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  if (s >= 3600) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+  if (s >= 60) {
+    const m = Math.floor(s / 60), r = s % 60;
+    return r ? `${m}m ${r}s` : `${m}m`;
+  }
+  return `${s}s`;
+}
+function acornTimerLabel() {
+  if (!META || !META.canopy) return '';
+  if (META.canopy.ripe >= acornRipeCap()) return 'full';
+  return fmtAcornTimer(META.canopy.growMs);
+}
 
 function loadMeta() {
   try { META = JSON.parse(localStorage.getItem(MKEY)); } catch (e) { META = null; }
@@ -694,10 +711,25 @@ function pickBloom() {
   for (const k of keys) { r -= BLOOMS[k].weight; if (r <= 0) return k; }
   return keys[0];
 }
-const activeBloom    = () => (S.bloomT > 0 && BLOOMS[S.bloomKind]) ? BLOOMS[S.bloomKind] : null;
-const bloomLeafMult  = () => { const b = activeBloom(); return b && b.leafMult ? b.leafMult() : 1; };
-const bloomRefMult   = () => { const b = activeBloom(); return b && b.refMult ? b.refMult() : 1; };
-const bloomCapMult   = () => { const b = activeBloom(); return b && b.capMult ? b.capMult() : 1; };
+const activeBlooms = () => (S.blooms || []).filter(x => x.t > 0 && BLOOMS[x.kind]);
+function applyBloom(kind, dur) {
+  const b = BLOOMS[kind];
+  if (!b) return;
+  S.blooms = S.blooms || [];
+  const d = dur != null ? dur : b.dur;
+  const existing = S.blooms.find(x => x.kind === kind);
+  if (existing) existing.t = Math.max(existing.t, d);
+  else S.blooms.push({ kind, t: d });
+}
+function tickBlooms(dt) {
+  if (!S.blooms || !S.blooms.length) return;
+  for (const x of S.blooms) x.t = Math.max(0, x.t - dt);
+  S.blooms = S.blooms.filter(x => x.t > 0);
+}
+const bloomProductOf = fn => activeBlooms().reduce((m, x) => m * (BLOOMS[x.kind][fn] ? BLOOMS[x.kind][fn]() : 1), 1);
+const bloomLeafMult  = () => bloomProductOf('leafMult');
+const bloomRefMult   = () => bloomProductOf('refMult');
+const bloomCapMult   = () => bloomProductOf('capMult');
 // Pesticide: toggle that blocks critters at a constant production penalty.
 const pesticideOwned = () => metaLvl('pesticide') > 0;
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
@@ -912,7 +944,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3', pesticideOn: false, dismissedHints: [] };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, blooms: [], pesticideOn: false, dismissedHints: [] };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1098,9 +1130,7 @@ function harvestLeaf(id) {
     const kind = pickBloom();
     const b = BLOOMS[kind];
     grantAchievement(({bloom3:null, surge5:'bloomSurge', resonance:'bloomReso', verdure:'bloomVerd', refinement:'bloomRefn', overcharge:'bloomOver'})[kind]);
-    // If a different bloom is already active, the bigger duration wins and we keep the new kind.
-    S.bloomKind = kind;
-    S.bloomT = Math.max(S.bloomT || 0, b.dur);
+    applyBloom(kind);
     toast(`${b.icon} ${b.name}! ${b.descOf()} for ${b.dur}s`);
     spawnBurst(n.x, n.y, b.color, 26, 170, 1.15);
     spawnFloaty(n.x, n.y, `+${gain} sap · ${b.icon} ${b.name}`, b.color);
@@ -2354,12 +2384,20 @@ function refreshHud() {
   }
   const bb = document.getElementById('bloombadge');
   if (bb) {
-    if (S.bloomT > 0) {
-      const b = activeBloom() || BLOOMS.bloom3;
+    const blooms = activeBlooms();
+    if (blooms.length) {
+      const minT = Math.ceil(Math.min(...blooms.map(x => x.t)));
       bb.style.display = '';
-      bb.textContent = `${b.icon} ${b.name} · ${Math.ceil(S.bloomT)}s`;
-      bb.style.borderColor = b.color;
-      bb.style.color = b.color;
+      bb.textContent = blooms.length === 1
+        ? `${BLOOMS[blooms[0].kind].icon} ${BLOOMS[blooms[0].kind].name} · ${minT}s`
+        : `${blooms.map(x => BLOOMS[x.kind].icon).join('')} · ${minT}s`;
+      bb.title = blooms.map(x => {
+        const b = BLOOMS[x.kind];
+        return `${b.icon} ${b.name} · ${Math.ceil(x.t)}s · ${b.descOf()}`;
+      }).join('\n');
+      const lead = BLOOMS[blooms[0].kind];
+      bb.style.borderColor = lead.color;
+      bb.style.color = lead.color;
     } else if (bb.style.display !== 'none') { bb.style.display = 'none'; }
   }
   elSap.textContent = fmt(S.sap) + ' sap';
@@ -2414,14 +2452,17 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3', pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, nodes }));
 }
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3', pesticideOn: !!d.pesticideOn, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, blooms: Array.isArray(d.blooms)
+    ? d.blooms.filter(x => x && BLOOMS[x.kind]).map(x => ({ kind: x.kind, t: x.t || 0 }))
+    : (d.bloomT > 0 ? [{ kind: d.bloomKind || 'bloom3', t: d.bloomT }] : []),
+    pesticideOn: !!d.pesticideOn, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -2751,8 +2792,7 @@ function summonFounder(key) {
     icon: f.glyph, color: f.color, dur: 30, weight: 0,
     leafMult: () => 3, descOf: () => '×3 leaf production',
   };
-  S.bloomKind = bloomKey;
-  S.bloomT = Math.max(S.bloomT || 0, 30);
+  applyBloom(bloomKey, 30);
   toast(`${f.glyph} ${BLOOMS[bloomKey].name} appears! ×3 production for 30s`);
   sfx('buy');
   saveMeta();
@@ -2769,8 +2809,7 @@ function summonSethatubby() {
   }
   // Custom bloom: x5 leaf for 30s, kind 'sethatubby' (kept registered for the badge).
   BLOOMS.sethatubby = BLOOMS.sethatubby || { name:'Sethatubby', icon:'🟣', color:'#a374df', dur:30, weight:0, leafMult:()=>5, descOf:()=>'×5 leaf production (Sethatubby!)' };
-  S.bloomKind = 'sethatubby';
-  S.bloomT = Math.max(S.bloomT || 0, 30);
+  applyBloom('sethatubby', 30);
   grantAchievement('sethatubby');
   toast('🟣 Sethatubby appears! ×5 production for 30s');
   sfx('buy');
@@ -2912,10 +2951,18 @@ function refreshAcorns() {
   }
   acornBtn.style.display = '';
   acornBtn.classList.toggle('ripe', ripe > 0);
-  acornBtn.textContent = ripe > 0 ? `🌰 ${bank} · +${ripe} ripe!` : `🌰 ${bank}`;
-  acornBtn.title = ripe > 0 ? `Tap to bank ${ripe} ripe acorn${ripe===1?'':'s'} · long-press for Pantheon` :
-    pantheonAvailable() ? `${bank} acorn${bank===1?'':'s'} banked · long-press / right-click for Pantheon` :
-    `${bank} acorn${bank===1?'':'s'} banked · bank ${PANTHEON_OPEN_COST} to unlock the Pantheon`;
+  const timer = acornTimerLabel();
+  let label = `🌰 ${bank}`;
+  if (ripe > 0) label += ` · +${ripe}`;
+  if (timer) label += timer === 'full' ? ' · full' : ` · ${timer}`;
+  acornBtn.textContent = label;
+  const timerHint = timer === 'full' ? 'Canopy full — bank ripe acorns to ripen more' :
+    timer ? `Next acorn in ${timer}` : '';
+  const bankHint = ripe > 0 ? `Tap to bank ${ripe} ripe acorn${ripe === 1 ? '' : 's'}` :
+    `${bank} acorn${bank === 1 ? '' : 's'} banked`;
+  const panHint = pantheonAvailable() ? ' · long-press / right-click for Pantheon' :
+    ` · bank ${PANTHEON_OPEN_COST} to unlock the Pantheon`;
+  acornBtn.title = [bankHint, timerHint, panHint].filter(Boolean).join(' · ');
 }
 let acornPressT = null, acornLongPress = false;
 function clearAcornPress() { if (acornPressT) { clearTimeout(acornPressT); acornPressT = null; } }
@@ -3089,7 +3136,7 @@ function frame(now) {
     // Lifetime sap drives the acorn unlock — accumulate raw income, never the
     // hacker-mode refill below.
     if (S.incomeS > 0) META.lifetimeSap = (META.lifetimeSap || 0) + S.incomeS * dt;
-    if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
+    tickBlooms(dt);
     // Acorn ripening — driven by active-play wall-clock; offline time is
     // handled separately in load() at a 10% rate.
     if (META && META.canopy && acornsUnlocked()) tickAcorns(dt * 1000);
