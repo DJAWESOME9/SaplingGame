@@ -424,12 +424,60 @@ function loadMeta() {
 function saveMeta() { if (window.__SAPLING_WIPED) return; try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} }
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
+  // Discovery
   hacker:     { name:'Hacker',           glyph:'💻', desc:'Discovered the dev cheat code.' },
   sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', desc:'Summoned the purple one.' },
-  firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
+  // Early-game milestones
+  firstLeaf:  { name:'Sprout',           glyph:'🌱', desc:'Grew your very first leaf.' },
+  firstAmp:   { name:'Loud and Clear',   glyph:'⚡', desc:'Grew your first amplifier.' },
+  firstRef:   { name:'Distillation',     glyph:'🧪', desc:'Grew your first refinery.' },
+  firstCap:   { name:'Charge Up',        glyph:'🔋', desc:'Grew your first capacitor.' },
+  firstGraft: { name:'Grafter',          glyph:'🪡', desc:'Bought your first graft slot.' },
+  firstLock:  { name:'Locked Down',      glyph:'🔒', desc:'Locked a node from upgrades.' },
   firstPolish:{ name:'Glossy Touch',     glyph:'✨', desc:'Polished a node for the first time.' },
-  firstBloom: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
-  ascendant:  { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 upgrade.' },
+  firstThicken:{name:'Wider Channels',   glyph:'➖', desc:'Thickened a branch to widen its throughput.' },
+  // Production / scale
+  leafCount10:{ name:'Leafy Greens',     glyph:'🍃', desc:'Own 10 leaves at once.' },
+  ampCount5:  { name:'Amp Stack',        glyph:'📈', desc:'Own 5 amplifiers at once.' },
+  refCount4:  { name:'Refinery Row',     glyph:'⚗️', desc:'Own 4 refineries at once.' },
+  capCount4:  { name:'Power Bank',       glyph:'🔌', desc:'Own 4 capacitors at once.' },
+  nodes30:    { name:'Sapling Grown',    glyph:'🌳', desc:'Reach 30 nodes on a tree.' },
+  nodes60:    { name:'Mighty Oak',       glyph:'🌲', desc:'Reach 60 nodes on a tree.' },
+  // Resources
+  sap10k:     { name:'Sap Hoarder',      glyph:'💧', desc:'Bank 10k sap at once.' },
+  sap1m:      { name:'Ocean of Sap',     glyph:'🌊', desc:'Bank 1M sap at once.' },
+  resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
+  amber50:    { name:'Amber Eye',        glyph:'🟧', desc:'Collect 50 amber.' },
+  amber500:   { name:'Amber Lord',       glyph:'👑', desc:'Collect 500 amber.' },
+  // Prestige
+  firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
+  cut5:       { name:'Repeat Forester',  glyph:'🌲', desc:'Cut down 5 trees.' },
+  cut25:      { name:'Lumberjack',       glyph:'🪵', desc:'Cut down 25 trees.' },
+  rings100:   { name:'Ring Collector',   glyph:'⭕', desc:'Bank 100 rings.' },
+  rings1000:  { name:'Ring Hoarder',     glyph:'💍', desc:'Bank 1000 rings.' },
+  // Roots
+  rootUnlock: { name:'Underground',      glyph:'🪴', desc:'Bought your first root advancement.' },
+  rootTier3:  { name:'Deeper Roots',     glyph:'🕳️', desc:'Unlock a tier-3 root node.' },
+  rootTier5:  { name:'Heart of the Tree',glyph:'❤️‍🔥', desc:'Unlock a tier-5 root node.' },
+  // Grove / species
+  species2:   { name:'Cultivar',         glyph:'🍎', desc:'Unlock a second tree species.' },
+  speciesAll: { name:'Botanist',         glyph:'🌷', desc:'Unlock every tree species.' },
+  groveT4:    { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 grove upgrade.' },
+  // Bloom variants — each unlocks on its own kind
+  bloomBasic: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
+  bloomSurge: { name:'Surge Rider',      glyph:'⚡', desc:'Roll a Surge bloom.' },
+  bloomReso:  { name:'In Resonance',     glyph:'🌀', desc:'Roll a Resonance bloom.' },
+  bloomVerd:  { name:'Verdure',          glyph:'🌿', desc:'Roll a Verdure bloom.' },
+  bloomRefn:  { name:'Refined',          glyph:'🧪', desc:'Roll a Refinement bloom.' },
+  bloomOver:  { name:'Overcharged',      glyph:'🔋', desc:'Roll an Overcharge bloom.' },
+  // Critters
+  scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
+  scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
+  pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
+  // Polish depth
+  polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
+  // Offline
+  offline:    { name:'Welcome Back',     glyph:'😴', desc:'Earned sap while away from the game.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -615,6 +663,10 @@ function buyRoot(k) {
   if (!rootAvailable(k) || rootLvl(k) >= r.max || S.amber < c) return;
   S.amber -= c;
   S.roots[k]++;
+  grantAchievement('rootUnlock');
+  const _depth = rootDepth(k);
+  if (_depth >= 2) grantAchievement('rootTier3');
+  if (_depth >= 4) grantAchievement('rootTier5');
   S.pristine = false;
   sfx('buy');
   spawnFloaty(r.x, r.y, r.name, '#f0a050');
@@ -809,6 +861,7 @@ function computeFlow(dt) {
 // ---------- actions ----------
 function grow(parentId, type) {
   { const p = N(parentId); if (p && p.locked) return; }
+  const _wasFirst = !S.counts[type];
   const p = N(parentId), g = GROW[type];
   if (!g || !growUnlocked(type)) return;
   if (type === 'ref' && p && p.type === 'ref') return; // refineries can't feed refineries
@@ -820,6 +873,7 @@ function grow(parentId, type) {
   const n = mkNode(type, parentId);
   n.x = p.x; n.y = p.y;
   S.counts[type]++;
+  if (_wasFirst) grantAchievement(({leaf:'firstLeaf',amp:'firstAmp',ref:'firstRef',cap:'firstCap'})[type]);
   sfx('buy');
   pulseNode(n, 1, 1);
   pulseNode(p, 0.45, 0.5);
@@ -848,9 +902,10 @@ function harvestLeaf(id) {
   n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
   S.sap += gain;
   if (wasBig) {
-    grantAchievement('firstBloom');
+    grantAchievement('bloomBasic');
     const kind = pickBloom();
     const b = BLOOMS[kind];
+    grantAchievement(({bloom3:null, surge5:'bloomSurge', resonance:'bloomReso', verdure:'bloomVerd', refinement:'bloomRefn', overcharge:'bloomOver'})[kind]);
     // If a different bloom is already active, the bigger duration wins and we keep the new kind.
     S.bloomKind = kind;
     S.bloomT = Math.max(S.bloomT || 0, b.dur);
@@ -885,7 +940,7 @@ function thicken(id) {
   const n = N(id), c = costEdge(n);
   if (n.locked) return;
   if (S.sap < c) return;
-  S.sap -= c; n.edgeLvl++; S.ms.thickened = true; S.pristine = false;
+  S.sap -= c; n.edgeLvl++; S.ms.thickened = true; S.pristine = false; grantAchievement('firstThicken');
   sfx('buy');
   pulseNode(n, 0.55, 0.4);
   spawnBurst(n.x, n.y, '#f0c469', 9, 60, 0.6);
@@ -895,7 +950,7 @@ function graft(id) {
   const n = N(id), c = costGraft();
   if (n.locked) return;
   if (S.resin < c || maxKids(n) >= CFG.maxKidsCap) return;
-  S.resin -= c; n.extraKids++; S.graftsBought++; S.pristine = false;
+  S.resin -= c; n.extraKids++; S.graftsBought++; S.pristine = false; grantAchievement('firstGraft');
   sfx('buy');
   pulseNode(n, 0.7, 0.65);
   spawnBurst(n.x, n.y, '#f08a6a', 11, 68, 0.65);
@@ -910,6 +965,7 @@ function polish(id) {
   if (S.resin < c) return;
   S.resin -= c; n.polish = (n.polish || 0) + 1; S.pristine = false; S.ms.polished = true;
   grantAchievement('firstPolish');
+  if (n.polish >= polishCap()) grantAchievement('polishMax');
   sfx('buy');
   pulseNode(n, 0.6, 0.5);
   spawnBurst(n.x, n.y, '#f0b07e', 9, 58, 0.55);
@@ -1259,6 +1315,9 @@ function scareCritters(nodeId) {
         c.state = 'leaving';
         c.leaveX = c.x + (Math.random() - 0.5) * 220;
         c.leaveY = c.y - 180 - Math.random() * 100;
+        META.crittersScared = (META.crittersScared || 0) + 1;
+        if (META.crittersScared >= 10) grantAchievement('scare10');
+        if (META.crittersScared >= 100) grantAchievement('scare100');
       }
     }
   }
@@ -2000,7 +2059,7 @@ panel.addEventListener('click', e => {
   const act = b.dataset.act;
   if (act === 'root') { if (selectedRoot) buyRoot(selectedRoot); return; }
   if (selected == null) return;
-  if (act === 'lock') { const n = N(selected); if (n) { n.locked = !n.locked; S.ms.locked = true; sfx('plink'); buildPanel(); save(); } return; }
+  if (act === 'lock') { const n = N(selected); if (n) { n.locked = !n.locked; S.ms.locked = true; if (n.locked) grantAchievement('firstLock'); sfx('plink'); buildPanel(); save(); } return; }
   if (act === 'grow') grow(selected, b.dataset.type);
   else if (act === 'up') upgrade(selected);
   else if (act === 'edge') thicken(selected);
@@ -2098,6 +2157,21 @@ function refreshHud() {
   elAmberRate.textContent = 'from pruning';
   elAmberDetail.textContent = `Branches remember ${fmt(S.maxLife)} lifetime flow`;
   refreshPesticide();
+  // Resource / scale milestones — cheap checks, idempotent grants.
+  if (S.sap >= 10000) grantAchievement('sap10k');
+  if (S.sap >= 1000000) grantAchievement('sap1m');
+  if (S.resin >= 1000) grantAchievement('resin1k');
+  if (S.amber >= 50) grantAchievement('amber50');
+  if (S.amber >= 500) grantAchievement('amber500');
+  if (S.counts.leaf >= 10) grantAchievement('leafCount10');
+  if (S.counts.amp >= 5) grantAchievement('ampCount5');
+  if (S.counts.ref >= 4) grantAchievement('refCount4');
+  if (S.counts.cap >= 4) grantAchievement('capCount4');
+  const _totalNodes = Object.keys(S.nodes).length;
+  if (_totalNodes >= 30) grantAchievement('nodes30');
+  if (_totalNodes >= 60) grantAchievement('nodes60');
+  if (META.rings >= 100) grantAchievement('rings100');
+  if (META.rings >= 1000) grantAchievement('rings1000');
   elHint.textContent = hintText();
 }
 
@@ -2164,6 +2238,7 @@ function load() {
     const offMult = 1 + 0.15 * metaLvl('patience');
     S.sap += S.incomeS * away * offMult;
     S.resin += S.incomeR * away * offMult;
+    grantAchievement('offline');
     let msg = `While you were away, your tree produced ${fmt(S.incomeS * away)} sap`;
     if (S.incomeR * away > 0.05) msg += ` and ${fmt(S.incomeR * away)} resin`;
     toast(msg + '.');
@@ -2300,6 +2375,9 @@ function finalizeCut() {
   META.rings += gain;
   META.totalRings = (META.totalRings || 0) + gain;
   META.treesCut++;
+  grantAchievement('firstCut');
+  if (META.treesCut >= 5) grantAchievement('cut5');
+  if (META.treesCut >= 25) grantAchievement('cut25');
   saveMeta();
   newGame(); computeFlow(0);
   selected = null; selectedRoot = null;
@@ -2314,7 +2392,14 @@ grove.addEventListener('click', e => {
   if (up) {
     const k = up.dataset.up, g = GROVE[k], lvl = metaLvl(k);
     if (g && lvl < g.max && META.rings >= costGrove(k)) {
-      META.rings -= costGrove(k); META.up[k] = lvl + 1; if (g.tier >= 4) grantAchievement('ascendant'); saveMeta();
+      META.rings -= costGrove(k); META.up[k] = lvl + 1;
+      if (g.tier >= 4) grantAchievement('groveT4');
+      if (g.unlocks) {
+        const have = Object.keys(SPECIES).filter(speciesUnlocked);
+        if (have.length >= 2) grantAchievement('species2');
+        if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
+      }
+      saveMeta();
       sfx('buy'); replantIfPristine(); renderGrove();
     }
     return;
@@ -2462,6 +2547,7 @@ pestBtn?.addEventListener('click', () => {
     if (S.sap < cost) { toast(`Need ${fmt(cost)} sap to spray pesticide.`); return; }
     S.sap -= cost;
     S.pesticideOn = true;
+    grantAchievement('pesticide');
     toast(`🧴 Pesticide armed — ${fmt(cost)} sap spent`);
     sfx('plink');
   }
@@ -2480,7 +2566,7 @@ function renderAchievements() {
     const a = ACHIEVEMENTS[k], has = !!owned[k];
     return `<div class="achrow ${has ? '' : 'locked'}">
       <div class="ag">${has ? a.glyph : '🔒'}</div>
-      <div class="at"><div class="ah">${a.name}</div><div class="ad">${has ? a.desc : '???'}</div></div>
+      <div class="at"><div class="ah">${has ? a.name : '???'}</div><div class="ad">${has ? a.desc : '???'}</div></div>
     </div>`;
   }).join('');
 }
