@@ -91,6 +91,9 @@
   .seth-eyes { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%); font-size:60px; color:#fff; text-shadow:0 4px 16px rgba(0,0,0,.3); }
   .seth-mouth { position:absolute; left:50%; top:62%; transform:translateX(-50%); font-size:50px; }
   .seth-label { position:absolute; bottom:-46px; left:50%; transform:translateX(-50%); font-size:18px; color:#f0d9ff; font-weight:700; letter-spacing:.18em; text-shadow:0 2px 10px rgba(0,0,0,.45); }
+  #seth-img { max-width:min(60vw,420px); max-height:80vh; object-fit:contain; border-radius:18px;
+    box-shadow:0 0 80px rgba(200,140,250,.7); }
+  .seth-fallback { position:relative; }
   .saverow { display:flex; gap:6px; margin-top:6px; }
   .saverow button { flex:1 1 0; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:8px; padding:7px 8px; font-size:12px; cursor:pointer; }
@@ -304,7 +307,12 @@
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
 <div id="achievements"></div>
-<div id="sethatubby"><div class="seth-figure"><div class="seth-eyes">⊙ ⊙</div><div class="seth-mouth">◡</div><div class="seth-label">SETHATUBBY</div></div></div>
+<div id="sethatubby">
+  <img id="seth-img" src="sethatubby.png" alt="Sethatubby" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+  <div class="seth-fallback" style="display:none">
+    <div class="seth-figure"><div class="seth-eyes">⊙ ⊙</div><div class="seth-mouth">◡</div><div class="seth-label">SETHATUBBY</div></div>
+  </div>
+</div>
 <div id="hint"></div>
 <div id="toast"></div>
 <div id="panel"></div>
@@ -374,9 +382,10 @@ const GROVE = {
   resonant:  { name:'Born Resonant',   glyph:'💠', tier:3, parent:'seasoned',  max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level' },
   deeproots: { name:'Deep Roots',      glyph:'🌱', tier:3, parent:'windfall',  max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
   // Tier-2 extensions
+  slumber:   { name:'Slumber',         glyph:'😴', tier:2, parent:'endurance', max:4,  cost:l=>2+l,    desc:'+5% offline production rate per level' },
   sunray:    { name:'Sunray',          glyph:'🌞', tier:2, parent:'vitality',  max:5,  cost:l=>3+l,   desc:'Gold leaves ripen 10% sooner per level' },
   omen:      { name:'Omen',            glyph:'👁️', tier:2, parent:'vitality',  max:1,  cost:_=>4,     desc:'Reveals the timer until each leaf produces its next gold leaf' },
-  patience:  { name:'Patience',        glyph:'🧘', tier:3, parent:'windfall',  max:4,  cost:l=>3+l*2, desc:'+15% offline production per level' },
+  patience:  { name:'Patience',        glyph:'🧘', tier:3, parent:'windfall',  max:4,  cost:l=>3+l*2, desc:'+10% offline production rate per level' },
   // Tier-3 deepenings
   bramble:   { name:'Bramble',         glyph:'🌵', tier:3, parent:'nest',      max:4,  cost:l=>4+l*2, desc:'Critters appear 25% less often per level' },
   glaze:     { name:'Resin Glaze',     glyph:'🫗', tier:3, parent:'seasoned',  max:4,  cost:l=>4+l*2, desc:'Each polish gives +2% extra boost per level' },
@@ -389,6 +398,7 @@ const GROVE = {
   eternalSap:{ name:'Eternal Sap',    glyph:'♾️', tier:4, parent:'patience',   max:4, cost:l=>10+l*4, desc:'+4h to the offline production cap per level' },
   mythos:    { name:'Mythos',         glyph:'📜', tier:4, parent:'lacquer',    max:5, cost:l=>12+l*5, desc:'New branches start with +1 polish per level' },
   empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
+  dreams:    { name:'Lucid Dreams',    glyph:'💭', tier:4, parent:'eternalSap', max:4, cost:l=>8+l*3, desc:'+5% offline production rate per level (toward the 85% cap)' },
   pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
@@ -938,7 +948,8 @@ function upgrade(id) {
 }
 function thicken(id) {
   const n = N(id), c = costEdge(n);
-  if (n.locked) return;
+  // Locking a node still permits branch (edge) thickening — that affects the
+  // parent's flow capacity, not the node itself.
   if (S.sap < c) return;
   S.sap -= c; n.edgeLvl++; S.ms.thickened = true; S.pristine = false; grantAchievement('firstThicken');
   sfx('buy');
@@ -1912,7 +1923,9 @@ cv.addEventListener('wheel', e => {
 
 // ---------- panel ----------
 const panel = document.getElementById('panel');
-const SPEND_ACTS = new Set(['up', 'edge', 'graft', 'polish', 'grow']);
+// Lock hides spend actions on a node, but lets branch upgrades (thickening
+// the parent edge) through — those affect the branch, not the node itself.
+const SPEND_ACTS = new Set(['up', 'graft', 'polish', 'grow']);
 function lockBtn(n) {
   const on = !!n.locked;
   return `<button class="lockbtn ${on ? 'on' : ''}" data-act="lock" title="${on ? 'Unlock — allow upgrades and pruning' : 'Lock — hide upgrade buttons and prevent pruning'}">${on ? '🔒' : '🔓'}</button>`;
@@ -2235,12 +2248,13 @@ function load() {
   const away = clamp((Date.now() - d.t) / 1000, 0,
     (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance') + 4 * metaLvl('eternalSap')) * SP().offline * 3600);
   if (away > 30 && S.incomeS + S.incomeR > 0) {
-    const offMult = 1 + 0.15 * metaLvl('patience');
-    S.sap += S.incomeS * away * offMult;
-    S.resin += S.incomeR * away * offMult;
+    // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85%.
+    const offlineRate = Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
+    S.sap += S.incomeS * away * offlineRate;
+    S.resin += S.incomeR * away * offlineRate;
     grantAchievement('offline');
-    let msg = `While you were away, your tree produced ${fmt(S.incomeS * away)} sap`;
-    if (S.incomeR * away > 0.05) msg += ` and ${fmt(S.incomeR * away)} resin`;
+    let msg = `While you were away, your tree produced ${fmt(S.incomeS * away * offlineRate)} sap (${Math.round(offlineRate * 100)}% offline rate)`;
+    if (S.incomeR * away * offlineRate > 0.05) msg += ` and ${fmt(S.incomeR * away * offlineRate)} resin`;
     toast(msg + '.');
   }
 }
@@ -2468,7 +2482,12 @@ document.getElementById('importSave').addEventListener('click', () => {
 const cheat = document.getElementById('cheatcode');
 const sethEl = document.getElementById('sethatubby');
 function summonSethatubby() {
-  // Custom bloom: x5 leaf for 30s, kind: 'sethatubby' — falls back to BLOOMS lookup which we register inline.
+  // One-shot easter egg — re-entering the code after the first summon does nothing visible.
+  if (META.achievements && META.achievements.sethatubby) {
+    toast('🟣 Sethatubby has already been summoned. He waves and walks off.');
+    return;
+  }
+  // Custom bloom: x5 leaf for 30s, kind 'sethatubby' (kept registered for the badge).
   BLOOMS.sethatubby = BLOOMS.sethatubby || { name:'Sethatubby', icon:'🟣', color:'#a374df', dur:30, weight:0, leafMult:()=>5, descOf:()=>'×5 leaf production (Sethatubby!)' };
   S.bloomKind = 'sethatubby';
   S.bloomT = Math.max(S.bloomT || 0, 30);
