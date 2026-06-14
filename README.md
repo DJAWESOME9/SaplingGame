@@ -12,7 +12,11 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 - **Click a leaf with a glow** to harvest a gold leaf
 - **Click a bug or bird** sitting on a node to scare it off (it deals one damage per click)
 - **🪓 Cut** button in the topbar → fells the tree and opens the Grove (prestige)
-- **⚙ Settings** → volume, restore backup, save code, intro, hard reset
+- **🧴 Pesticide** (after Grove unlock) → arms a sap-cost toggle that stops critters; −15% leaf production while on (removed by **Symbiosis**)
+- **🌰 Acorns** (after 1M lifetime sap) → ripen on the canopy in real time; tap to bank, long-press or right-click for the Pantheon
+- **🏆 Achievements** → progress tracker in the topbar
+- **⚙ Settings** → volume, restore backup, save code, intro, hard reset, cheat codes
+- **Click the hint banner** to dismiss tutorial nudges for the current tree
 
 ## Resources
 
@@ -22,6 +26,9 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 | **Resin** 🟠 | Refined from sap by Refinery nodes | Capacitors, grafting, polishing |
 | **Amber** 🟤 | Pruning branches | Permanent Roots-tree advancement (per-tree) |
 | **Rings** 🍃 | Cutting down a grown tree | Eternal Grove upgrades and species unlocks (across all trees) |
+| **Acorns** 🌰 | Ripen on the canopy (~1 per hour of active play; offline at 10%) | Pantheon gods and eternal acorn-tempo upgrades |
+
+Acorns unlock after **1M lifetime sap** produced. A hint appears at 50% progress. Bank ripe acorns with the topbar 🌰 button; bank **3** to wake the **Pantheon**.
 
 ## Node types
 
@@ -78,10 +85,33 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | **Birthright** | T3 / Resonant | Every new branch starts +1 level higher per level (max 10) |
 | Deep Roots | T3 / Windfall | New trees start with key Roots pre-unlocked |
 | Graft Apple/Peach/Grape/Maple/Pine | T2-T3 | Unlock species |
+| Squirrelry | T3 / Nest | Acorns ripen 10% faster per level |
+| Pesticide | T4 / Bramble | Unlocks the 🧴 pesticide toggle |
+| Canopy Charm | T5 / Worldtree | Acorns ripen 20% faster per level, +1 max ripe slot per level |
+| Symbiosis | T5 / Pesticide | Pesticide no longer costs −15% production |
+
+Grove upgrade cards offer **×1**, **×10**, and **Max** bulk-buy buttons showing how many levels fit your rings and the total cost.
+
+## The Pantheon
+
+Once you've banked 3 acorns, long-press or right-click the 🌰 button to open the Pantheon. Slot up to **3 tree-gods** on pedestals — each has a blessing and a curse that apply globally:
+
+| God | Blessing | Curse |
+|---|---|---|
+| ☀️ Helios | +60% leaf production | Gold leaves ripen 50% slower |
+| 🌙 Selene | Gold leaves pay ×2 sap | Leaf production −15% |
+| 🌬️ Boreas | Amplifier multiplier ×1.5 | Branch capacity −25% |
+| 🌾 Demeter | Refineries yield +75% | Capacitor storage −30% |
+| 🪨 Atlas | Branch capacity ×1.5 | Amplifier multiplier −15% |
+| ⚰️ Charon | Pruning gives ×2 amber | Sap production −15% |
+
+Gods cost 2–3 acorns to first unlock, then can be swapped freely. Effects stack multiplicatively across slots.
 
 ## Critters
 
 Birds and bugs occasionally land on producer nodes and **slow their throughput to 35%**. They no longer leave on their own — click them to scare them off (one damage per click; Strong Swat doubles it).
+
+**Pesticide** (Grove upgrade) adds a topbar toggle. Arming it costs ~30 seconds of current sap production, immediately routes all critters off the tree, and prevents new spawns while active. Leaf production is −15% while armed unless you own **Symbiosis**.
 
 ## Save data and settings
 
@@ -91,6 +121,7 @@ The game autosaves on a timer plus on visibility change. In the gear menu:
 - **Save Code** — Export to copy a UTF-8 base64 string of your full state; Import to load one (your current save is stashed to `-prereset` before overwrite)
 - **Show intro** — re-read the first-run intro
 - **Hard reset** — wipes everything (current tree, rings, all upgrades, all backups). Double-confirmed.
+- **Cheat codes** — type in the settings box (e.g. founder names for one-shot ×3 Bloom buffs; summon all six founders for the 🌳 Founders achievement)
 
 Saves live in `localStorage`:
 - `sapling-save-v1` — current tree
@@ -104,7 +135,8 @@ Saves live in `localStorage`:
 - Capacitors buffer surges but their burst can overflow thin downstream branches — thicken first.
 - A locked node is immune to mistakes (and accidental pruning).
 - Gold leaves fade after a few seconds. Big gold leaves (rarer, larger, orange) trigger a 30-second ×3 **Bloom** on all leaf production.
-- Offline progress is capped at 4 hours, extended by Heartwood (Roots) and Endurance (Grove).
+- Tutorial hints appear under the topbar — **click to dismiss**; they return when the game advances to a new hint. Cutting the tree resets dismissals.
+- Offline progress is capped at 4 hours, extended by Heartwood (Roots) and Endurance (Grove). Offline time counts toward acorn ripening at 10% rate (~10h offline ≈ 1 acorn).
 
 ## Building from source
 

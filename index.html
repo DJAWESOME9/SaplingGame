@@ -594,6 +594,7 @@ function loadMeta() {
   if (!Array.isArray(META.pantheonSlots)) META.pantheonSlots = [null, null, null];
   while (META.pantheonSlots.length < PANTHEON_SLOTS) META.pantheonSlots.push(null);
   if (typeof META.pantheonOpened !== 'boolean') META.pantheonOpened = false;
+  if (!META.foundersUsed || typeof META.foundersUsed !== 'object') META.foundersUsed = {};
   if (typeof META.rings !== 'number') META.rings = 0;
   if (typeof META.treesCut !== 'number') META.treesCut = 0;
   if (typeof META.totalRings !== 'number') META.totalRings = META.rings || 0;
@@ -2905,11 +2906,7 @@ const acornBtn = document.getElementById('acornbtn');
 function refreshAcorns() {
   if (!acornBtn) return;
   const ripe = acornsRipe(), bank = acornsBanked();
-  if (!acornsUnlocked() && bank === 0 && !pantheonAvailable()) {
-    acornBtn.style.display = 'none';
-    return;
-  }
-  if (ripe === 0 && bank === 0 && !pantheonAvailable()) {
+  if (!acornsUnlocked()) {
     acornBtn.style.display = 'none';
     return;
   }
@@ -2920,13 +2917,29 @@ function refreshAcorns() {
     pantheonAvailable() ? `${bank} acorn${bank===1?'':'s'} banked · long-press / right-click for Pantheon` :
     `${bank} acorn${bank===1?'':'s'} banked · bank ${PANTHEON_OPEN_COST} to unlock the Pantheon`;
 }
+let acornPressT = null, acornLongPress = false;
+function clearAcornPress() { if (acornPressT) { clearTimeout(acornPressT); acornPressT = null; } }
+acornBtn?.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  acornLongPress = false;
+  clearAcornPress();
+  acornPressT = setTimeout(() => {
+    acornLongPress = true;
+    if (META.pantheonOpened) openPantheon();
+  }, 500);
+});
+acornBtn?.addEventListener('pointerup', clearAcornPress);
+acornBtn?.addEventListener('pointerleave', clearAcornPress);
+acornBtn?.addEventListener('pointercancel', clearAcornPress);
 acornBtn?.addEventListener('click', () => {
+  if (acornLongPress) { acornLongPress = false; return; }
   // First click banks ripe; if none ripe and Pantheon unlocked, open it; otherwise prompt to unlock.
   if (acornsRipe() > 0) {
-    META.acorns = (META.acorns || 0) + META.canopy.ripe;
+    const banked = META.canopy.ripe;
+    META.acorns = (META.acorns || 0) + banked;
     META.canopy.ripe = 0;
     grantAchievement('acornBank');
-    toast(`🌰 Banked ${META.canopy ? '' : ''}acorns — ${META.acorns} total`);
+    toast(`🌰 Banked ${banked} acorn${banked === 1 ? '' : 's'} — ${META.acorns} total`);
     saveMeta();
     refreshAcorns();
     if (!META.pantheonOpened && META.acorns >= PANTHEON_OPEN_COST) {
@@ -2953,14 +2966,19 @@ function refreshPesticide() {
   pestBtn.style.display = '';
   const on = pesticideOn();
   pestBtn.classList.toggle('on', on);
+  const symbiosis = metaLvl('symbiosis') > 0;
   if (on) {
-    pestBtn.textContent = '🧴 ON · −15%';
-    pestBtn.title = 'Pesticide active — no critters, but leaf production is −15%. Click to turn off.';
+    pestBtn.textContent = symbiosis ? '🧴 ON' : '🧴 ON · −15%';
+    pestBtn.title = symbiosis
+      ? 'Pesticide active — no critters, no production penalty. Click to turn off.'
+      : 'Pesticide active — no critters, but leaf production is −15%. Click to turn off.';
     pestBtn.classList.remove('cantafford');
   } else {
     const cost = pesticideCost();
     pestBtn.textContent = `🧴 OFF · ${fmt(cost)} sap to arm`;
-    pestBtn.title = `Spray pesticide for ${fmt(cost)} sap (≈30s of current production). Stops critters spawning, costs −15% leaf production while active.`;
+    pestBtn.title = symbiosis
+      ? `Spray pesticide for ${fmt(cost)} sap (≈30s of current production). Stops critters spawning with no production penalty.`
+      : `Spray pesticide for ${fmt(cost)} sap (≈30s of current production). Stops critters spawning, costs −15% leaf production while active.`;
     pestBtn.classList.toggle('cantafford', S.sap < cost);
   }
 }
