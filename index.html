@@ -379,9 +379,31 @@ const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
-const BLOOM_MULT = 3;
+// Bloom variants — picked at random when a big gold leaf is harvested.
+const BLOOMS = {
+  bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>3, descOf:()=>'×3 leaf production' },
+  surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>5, descOf:()=>'×5 leaf production (short)' },
+  resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>1+0.2*S.counts.amp, descOf:()=>`each amp adds +20% leaf production (×${(1+0.2*S.counts.amp).toFixed(1)})` },
+  verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>1+0.08*S.counts.leaf, descOf:()=>`each leaf adds +8% production (×${(1+0.08*S.counts.leaf).toFixed(1)})` },
+  refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>2,  descOf:()=>'refineries ×2 yield' },
+  overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>1.6, descOf:()=>'capacitors burst ×1.6' },
+};
+function pickBloom() {
+  const keys = Object.keys(BLOOMS);
+  const total = keys.reduce((a,k)=>a+BLOOMS[k].weight, 0);
+  let r = Math.random() * total;
+  for (const k of keys) { r -= BLOOMS[k].weight; if (r <= 0) return k; }
+  return keys[0];
+}
+const activeBloom    = () => (S.bloomT > 0 && BLOOMS[S.bloomKind]) ? BLOOMS[S.bloomKind] : null;
+const bloomLeafMult  = () => { const b = activeBloom(); return b && b.leafMult ? b.leafMult() : 1; };
+const bloomRefMult   = () => { const b = activeBloom(); return b && b.refMult ? b.refMult() : 1; };
+const bloomCapMult   = () => { const b = activeBloom(); return b && b.capMult ? b.capMult() : 1; };
+// Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
+const bloomMult      = bloomLeafMult;
+// Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
 const BLOOM_DUR  = 30;
-const bloomMult  = () => (S.bloomT > 0 ? BLOOM_MULT : 1);
+const BLOOM_MULT = 3;
 const woodMult   = () => Math.pow(1.25, S.roots.wood);
 const shearsMult = () => Math.pow(1.25, S.roots.shears);
 // tier-5 deep-root multipliers
@@ -394,7 +416,7 @@ const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * 
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
 const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n);
-const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n);
+const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult();
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
 const POLISH_PCT  = 0.06;
 const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish || 0);
@@ -574,7 +596,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0 };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, bloomT: 0, bloomKind: 'bloom3' };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -658,7 +680,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref; s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult(); s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -753,10 +775,14 @@ function harvestLeaf(id) {
   n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
   S.sap += gain;
   if (wasBig) {
-    S.bloomT = Math.max(S.bloomT || 0, BLOOM_DUR);
-    toast(`Big gold leaf! ×${BLOOM_MULT} production for ${BLOOM_DUR}s`);
-    spawnBurst(n.x, n.y, '#ff8a3a', 24, 160, 1.1);
-    spawnFloaty(n.x, n.y, `+${gain} sap · ✨ BLOOM ×${BLOOM_MULT}`, '#ff8a3a');
+    const kind = pickBloom();
+    const b = BLOOMS[kind];
+    // If a different bloom is already active, the bigger duration wins and we keep the new kind.
+    S.bloomKind = kind;
+    S.bloomT = Math.max(S.bloomT || 0, b.dur);
+    toast(`${b.icon} ${b.name}! ${b.descOf()} for ${b.dur}s`);
+    spawnBurst(n.x, n.y, b.color, 26, 170, 1.15);
+    spawnFloaty(n.x, n.y, `+${gain} sap · ${b.icon} ${b.name}`, b.color);
   } else {
     spawnFloaty(n.x, n.y, `+${gain} sap`, '#f0c469');
     spawnBurst(n.x, n.y, '#f0d36d', 14, 105, 0.75);
@@ -1283,11 +1309,11 @@ function drawCutOverlay() {
   const a = Math.sin(Math.PI * p) * 0.55;
   ctx.save();
   ctx.fillStyle = `rgba(80, 40, 20, ${a})`;
-  ctx.fillRect(0, 0, cv.width / dpr, cv.height / dpr);
+  ctx.fillRect(0, 0, cw, ch);
   ctx.fillStyle = `rgba(240, 160, 80, ${a * 0.45})`;
   ctx.font = `${Math.round(34 + 14 * Math.sin(Math.PI * p))}px ui-sans-serif, system-ui`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('🪓', cv.width / dpr / 2, cv.height / dpr / 2);
+  ctx.fillText('🪓', cw / 2, ch / 2);
   ctx.restore();
 }
 
@@ -1928,7 +1954,7 @@ function hintText() {
     for (const id in S.nodes) {
       const n = N(id);
       if (n.type === 'leaf' && n.giftGain) {
-        if (n.giftBig) return '✨ A BIG gold leaf! Tap fast — ×3 production for 30s.';
+        if (n.giftBig) return '✨ A BIG gold leaf! Tap fast — rolls a random Bloom buff.';
         return '🍯 A gold leaf is ripe — tap it before it fades.';
       }
     }
@@ -1975,8 +2001,13 @@ function refreshHud() {
   }
   const bb = document.getElementById('bloombadge');
   if (bb) {
-    if (S.bloomT > 0) { bb.style.display = ''; bb.textContent = `✨ Bloom ×${BLOOM_MULT} · ${Math.ceil(S.bloomT)}s`; }
-    else if (bb.style.display !== 'none') { bb.style.display = 'none'; }
+    if (S.bloomT > 0) {
+      const b = activeBloom() || BLOOMS.bloom3;
+      bb.style.display = '';
+      bb.textContent = `${b.icon} ${b.name} · ${Math.ceil(S.bloomT)}s`;
+      bb.style.borderColor = b.color;
+      bb.style.color = b.color;
+    } else if (bb.style.display !== 'none') { bb.style.display = 'none'; }
   }
   elSap.textContent = fmt(S.sap) + ' sap';
   elSapRate.textContent = '+' + fmt(S.ema.s) + '/s';
@@ -2009,14 +2040,14 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0,
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, bloomT: S.bloomT || 0, bloomKind: S.bloomKind || 'bloom3',
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, nodes }));
 }
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0,
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, bloomT: d.bloomT || 0, bloomKind: d.bloomKind || 'bloom3',
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -2154,44 +2185,49 @@ function closeGrove() { grove.classList.remove('open'); }
 function cutDown() {
   const gain = ringGain();
   if (!confirm(`Cut down the tree for ${gain} ring${gain === 1 ? '' : 's'}? Your current tree (and its amber) is lost, but stashed for Restore backup.`)) return;
-  // Close the Grove so the player can see the animation play out.
+  // Close the Grove so the player sees the animation, and queue up the reset.
+  // The frame loop will trigger the actual reset when cutAnim.t reaches resetAt,
+  // which makes the flow deterministic — no orphaned setTimeouts, no chance of
+  // a stuck animation if the tab was throttled.
   closeGrove();
-  cutAnim = { t: 0, dur: 1.6, pendingGain: gain };
-  // Burst at the core, then a cascade of falling leaf-bits + amber sparks across every leaf.
+  // Pre-stage particle bursts at every producer node up front (no nested setTimeouts).
   const core = N(S.rootId);
   if (core) {
     spawnBurst(core.x, core.y, '#f0a050', 36, 220, 1.3);
     spawnBurst(core.x, core.y, '#f0d36d', 22, 160, 1.1);
   }
-  let i = 0;
   for (const id in S.nodes) {
     const n = N(id);
     if (n.type === 'leaf') {
-      setTimeout(() => spawnBurst(n.x, n.y, '#90e09b', 10, 90, 0.85), 60 + (i % 12) * 60);
-      setTimeout(() => spawnFloaty(n.x, n.y, '🍂', '#c8a26a'), 200 + (i % 12) * 60);
-      i++;
+      spawnBurst(n.x, n.y, '#90e09b', 10, 90, 0.85);
+      spawnFloaty(n.x, n.y, '🍂', '#c8a26a');
     } else if (n.type !== 'core') {
-      setTimeout(() => spawnBurst(n.x, n.y, '#dfa55a', 8, 70, 0.7), 80 + (i % 12) * 60);
-      i++;
+      spawnBurst(n.x, n.y, '#dfa55a', 8, 70, 0.7);
     }
   }
   sfx('prune');
-  // Defer the actual reset until the animation finishes.
-  setTimeout(() => {
-    const cur = localStorage.getItem(KEY);
-    if (cur) localStorage.setItem(KEY + '-prereset', cur);
-    META.rings += gain;
-    META.totalRings = (META.totalRings || 0) + gain;
-    META.treesCut++;
-    saveMeta();
-    newGame(); computeFlow(0);
-    selected = null; selectedRoot = null;
-    buildPanel(); save();
-    cutAnim = null;
-    if (gain > 0) toast(`You felled your tree and gathered ${gain} ring${gain === 1 ? '' : 's'}.`);
-    renderGrove();
-    openGrove();
-  }, 1400);
+  cutAnim = { t: 0, dur: 1.6, resetAt: 1.2, pendingGain: gain, finalized: false };
+  // Belt + suspenders: if the frame loop is throttled (tab in background, etc.)
+  // setTimeout still fires the reset. finalizeCut() is idempotent via the
+  // .finalized guard, so whichever fires first wins.
+  setTimeout(finalizeCut, 1250);
+}
+function finalizeCut() {
+  if (!cutAnim || cutAnim.finalized) return;
+  cutAnim.finalized = true;
+  const gain = cutAnim.pendingGain;
+  const cur = localStorage.getItem(KEY);
+  if (cur) localStorage.setItem(KEY + '-prereset', cur);
+  META.rings += gain;
+  META.totalRings = (META.totalRings || 0) + gain;
+  META.treesCut++;
+  saveMeta();
+  newGame(); computeFlow(0);
+  selected = null; selectedRoot = null;
+  buildPanel(); save();
+  if (gain > 0) toast(`You felled your tree and gathered ${gain} ring${gain === 1 ? '' : 's'}.`);
+  renderGrove();
+  openGrove();
 }
 grove.addEventListener('click', e => {
   if (e.target === grove) { closeGrove(); return; }   // click backdrop to dismiss
@@ -2299,40 +2335,51 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) save(
 // ---------- main loop ----------
 let last = performance.now();
 function frame(now) {
-  const dt = clamp((now - last) / 1000, 0, 0.1);
-  last = now;
-  const time = now / 1000;
-  computeFlow(dt);
-  S.sap += S.incomeS * dt;
-  S.resin += S.incomeR * dt;
-  if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
-  const ek = clamp(dt * 0.8, 0, 1);
-  S.ema.s = lerp(S.ema.s, S.incomeS, ek);
-  S.ema.r = lerp(S.ema.r, S.incomeR, ek);
-  if (cam.centering) {
-    const k = clamp(dt * 5, 0, 1);
-    cam.ox = lerp(cam.ox, cam.tx, k);
-    cam.oy = lerp(cam.oy, cam.ty, k);
-    if (Math.abs(cam.ox - cam.tx) + Math.abs(cam.oy - cam.ty) < 0.6) {
-      cam.ox = cam.tx;
-      cam.oy = cam.ty;
-      cam.centering = false;
+  // Wrap the body in try/finally so an exception in any subsystem can't kill
+  // the RAF chain. The chain dying was the source of the post-cut freeze: a
+  // throw inside frame() skipped the requestAnimationFrame call at the end.
+  try {
+    const dt = clamp((now - last) / 1000, 0, 0.1);
+    last = now;
+    const time = now / 1000;
+    computeFlow(dt);
+    S.sap += S.incomeS * dt;
+    S.resin += S.incomeR * dt;
+    if (S.bloomT > 0) S.bloomT = Math.max(0, S.bloomT - dt);
+    const ek = clamp(dt * 0.8, 0, 1);
+    S.ema.s = lerp(S.ema.s, S.incomeS, ek);
+    S.ema.r = lerp(S.ema.r, S.incomeR, ek);
+    if (cam.centering) {
+      const k = clamp(dt * 5, 0, 1);
+      cam.ox = lerp(cam.ox, cam.tx, k);
+      cam.oy = lerp(cam.oy, cam.ty, k);
+      if (Math.abs(cam.ox - cam.tx) + Math.abs(cam.oy - cam.ty) < 0.6) {
+        cam.ox = cam.tx;
+        cam.oy = cam.ty;
+        cam.centering = false;
+      }
     }
+    const k = clamp(dt * 6, 0, 1);
+    for (const id in S.nodes) {
+      const n = N(id);
+      n.x = lerp(n.x, n.tx, k); n.y = lerp(n.y, n.ty, k);
+    }
+    prepareEdgeCache();
+    fitCamera(dt);
+    updateDrops(dt);
+    updateCritters(dt);
+    if (cutAnim) {
+      cutAnim.t += dt;
+      if (!cutAnim.finalized && cutAnim.t >= cutAnim.resetAt) finalizeCut();
+      if (cutAnim.t >= cutAnim.dur) cutAnim = null;
+    }
+    draw(time);
+    if (cutAnim) drawCutOverlay();
+    refreshHud();
+    refreshPanel();
+  } catch (e) {
+    console.error('frame error (chain kept alive):', e);
   }
-  const k = clamp(dt * 6, 0, 1);
-  for (const id in S.nodes) {
-    const n = N(id);
-    n.x = lerp(n.x, n.tx, k); n.y = lerp(n.y, n.ty, k);
-  }
-  prepareEdgeCache();
-  fitCamera(dt);
-  updateDrops(dt);
-  updateCritters(dt);
-  if (cutAnim) cutAnim.t += dt;
-  draw(time);
-  if (cutAnim) drawCutOverlay();
-  refreshHud();
-  refreshPanel();
   requestAnimationFrame(frame);
 }
 
