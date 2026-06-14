@@ -53,6 +53,39 @@
     background:#0f1611; border:1px solid #2e3f31; color:#cfdcc9; border-radius:8px; padding:6px 8px;
     font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; line-height:1.3; word-break:break-all; }
   #savecode:focus { outline:none; border-color:#6a8a6e; }
+  #cheatcode { width:100%; box-sizing:border-box; margin-top:10px; background:#0f1611; border:1px solid #2e3f31;
+    color:#cfdcc9; border-radius:8px; padding:7px 9px; font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  #cheatcode:focus { outline:none; border-color:#a374df; }
+  #cheatcode::placeholder { color:#5a6a5c; }
+  /* Trophy button matches the gear */
+  #trophy { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#caa64f;
+    border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
+  #trophy:hover, #trophy.open { border-color:#d9b864; color:#f0d9a0; }
+  #achievements { position:fixed; top:52px; right:16px; width:280px; max-height:60vh; overflow-y:auto;
+    display:none; background:rgba(16,24,18,.96); border:1px solid #3a3a2e; border-radius:12px; padding:14px;
+    backdrop-filter:blur(6px); z-index:55; }
+  #achievements.open { display:block; }
+  #achievements h3 { margin:0 0 10px; font-size:14px; color:#f0d9a0; letter-spacing:.06em; text-transform:uppercase; }
+  .achrow { display:flex; gap:10px; padding:7px 0; border-top:1px solid #25302a; align-items:center; }
+  .achrow:first-of-type { border-top:none; }
+  .achrow .ag { font-size:22px; width:30px; text-align:center; }
+  .achrow .at { flex:1; }
+  .achrow .ah { font-size:13px; color:#dceade; font-weight:600; }
+  .achrow .ad { font-size:11px; color:#7d8c7e; }
+  .achrow.locked .ag, .achrow.locked .ah { opacity:.35; filter:grayscale(.6); }
+  .achrow.locked .ad { color:#3a4a3c; }
+  /* Sethatubby overlay */
+  #sethatubby { position:fixed; inset:0; pointer-events:none; z-index:90; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at center, rgba(150,80,200,.32), rgba(40,10,60,.6)); opacity:0; transition:opacity .4s; }
+  #sethatubby.on { opacity:1; }
+  .seth-figure { width:min(60vw,360px); aspect-ratio:1; background:#9849c4; border-radius:50%;
+    box-shadow:0 0 80px rgba(200,140,250,.7), inset -20px -30px 60px rgba(0,0,0,.25); position:relative; }
+  .seth-figure::before { content:''; position:absolute; left:50%; top:-22%; width:36%; height:24%;
+    background:#9849c4; border-radius:36% 36% 4% 4%; transform:translateX(-50%); }
+  .seth-figure::after { content:'🟣'; position:absolute; left:50%; top:-30%; transform:translateX(-50%); font-size:46px; filter:drop-shadow(0 0 12px #d9a4ff); }
+  .seth-eyes { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%); font-size:60px; color:#fff; text-shadow:0 4px 16px rgba(0,0,0,.3); }
+  .seth-mouth { position:absolute; left:50%; top:62%; transform:translateX(-50%); font-size:50px; }
+  .seth-label { position:absolute; bottom:-46px; left:50%; transform:translateX(-50%); font-size:18px; color:#f0d9ff; font-weight:700; letter-spacing:.18em; text-shadow:0 2px 10px rgba(0,0,0,.45); }
   .saverow { display:flex; gap:6px; margin-top:6px; }
   .saverow button { flex:1 1 0; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:8px; padding:7px 8px; font-size:12px; cursor:pointer; }
@@ -251,6 +284,7 @@
   </div>
   <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
+  <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="gear" aria-label="Settings">⚙</button>
 </div>
 <div id="settings">
@@ -260,8 +294,11 @@
   <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
   <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
   <div class="savehint">Export to copy your save out, paste a code in and Import to load it (current save is stashed to backup).</div>
+  <input id="cheatcode" type="text" autocomplete="off" spellcheck="false" placeholder="Type a code…">
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
+<div id="achievements"></div>
+<div id="sethatubby"><div class="seth-figure"><div class="seth-eyes">⊙ ⊙</div><div class="seth-mouth">◡</div><div class="seth-label">SETHATUBBY</div></div></div>
 <div id="hint"></div>
 <div id="toast"></div>
 <div id="panel"></div>
@@ -341,6 +378,11 @@ const GROVE = {
   verdure:   { name:'Verdure',         glyph:'🌳', tier:3, parent:'resonant',  max:4,  cost:l=>4+l*2, desc:'+1 max leaf level per level' },
   // Universal start-level boost.
   birthright:{ name:'Birthright',      glyph:'⭐', tier:3, parent:'resonant',  max:10, cost:l=>6+l*3, desc:'New branches (leaves, amps, refineries, capacitors) start +1 level higher per level' },
+  // Tier 4 — late-game depth
+  ascendance:{ name:'Ascendance',     glyph:'🌌', tier:4, parent:'birthright', max:5, cost:l=>10+l*4, desc:'+25% to all production per level' },
+  eternalSap:{ name:'Eternal Sap',    glyph:'♾️', tier:4, parent:'patience',   max:4, cost:l=>10+l*4, desc:'+4h to the offline production cap per level' },
+  mythos:    { name:'Mythos',         glyph:'📜', tier:4, parent:'lacquer',    max:5, cost:l=>12+l*5, desc:'New branches start with +1 polish per level' },
+  empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -360,11 +402,13 @@ const groveAvailable = k => {
 };
 let META;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {} });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false });
 function loadMeta() {
   try { META = JSON.parse(localStorage.getItem(MKEY)); } catch (e) { META = null; }
   if (!META || typeof META !== 'object') META = newMeta();
   META.up = META.up || {};
+  META.achievements = META.achievements || {};
+  if (typeof META.hacks !== 'boolean') META.hacks = false;
   if (typeof META.rings !== 'number') META.rings = 0;
   if (typeof META.treesCut !== 'number') META.treesCut = 0;
   if (typeof META.totalRings !== 'number') META.totalRings = META.rings || 0;
@@ -372,9 +416,26 @@ function loadMeta() {
 }
 function saveMeta() { if (window.__SAPLING_WIPED) return; try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} }
 const metaLvl = k => (META && META.up[k]) || 0;
-const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.5, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
+const ACHIEVEMENTS = {
+  hacker:     { name:'Hacker',           glyph:'💻', desc:'Discovered the dev cheat code.' },
+  sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', desc:'Summoned the purple one.' },
+  firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
+  firstPolish:{ name:'Glossy Touch',     glyph:'✨', desc:'Polished a node for the first time.' },
+  firstBloom: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
+  ascendant:  { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 upgrade.' },
+};
+function grantAchievement(k) {
+  if (!ACHIEVEMENTS[k]) return;
+  META.achievements = META.achievements || {};
+  if (META.achievements[k]) return;
+  META.achievements[k] = { t: Date.now() };
+  saveMeta();
+  toast(`🏆 Achievement: ${ACHIEVEMENTS[k].glyph} ${ACHIEVEMENTS[k].name}`);
+  sfx('buy');
+}
+const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * SP().leaf;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * SP().leaf;
 const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
@@ -575,7 +636,7 @@ function startLvl(type) {
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, amberEarned: 0,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false, amberEarned: 0,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
@@ -775,6 +836,7 @@ function harvestLeaf(id) {
   n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
   S.sap += gain;
   if (wasBig) {
+    grantAchievement('firstBloom');
     const kind = pickBloom();
     const b = BLOOMS[kind];
     // If a different bloom is already active, the bigger duration wins and we keep the new kind.
@@ -832,9 +894,10 @@ function polish(id) {
   if (n.locked) return;
   if (!canPolish(n)) return;
   if (polishAtCap(n)) return;
-  const c = costPolish(n);
+  const c = metaLvl('empyrean') > 0 ? 0 : costPolish(n);
   if (S.resin < c) return;
   S.resin -= c; n.polish = (n.polish || 0) + 1; S.pristine = false; S.ms.polished = true;
+  grantAchievement('firstPolish');
   sfx('buy');
   pulseNode(n, 0.6, 0.5);
   spawnBurst(n.x, n.y, '#f0b07e', 9, 58, 0.55);
@@ -1035,9 +1098,11 @@ let critterSpawnT = 20 + Math.random() * 20;
 let cutAnim = null;
 const critterSlowMult = id => critters.some(c => c.nodeId === id && c.state === 'sitting') ? 0.35 : 1;
 function spawnFloaty(x, y, txt, color) {
+  if (floaties.length > 40) floaties.shift();
   floaties.push({ x, y, txt, color, life: 1.8 });
 }
 function spawnBurst(x, y, color, count = 10, speed = 72, life = 0.7) {
+  if (sparkParts.length > 260) sparkParts.splice(0, count); // hard cap so massive bursts don't melt frame time
   for (let i = 0; i < count; i++) {
     const a = Math.random() * TAU;
     const s = speed * (0.35 + Math.random() * 0.65);
@@ -1093,7 +1158,7 @@ function updateDrops(dt) {
       n.wasteT -= dt;
       if (n.wasteT <= 0) {
         n.wasteT = clamp(0.5 / (0.2 + n.bufWaste * 0.25), 0.1, 1.2);
-        wasteParts.push({ x: n.x, y: n.y, vx: (Math.random() - 0.5) * 35, vy: 5, life: 1 });
+        if (wasteParts.length < 120) wasteParts.push({ x: n.x, y: n.y, vx: (Math.random() - 0.5) * 35, vy: 5, life: 1 });
       }
     }
     if (n.parent == null) { n.pulse = Math.max(0, n.pulse - dt * 2.5); continue; }
@@ -1122,7 +1187,7 @@ function updateDrops(dt) {
       if (n.wasteT <= 0) {
         n.wasteT = clamp(0.5 / (0.2 + n.waste * 0.25), 0.1, 1.2);
         const m = curvePt(c, 0.5);
-        wasteParts.push({ x: m.x, y: m.y, vx: (Math.random() - 0.5) * 25, vy: 10, life: 1 });
+        if (wasteParts.length < 120) wasteParts.push({ x: m.x, y: m.y, vx: (Math.random() - 0.5) * 25, vy: 10, life: 1 });
       }
     }
   }
@@ -2080,7 +2145,7 @@ function load() {
   prepareEdgeCache();
   computeFlow(0); // capacitors pass through for the offline estimate
   const away = clamp((Date.now() - d.t) / 1000, 0,
-    (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance')) * SP().offline * 3600);
+    (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance') + 4 * metaLvl('eternalSap')) * SP().offline * 3600);
   if (away > 30 && S.incomeS + S.incomeR > 0) {
     const offMult = 1 + 0.15 * metaLvl('patience');
     S.sap += S.incomeS * away * offMult;
@@ -2235,7 +2300,7 @@ grove.addEventListener('click', e => {
   if (up) {
     const k = up.dataset.up, g = GROVE[k], lvl = metaLvl(k);
     if (g && lvl < g.max && META.rings >= costGrove(k)) {
-      META.rings -= costGrove(k); META.up[k] = lvl + 1; saveMeta();
+      META.rings -= costGrove(k); META.up[k] = lvl + 1; if (g.tier >= 4) grantAchievement('ascendant'); saveMeta();
       sfx('buy'); replantIfPristine(); renderGrove();
     }
     return;
@@ -2299,6 +2364,90 @@ document.getElementById('importSave').addEventListener('click', () => {
   if (!confirm('Load this save code? Your current tree and rings will be replaced (the old save is stashed for Restore backup).')) return;
   try { applySaveCode(code); }
   catch (e) { toast('Import failed: ' + (e.message || e)); }
+});
+// ---------- cheat codes / easter egg ----------
+const cheat = document.getElementById('cheatcode');
+const sethEl = document.getElementById('sethatubby');
+function summonSethatubby() {
+  // Custom bloom: x5 leaf for 30s, kind: 'sethatubby' — falls back to BLOOMS lookup which we register inline.
+  BLOOMS.sethatubby = BLOOMS.sethatubby || { name:'Sethatubby', icon:'🟣', color:'#a374df', dur:30, weight:0, leafMult:()=>5, descOf:()=>'×5 leaf production (Sethatubby!)' };
+  S.bloomKind = 'sethatubby';
+  S.bloomT = Math.max(S.bloomT || 0, 30);
+  grantAchievement('sethatubby');
+  toast('🟣 Sethatubby appears! ×5 production for 30s');
+  sfx('buy');
+  if (sethEl) {
+    sethEl.classList.add('on');
+    setTimeout(() => sethEl.classList.remove('on'), 4200);
+  }
+}
+function enableHacks() {
+  META.hacks = true;
+  // Max every GROVE upgrade and unlock all species.
+  for (const k of Object.keys(GROVE)) {
+    META.up[k] = GROVE[k].max;
+  }
+  META.rings = Math.max(META.rings, 9999);
+  META.totalRings = Math.max(META.totalRings || 0, META.rings);
+  saveMeta();
+  grantAchievement('hacker');
+  toast('💻 HACKER MODE — everything unlocked.');
+  sfx('buy');
+  renderGrove();
+}
+function checkCheat(raw) {
+  const v = (raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!v) return false;
+  // Sethatubby variants (be generous on misspellings).
+  if (/^seth(a|e|i)tubb(ie|y|i|ey|e)?$/.test(v) || /^seth(a|e)tubby$/.test(v) || v === 'sethatubbie' || v === 'sethetubby') {
+    summonSethatubby();
+    return true;
+  }
+  if (v === 'djawesome9') {
+    enableHacks();
+    return true;
+  }
+  return false;
+}
+cheat?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (checkCheat(cheat.value)) cheat.value = '';
+  }
+});
+// Also fire as the user types — codes can be matched without pressing Enter once a unique match is hit.
+cheat?.addEventListener('input', () => {
+  if (checkCheat(cheat.value)) cheat.value = '';
+});
+
+// ---------- achievements panel ----------
+const trophy = document.getElementById('trophy');
+const achPanel = document.getElementById('achievements');
+function renderAchievements() {
+  const owned = META.achievements || {};
+  const total = Object.keys(ACHIEVEMENTS).length;
+  const unlocked = Object.keys(owned).length;
+  achPanel.innerHTML = `<h3>Achievements · ${unlocked}/${total}</h3>` + Object.keys(ACHIEVEMENTS).map(k => {
+    const a = ACHIEVEMENTS[k], has = !!owned[k];
+    return `<div class="achrow ${has ? '' : 'locked'}">
+      <div class="ag">${has ? a.glyph : '🔒'}</div>
+      <div class="at"><div class="ah">${a.name}</div><div class="ad">${has ? a.desc : '???'}</div></div>
+    </div>`;
+  }).join('');
+}
+trophy?.addEventListener('click', () => {
+  const open = achPanel.classList.toggle('open');
+  if (open) {
+    renderAchievements();
+    settings.classList.remove('open'); gear.classList.remove('open');
+    trophy.classList.add('open');
+  } else {
+    trophy.classList.remove('open');
+  }
+});
+document.addEventListener('pointerdown', e => {
+  if (!achPanel.contains(e.target) && e.target !== trophy) {
+    achPanel.classList.remove('open'); trophy.classList.remove('open');
+  }
 });
 document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Hard reset: erase your tree, all rings, every upgrade, and every backup. There is no undo. Continue?')) return;
