@@ -10,7 +10,7 @@
     -webkit-text-size-adjust:100%; }
   button { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   canvas { position:fixed; inset:0; display:block; touch-action:none; }
-  #topbar { position:fixed; top:0; left:0; right:0; display:flex; align-items:flex-start; gap:14px;
+  #topbar { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:14px;
     padding:max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
     pointer-events:none; user-select:none; }
   #topbar .title { font-weight:700; letter-spacing:.12em; color:#9db89f; font-size:13px; text-transform:uppercase; }
@@ -62,7 +62,8 @@
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #trophy:hover, #trophy.open { border-color:#d9b864; color:#f0d9a0; }
   #pestbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
-    border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1; }
+    border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1;
+    min-width:170px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
   #pestbtn:hover { border-color:#8fc299; color:#cfe3d1; }
   #pestbtn.on { background:#1d2c20; border-color:#8fc299; color:#cfe3d1; }
   #pestbtn.cantafford { opacity:.45; cursor:not-allowed; }
@@ -290,7 +291,7 @@
     <span class="statrate" id="amberrate"></span>
     <span class="statdetail" id="amberdetail"></span>
   </div>
-  <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;"></span>
+  <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
@@ -400,6 +401,16 @@ const GROVE = {
   empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
   dreams:    { name:'Lucid Dreams',    glyph:'💭', tier:4, parent:'eternalSap', max:4, cost:l=>8+l*3, desc:'+5% offline production rate per level (toward the 85% cap)' },
   pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
+  // Extra mid-tier — fill out the tree
+  crescent:  { name:'Crescent',        glyph:'🌙', tier:3, parent:'nest',       max:4, cost:l=>3+l*2, desc:'New trees start with +25 amber per level' },
+  bountiful: { name:'Bountiful',       glyph:'🌾', tier:3, parent:'vitality',   max:5, cost:l=>3+l*2, desc:'+10% resin yield per level' },
+  // Tier 5 — endgame mythics, deliberately pricey
+  worldtree: { name:'Worldtree',       glyph:'🌳', tier:5, parent:'ascendance', max:3, cost:l=>200+l*150, desc:'+50% to all leaf production per level' },
+  eternity:  { name:'Eternity',        glyph:'⏳', tier:5, parent:'dreams',     max:1, cost:_=>500,        desc:'Offline rate jumps to 100% (no cap)' },
+  apotheosis:{ name:'Apotheosis',      glyph:'👑', tier:5, parent:'mythos',     max:1, cost:_=>600,        desc:'New branches start at the type\'s max level' },
+  polishMastery: { name:'Polish Mastery', glyph:'🪞', tier:5, parent:'empyrean', max:3, cost:l=>200+l*120, desc:'Each polish stack is ×2 effective per level (stacks multiplicatively)' },
+  symbiosis: { name:'Symbiosis',       glyph:'🤝', tier:5, parent:'pesticide',  max:1, cost:_=>400,        desc:'Pesticide no longer costs −15% production' },
+  godseed:   { name:'Godseed',         glyph:'🌟', tier:5, parent:'worldtree',  max:1, cost:_=>1000,       desc:'Resin and capacitor flow both ×3' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -500,7 +511,7 @@ function grantAchievement(k) {
 }
 const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * SP().leaf;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * SP().leaf;
 const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
@@ -529,7 +540,7 @@ const bloomCapMult   = () => { const b = activeBloom(); return b && b.capMult ? 
 const pesticideOwned = () => metaLvl('pesticide') > 0;
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
 const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
-const pesticideMult  = () => pesticideOn() ? 0.85 : 1;
+const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.85) : 1;
 // Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
 const bloomMult      = bloomLeafMult;
 // Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
@@ -547,10 +558,10 @@ const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * 
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
 const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n);
-const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult();
+const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult() * (metaLvl('godseed') > 0 ? 3 : 1);
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
 const POLISH_PCT  = 0.06;
-const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish || 0);
+const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish || 0) * Math.pow(2, metaLvl('polishMastery'));
 const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'cap';
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
@@ -701,6 +712,14 @@ const pruneGain = n => {
 // ---------- state ----------
 let S;
 function startLvl(type) {
+  if (metaLvl('apotheosis') > 0) {
+    // Spawn straight at the type's current cap.
+    if (type === 'leaf') return 10 + 2 * rootLvl('verdance') + metaLvl('verdure');
+    if (type === 'amp')  return 5 + 2 * rootLvl('vigor');
+    if (type === 'ref')  return 4 + 2 * rootLvl('distill');
+    if (type === 'cap')  return 4 + 2 * rootLvl('surge');
+    return 1;
+  }
   const birth = metaLvl('birthright');
   if (type === 'leaf') return Math.min(1 + metaLvl('seasoned') + birth, 10 + 2 * rootLvl('verdance') + metaLvl('verdure'));
   if (type === 'amp')  return Math.min(1 + metaLvl('resonant') + birth, 5 + 2 * rootLvl('vigor'));
@@ -735,6 +754,7 @@ function newGame() {
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
+  S.amber += 25 * metaLvl('crescent');
   const dr = metaLvl('deeproots');
   if (dr >= 1) S.roots.amplify = 1;
   if (dr >= 2) S.roots.refine = 1;
@@ -815,7 +835,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult(); s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * (1 + 0.10 * metaLvl('bountiful')) * (metaLvl('godseed') > 0 ? 3 : 1); s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -1128,6 +1148,11 @@ function fitCamera(dt) {
   if (!cam.init) { cam.scale = ts; cam.ox = tox; cam.oy = toy; cam.init = true; return; }
   const k = clamp(dt * 4, 0, 1);
   cam.scale = lerp(cam.scale, ts, k); cam.ox = lerp(cam.ox, tox, k); cam.oy = lerp(cam.oy, toy, k);
+  // Snap when sufficiently close — kills sub-pixel lerps that browsers re-round
+  // every frame, which read as page jitter on high-DPR displays.
+  if (Math.abs(cam.scale - ts) < 0.001) cam.scale = ts;
+  if (Math.abs(cam.ox - tox) < 0.5) cam.ox = tox;
+  if (Math.abs(cam.oy - toy) < 0.5) cam.oy = toy;
 }
 const sx = x => x * cam.scale + cam.ox;
 const sy = y => y * cam.scale + cam.oy;
@@ -2249,7 +2274,7 @@ function load() {
     (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance') + 4 * metaLvl('eternalSap')) * SP().offline * 3600);
   if (away > 30 && S.incomeS + S.incomeR > 0) {
     // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85%.
-    const offlineRate = Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
+    const offlineRate = metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
     S.sap += S.incomeS * away * offlineRate;
     S.resin += S.incomeR * away * offlineRate;
     grantAchievement('offline');
@@ -2676,6 +2701,8 @@ function frame(now) {
     for (const id in S.nodes) {
       const n = N(id);
       n.x = lerp(n.x, n.tx, k); n.y = lerp(n.y, n.ty, k);
+      if (Math.abs(n.x - n.tx) < 0.4) n.x = n.tx;
+      if (Math.abs(n.y - n.ty) < 0.4) n.y = n.ty;
     }
     prepareEdgeCache();
     fitCamera(dt);
