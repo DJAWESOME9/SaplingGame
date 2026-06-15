@@ -3129,6 +3129,14 @@ function _checkCheatInner(raw) {
     if (Object.keys(META.silksong).length >= 4) grantAchievement('silksong');
     return true;
   }
+  if (v === 'marriage') {
+    META.rings = (META.rings || 0) + 1;
+    META.totalRings = (META.totalRings || 0) + 1;
+    saveMeta();
+    toast('💍 Marriage — +1 ring banked');
+    sfx('buy');
+    return true;
+  }
   if (v === 'shaw' || v === 'hadino' || v === 'hegale') {
     META.silksong = META.silksong || {};
     META.silksong[v] = true;
