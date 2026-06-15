@@ -185,6 +185,9 @@
     background:rgba(20,14,30,.6); position:relative; cursor:pointer; transition:border-color .15s; }
   .panslot:hover { border-color:#a374df; }
   .panslot.filled { border-style:solid; border-color:#a374df; background:rgba(50,34,90,.6); }
+  .panslot.slotbuy { border-color:#caa64f; background:rgba(30,22,8,.6); }
+  .panslot.slotbuy:hover { border-color:#f0d9a0; }
+  .panslot.cantafford { opacity:.5; cursor:not-allowed; }
   .panslot .pg { font-size:36px; line-height:1; }
   .panslot .pn { font-size:12px; color:#dec4ff; font-weight:600; letter-spacing:.04em; }
   .panslot .pe { font-size:10px; color:#7d8c7e; }
@@ -229,6 +232,32 @@
     margin:18px 0 10px; border-top:1px solid #243026; padding-top:14px; }
   .grovesect span { color:#cdbf9a; text-transform:none; letter-spacing:0; }
   .grovegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(225px,1fr)); gap:10px; }
+  #grovetreewrap { position:relative; height:520px; overflow:hidden; background:radial-gradient(circle at center, rgba(18,32,20,.85), rgba(8,14,10,.95));
+    border:1px solid #2e3f31; border-radius:14px; touch-action:none; user-select:none; }
+  #grovesvg { width:100%; height:100%; cursor:grab; display:block; }
+  #grovesvg:active { cursor:grabbing; }
+  #grovehint { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:11px; color:#7d8c7e;
+    pointer-events:none; letter-spacing:.04em; }
+  .ge line { transition:stroke .15s; }
+  .gn .gnode { cursor:pointer; }
+  .gn .gnode circle { fill:#1a2520; stroke:#3c5340; stroke-width:2; transition:fill .15s, stroke .15s; }
+  .gn .gnode:hover circle { fill:#243827; }
+  .gn .gnode.owned circle { fill:#1d3624; stroke:#6f9a75; }
+  .gn .gnode.maxed circle { fill:#2a4a30; stroke:#9fd9a8; }
+  .gn .gnode.afford circle { stroke:#dceade; stroke-width:3; filter:drop-shadow(0 0 6px rgba(220,234,222,.4)); }
+  .gn .gnode.locked circle { fill:#10160e; stroke:#1e2a20; opacity:.55; }
+  .gn .gnode.species circle { stroke:#caa64f; }
+  .gn .gnode.species.maxed circle { fill:#3a2410; stroke:#f0d9a0; }
+  .gn-glyph { font-size:30px; pointer-events:none; }
+  .gn-lvl { font-size:14px; fill:#cdbf9a; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums; }
+  #grovepopover { position:absolute; display:none; width:248px; background:rgba(14,21,15,.97);
+    border:1px solid #6f9a75; border-radius:11px; padding:10px 12px 11px; z-index:5;
+    box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  #grovepopover.open { display:block; }
+  #grovepopover .gtitle { font-size:13.5px; color:#e7ddc4; font-weight:600; display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+  #grovepopover .gglyph { font-size:16px; }
+  #grovepopover .glvl { margin-left:auto; font-size:11.5px; color:#9db89f; font-weight:400; }
+  #grovepopover .gdesc { font-size:11.5px; color:#9db89f; line-height:1.4; margin-bottom:7px; }
   .gcard { border:1px solid #2e3f31; background:rgba(20,30,22,.7); border-radius:12px;
     padding:11px 12px; display:flex; flex-direction:column; gap:6px; }
   .gcard.maxed { border-color:#5a6a4a; }
@@ -290,6 +319,7 @@
     .cutrow > div { flex:1 1 100%; }
     #cutBtn { flex:1 1 100%; padding:11px 16px; }
     .grovegrid { grid-template-columns:1fr; }
+    #grovetreewrap { height:60vh; min-height:380px; }
     .gbuy { padding:10px 9px; }
     .speciesgrid { grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px; }
     .scard { padding:11px; }
@@ -417,7 +447,7 @@
     <p class="grovesub">Fell a grown tree to gather <b>rings</b> from its trunk — then spend them on eternal upgrades and choose what species to plant next. Rings and upgrades are kept forever.</p>
     <div id="ringbanner"></div>
     <div class="grovesect">Eternal upgrades <span id="ringtotal"></span></div>
-    <div id="groveups" class="grovegrid"></div>
+    <div id="groveups"></div>
     <div class="grovesect">Choose your tree</div>
     <div id="grovespecies" class="speciesgrid"></div>
     <div class="groveactions"><button id="plantBtn">Return to your tree</button></div>
@@ -437,7 +467,7 @@ const CFG = {
   refRatioBase: 18, refRatioStep: 0.9, refRatioMin: 6, // sap per resin
   capDischargeTime: 6, capBonusBase: 2.0, capBonusStep: 0.25,
   edgeBaseCap: 6, edgeCapGrowth: 1.7,   // branch throughput
-  baseKids: { core: 3, amp: 3, ref: 2, cap: 2, leaf: 0 },
+  baseKids: { core: 3, amp: 3, ref: 2, cap: 2, leaf: 0, funnel: 3 },
   maxKidsCap: 5,
   startSap: 12,
   offlineCapSec: 4 * 3600,
@@ -458,6 +488,8 @@ const SPECIES = {
            perk:'Sap-rich: +50% amber & rings.', bane:'Production −10%.' },
   pine:  { name:'Pine',  glyph:'🌲', tint:'#3f7a6e', outline:'#7ad0b0', leaf:1,    amp:1,    ref:1, edge:1.6,  gold:0,   ring:1,   cost:0.85, offline:1.6, kids:0,
            perk:'Hardy: ×1.6 capacity, +60% offline, cheaper growth.', bane:'Evergreen — bears no gold leaves.' },
+  chocolate: { name:'Chocolate', glyph:'🍫', tint:'#5a3320', outline:'#a26240', leaf:1.20, amp:1.20, ref:1.10, edge:1, gold:1.6, ring:0.85, cost:1.10, offline:1, kids:0,
+           perk:'Rich syrup: +20% leaf and amp, +60% gold leaf value.', bane:'Cuts pay 15% fewer rings, growth costs +10%.' },
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
@@ -492,8 +524,10 @@ const GROVE = {
   empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
   dreams:    { name:'Lucid Dreams',    glyph:'💭', tier:4, parent:'eternalSap', max:4, cost:l=>8+l*3, desc:'+5% offline production rate per level (toward the 85% cap)' },
   pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
+  funnels:   { name:'Funnels',        glyph:'🪣', tier:4, parent:'eternalSap', max:4, cost:l=>30+l*15, desc:'Unlocks the Funnel — a routing node. Branch into it carries ×10 flow. +1 max funnel per level' },
+  expandedRoots: { name:'Expanded Roots', glyph:'🌿', tier:4, parent:'birthright', max:1, cost:_=>80, desc:'Unlocks three hidden Roots: Marrow, Nimbus, and Bastion' },
   // Extra mid-tier — fill out the tree
-  crescent:  { name:'Crescent',        glyph:'🌙', tier:3, parent:'nest',       max:4, cost:l=>3+l*2, desc:'New trees start with +25 amber per level' },
+  crescent:  { name:'Crescent',        glyph:'🌙', tier:3, parent:'nest',       max:4, cost:l=>3+l*2, desc:'New trees start with +10 amber per level' },
   squirrelry:{ name:'Squirrelry',      glyph:'🐿️', tier:3, parent:'nest',       max:5, cost:l=>4+l*2, desc:'Acorns ripen 10% faster per level' },
   bountiful: { name:'Bountiful',       glyph:'🌾', tier:3, parent:'vitality',   max:5, cost:l=>3+l*2, desc:'+10% resin yield per level' },
   // Tier 5 — endgame mythics, deliberately pricey
@@ -514,6 +548,7 @@ const GROVE = {
 // helper: does the player own (or have unlocked) a species?
 const speciesUnlocked = sp => {
   if (sp === 'oak') return true;
+  if (sp === 'chocolate') return !!(META && META.chocolateUnlocked);
   for (const k in GROVE) if (GROVE[k].unlocks === sp && metaLvl(k) > 0) return true;
   return false;
 };
@@ -523,7 +558,7 @@ const groveAvailable = k => {
 };
 let META;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [null, null, null], pantheonOpened: false });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 60 * 60 * 1000;  // 60 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -531,6 +566,8 @@ const acornInterval = () => ACORN_INTERVAL_MS * Math.pow(0.9, metaLvl('squirrelr
 const acornRipeCap  = () => ACORN_RIPE_CAP + metaLvl('canopycharm');
 const PANTHEON_SLOTS    = 3;
 const PANTHEON_OPEN_COST = 3;              // acorns to first unlock the panel
+const SLOT_UNLOCK_COSTS = [0, 5, 10];      // additional slot unlock costs
+const SLOT_REUSE_COST   = 1;               // acorn cost to re-slot a deity
 const PANTHEON = {
   helios:  { name:'Helios',  glyph:'☀️', cost:2,
     perk:'+60% leaf production', bane:'Gold leaves ripen 50% slower',
@@ -608,8 +645,10 @@ function loadMeta() {
   if (typeof META.canopy.growMs !== 'number') META.canopy.growMs = ACORN_INTERVAL_MS;
   if (typeof META.canopy.ripe !== 'number') META.canopy.ripe = 0;
   if (!META.godsUnlocked) META.godsUnlocked = {};
-  if (!Array.isArray(META.pantheonSlots)) META.pantheonSlots = [null, null, null];
-  while (META.pantheonSlots.length < PANTHEON_SLOTS) META.pantheonSlots.push(null);
+  if (!Array.isArray(META.pantheonSlots)) META.pantheonSlots = [];
+  if (typeof META.pantheonSlotsUnlocked !== 'number') META.pantheonSlotsUnlocked = 0;
+  if (!META.deityFirstSlot) META.deityFirstSlot = {};
+  while (META.pantheonSlots.length < (META.pantheonSlotsUnlocked || 0)) META.pantheonSlots.push(null);
   if (typeof META.pantheonOpened !== 'boolean') META.pantheonOpened = false;
   if (!META.foundersUsed || typeof META.foundersUsed !== 'object') META.foundersUsed = {};
   if (typeof META.rings !== 'number') META.rings = 0;
@@ -678,6 +717,12 @@ const ACHIEVEMENTS = {
   pantheonOpen: { name:'Pantheon Stirs', glyph:'🏛️', desc:'Wake the Pantheon by banking enough acorns.' },
   godSlotted: { name:'Devotee',          glyph:'🙏', desc:'Slot a tree-god into a pedestal.' },
   founders:   { name:'Founders',         glyph:'🌳', desc:'Summon every founder.' },
+  chocolatier:{ name:'Chocolatier',      glyph:'🍫', desc:'Unlock the Chocolate species.' },
+  chocoholic: { name:'Chocoholic',       glyph:'🍩', desc:'Trigger the Chocoholic blast.' },
+  firstFunnel:{ name:'Routing Engineer', glyph:'🪣', desc:'Grow your first Funnel.' },
+  startingRoots:{ name:'Three Pillars',  glyph:'🪨', desc:'Unlock Amplify, Rich soil, and Keen shears.' },
+  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', desc:'Unlock every single root advancement.' },
+  silksong:   { name:'Silksong',         glyph:'🪡', desc:'Trace the echoes of a long-awaited song.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -746,7 +791,7 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult();
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * Math.pow(1.5, rootLvl('nimbus'));
 const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay();
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
@@ -760,7 +805,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(20 * Math.pow(1.8, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult();
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -778,12 +823,15 @@ const GROW = {
           label: 'Grow refinery', sub: 'turns sap into resin' },
   cap:  { cur: 'resin', cost: () => 15 * Math.pow(2.0, S.counts.cap) * thriftMult(),
           label: 'Grow capacitor', sub: 'stores flow, bursts it boosted' },
+  funnel: { cur: 'sap', cost: () => 240 * Math.pow(2.2, S.counts.funnel || 0) * thriftMult(),
+          label: 'Grow funnel', sub: 'passes flow · branch carries ×10' },
 };
 const growUnlocked = t =>
   t === 'leaf' ||
   (t === 'amp' && rootLvl('amplify') > 0) ||
   (t === 'ref' && rootLvl('refine') > 0) ||
-  (t === 'cap' && rootLvl('capacitance') > 0);
+  (t === 'cap' && rootLvl('capacitance') > 0) ||
+  (t === 'funnel' && metaLvl('funnels') > 0);
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
   leaf: 20 * Math.pow(1.6, n.lvl - 1),
@@ -850,13 +898,20 @@ const ROOTS = {
                  desc: 'Each level: +0.5 to every amplifier’s multiplier' },
   sunlight:    { name: 'Sunlight',      x: 140,  y: 420, parent: 'verdance', max: 5, cost: l => 10 * Math.pow(2, l),
                  desc: 'Each level: leaf production ×1.3' },
+  marrow:      { name: 'Marrow',        x: -80,  y: 480, parent: 'capillary', max: 5, cost: l => 14 * Math.pow(2, l),
+                 desc: 'Each level: +25% to all branch capacity', gated: 'expandedRoots' },
+  nimbus:      { name: 'Nimbus',        x:  60,  y: 480, parent: 'sunlight',  max: 4, cost: l => 16 * Math.pow(2, l),
+                 desc: 'Each level: leaf production ×1.5', gated: 'expandedRoots' },
+  bastion:     { name: 'Bastion',       x: 200,  y: 470, parent: 'artesian',  max: 4, cost: l => 18 * Math.pow(2, l),
+                 desc: 'Each level: critters spawn 30% slower and have +1 HP', gated: 'expandedRoots' },
 };
 const thriftMult = () => Math.pow(0.88, rootLvl('thrift')) * SP().cost;
 const purityMult = () => 1 + 0.1 * rootLvl('purity');
 const typeMax = t =>
   t === 'amp' ? 3 + 2 * rootLvl('grove') :
   t === 'ref' ? 2 + rootLvl('stills') :
-  t === 'cap' ? 2 + rootLvl('wells') : Infinity;
+  t === 'cap' ? 2 + rootLvl('wells') :
+  t === 'funnel' ? 2 + metaLvl('funnels') : Infinity;
 const lvlMax = n => ({
   leaf: 10 + 2 * rootLvl('verdance') + metaLvl('verdure'),
   amp:  3 + 2 * rootLvl('vigor'),
@@ -864,7 +919,7 @@ const lvlMax = n => ({
   cap:  4 + 2 * rootLvl('surge'),
 }[n.type] || 99);
 const rootLvl       = k => S.roots[k] || 0;
-const rootAvailable = k => !ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0;
+const rootAvailable = k => (!ROOTS[k].gated || metaLvl(ROOTS[k].gated) > 0) && (!ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0);
 // roots only appear while the core (or a root) is selected, and only once unlocked (prerequisite met)
 function showRoots() {
   if (selectedRoot) return true;
@@ -882,6 +937,12 @@ function buyRoot(k) {
   const _depth = rootDepth(k);
   if (_depth >= 2) grantAchievement('rootTier3');
   if (_depth >= 4) grantAchievement('rootTier5');
+  // Starting roots: amplify + soil + shears all bought
+  if (rootLvl('amplify') > 0 && rootLvl('soil') > 0 && rootLvl('shears') > 0) grantAchievement('startingRoots');
+  // All roots: every entry in ROOTS has at least one level (and the player can actually reach them)
+  if (Object.keys(ROOTS).every(k2 => rootLvl(k2) > 0 || !rootAvailable(k2))) {
+    if (Object.keys(ROOTS).every(k2 => rootLvl(k2) > 0)) grantAchievement('allRoots');
+  }
   S.pristine = false;
   sfx('buy');
   spawnFloaty(r.x, r.y, r.name, '#f0a050');
@@ -938,7 +999,7 @@ const N = id => S.nodes[id];
 
 function newGame() {
   S = { sap: CFG.startSap, resin: 0, amber: 0, nodes: {}, nextId: 1, rootId: 0,
-    counts: { leaf: 0, amp: 0, ref: 0, cap: 0 },
+    counts: { leaf: 0, amp: 0, ref: 0, cap: 0, funnel: 0 },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
              grove: 0, stills: 0, wells: 0, crown: 0, thrift: 0, distill: 0, fineness: 0, purity: 0,
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
@@ -948,7 +1009,7 @@ function newGame() {
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
-  S.amber += 25 * metaLvl('crescent');
+  S.amber += 10 * metaLvl('crescent');
   const dr = metaLvl('deeproots');
   if (dr >= 1) S.roots.amplify = 1;
   if (dr >= 2) S.roots.refine = 1;
@@ -1097,7 +1158,7 @@ function grow(parentId, type) {
   const n = mkNode(type, parentId);
   n.x = p.x; n.y = p.y;
   S.counts[type]++;
-  if (_wasFirst) grantAchievement(({leaf:'firstLeaf',amp:'firstAmp',ref:'firstRef',cap:'firstCap'})[type]);
+  if (_wasFirst) grantAchievement(({leaf:'firstLeaf',amp:'firstAmp',ref:'firstRef',cap:'firstCap',funnel:'firstFunnel'})[type]);
   sfx('buy');
   pulseNode(n, 1, 1);
   pulseNode(p, 0.45, 0.5);
@@ -1154,7 +1215,8 @@ function upgrade(id) {
   spawnBurst(n.x, n.y,
     n.type === 'cap' ? '#7fe3ee' :
     n.type === 'ref' ? '#f0b07e' :
-    n.type === 'amp' ? '#c6b8ff' : '#90e09b',
+    n.type === 'amp' ? '#c6b8ff' :
+    n.type === 'funnel' ? '#cdbf9a' : '#90e09b',
     10, 70, 0.7);
   buildPanel(); save();
 }
@@ -1518,7 +1580,7 @@ function spawnCritter() {
   if (!ids.length) return;
   const nodeId = +ids[Math.floor(Math.random() * ids.length)];
   const node = N(nodeId);
-  const hp = 2 + Math.floor(Math.random() * 3);
+  const hp = 2 + Math.floor(Math.random() * 3) + rootLvl('bastion');
   critters.push({
     type: Math.random() < 0.55 ? 'bird' : 'bug',
     x: node.x + (Math.random() - 0.5) * 120,
@@ -1555,7 +1617,7 @@ function updateCritters(dt) {
   if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); return; }
   if (critterSpawnT <= 0) {
     spawnCritter();
-    critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble'));
+    critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble')) * (1 + 0.3 * rootLvl('bastion'));
   }
   for (let i = critters.length - 1; i >= 0; i--) {
     const c = critters[i];
@@ -1688,6 +1750,7 @@ function nodeRadius(n) {
   if (n.type === 'amp') return 12 + Math.min(n.lvl, 5) * 1.2;
   if (n.type === 'ref') return 13 + Math.min(n.lvl, 5);
   if (n.type === 'cap') return 13 + Math.min(n.lvl, 5);
+  if (n.type === 'funnel') return 14;
   return 8.5 + Math.min(n.lvl, 6) * 1.2;
 }
 function draw(time) {
@@ -2575,9 +2638,197 @@ function buyGrove(k, n) {
     if (have.length >= 2) grantAchievement('species2');
     if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
   }
-  if (bought > 0) { sfx('buy'); saveMeta(); replantIfPristine(); renderGrove(); }
+  if (bought > 0) {
+    sfx('buy'); saveMeta(); replantIfPristine();
+    // Stash + re-show the open popover so quick ×10 / Max chains keep working.
+    const openK = (document.querySelector('#grovepopover.open') && document.querySelector('#grovepopover.open button[data-up]'))
+                ? document.querySelector('#grovepopover.open button[data-up]').dataset.up : null;
+    renderGrove();
+    if (openK) showGrovePopover(openK);
+  }
   return bought;
 }
+// ---------- grove: radial draggable tree ----------
+function groveLayout() {
+  // Depth = parent chain length. Use depth (not tier) for the visual radius
+  // so the lines flow neatly from the center outward.
+  function depth(k) {
+    let d = 0, cur = k;
+    while (GROVE[cur] && GROVE[cur].parent) { d++; cur = GROVE[cur].parent; if (d > 20) break; }
+    return d;
+  }
+  const R = [130, 260, 400, 540, 680, 820, 960];
+  const byDepth = {};
+  for (const k of Object.keys(GROVE)) {
+    const d = depth(k);
+    (byDepth[d] = byDepth[d] || []).push(k);
+    GROVE[k]._depth = d;
+  }
+  // Spread the roots (depth 0) evenly around a circle
+  const roots = byDepth[0] || [];
+  roots.forEach((k, i) => {
+    const a = -Math.PI / 2 + (i / roots.length) * Math.PI * 2;
+    GROVE[k]._x = Math.cos(a) * R[0];
+    GROVE[k]._y = Math.sin(a) * R[0];
+    GROVE[k]._a = a;
+  });
+  // Children fan around the parent's angle
+  for (let d = 1; d <= 6; d++) {
+    if (!byDepth[d]) continue;
+    const byParent = {};
+    for (const k of byDepth[d]) {
+      (byParent[GROVE[k].parent] = byParent[GROVE[k].parent] || []).push(k);
+    }
+    for (const pk of Object.keys(byParent)) {
+      const p = GROVE[pk];
+      if (!p || p._a == null) continue;
+      const kids = byParent[pk];
+      const spread = Math.min(Math.PI * 0.65, kids.length * 0.32);
+      kids.forEach((k, i) => {
+        const offset = kids.length > 1 ? -spread / 2 + (i / (kids.length - 1)) * spread : 0;
+        const a = p._a + offset;
+        GROVE[k]._x = Math.cos(a) * R[d];
+        GROVE[k]._y = Math.sin(a) * R[d];
+        GROVE[k]._a = a;
+      });
+    }
+  }
+}
+let grovePan = { x: 0, y: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false };
+const GROVE_VIEW = 1800; // square viewBox edge length
+function renderGroveTree() {
+  groveLayout();
+  let edges = '';
+  let circles = '';
+  for (const k of Object.keys(GROVE)) {
+    const g = GROVE[k];
+    if (g._x == null) continue;
+    if (g.parent) {
+      const p = GROVE[g.parent];
+      if (p && p._x != null) {
+        const ownedParent = metaLvl(g.parent) > 0;
+        edges += `<line x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="${ownedParent ? '#5a8a64' : '#2a3026'}" stroke-width="${ownedParent ? 3 : 1.5}" stroke-linecap="round"/>`;
+      }
+    }
+  }
+  for (const k of Object.keys(GROVE)) {
+    const g = GROVE[k];
+    if (g._x == null) continue;
+    const lvl = metaLvl(k);
+    const maxed = lvl >= g.max;
+    const avail = groveAvailable(k);
+    const cost = costGrove(k);
+    const afford = avail && !maxed && META.rings >= cost;
+    const cls = ['gnode'];
+    if (lvl > 0) cls.push('owned');
+    if (maxed) cls.push('maxed');
+    if (!avail) cls.push('locked');
+    else if (afford) cls.push('afford');
+    if (g.unlocks) cls.push('species');
+    circles += `<g class="${cls.join(' ')}" data-up="${k}" transform="translate(${g._x},${g._y})">
+      <circle r="36"/>
+      <text class="gn-glyph" y="4" text-anchor="middle">${avail ? g.glyph : '🔒'}</text>
+      ${g.max > 1 ? `<text class="gn-lvl" y="56" text-anchor="middle">${lvl}/${g.max}</text>` : (maxed ? `<text class="gn-lvl" y="56" text-anchor="middle">✓</text>` : '')}
+    </g>`;
+  }
+  document.getElementById('groveups').innerHTML = `<div id="grovetreewrap">
+    <svg id="grovesvg" viewBox="${-GROVE_VIEW/2} ${-GROVE_VIEW/2} ${GROVE_VIEW} ${GROVE_VIEW}" preserveAspectRatio="xMidYMid meet">
+      <g id="grovepan" transform="translate(${grovePan.x},${grovePan.y})">
+        <g class="ge">${edges}</g>
+        <g class="gn">${circles}</g>
+      </g>
+    </svg>
+    <div id="grovepopover"></div>
+    <div id="grovehint">Drag to pan · click a node to buy</div>
+  </div>`;
+  bindGroveDrag();
+}
+function bindGroveDrag() {
+  const svg = document.getElementById('grovesvg');
+  const inner = document.getElementById('grovepan');
+  const pop = document.getElementById('grovepopover');
+  let currentPopK = null;
+  svg.addEventListener('pointerdown', e => {
+    // If the click started inside the popover, ignore — the buttons handle it.
+    if (pop.contains(e.target)) return;
+    grovePan.dragging = true; grovePan.moved = false;
+    grovePan.sx = e.clientX; grovePan.sy = e.clientY;
+    grovePan.ox = grovePan.x; grovePan.oy = grovePan.y;
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!grovePan.dragging) return;
+    const dx = e.clientX - grovePan.sx, dy = e.clientY - grovePan.sy;
+    if (Math.hypot(dx, dy) > 4) grovePan.moved = true;
+    const rect = svg.getBoundingClientRect();
+    const scale = GROVE_VIEW / rect.width;
+    grovePan.x = grovePan.ox + dx * scale;
+    grovePan.y = grovePan.oy + dy * scale;
+    inner.setAttribute('transform', `translate(${grovePan.x},${grovePan.y})`);
+    if (currentPopK) positionGrovePopover(currentPopK);
+  });
+  const endDrag = e => {
+    if (!grovePan.dragging) return;
+    grovePan.dragging = false;
+    try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (grovePan.moved) return;
+    const tEl = e.target.closest('.gnode');
+    if (tEl) {
+      currentPopK = tEl.dataset.up;
+      showGrovePopover(currentPopK);
+    } else {
+      currentPopK = null;
+      pop.classList.remove('open');
+    }
+  };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+}
+function showGrovePopover(k) {
+  const pop = document.getElementById('grovepopover');
+  const g = GROVE[k];
+  if (!g) return;
+  const lvl = metaLvl(k);
+  const maxed = lvl >= g.max;
+  const avail = groveAvailable(k);
+  const ringWord = n => `${n} ring${n === 1 ? '' : 's'}`;
+  let body;
+  if (!avail) {
+    body = `<div class="gdesc">Locked — requires <b>${GROVE[g.parent]?.name || g.parent}</b> first.</div>`;
+  } else if (maxed) {
+    body = `<div class="gdesc">${g.desc}</div><button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>`;
+  } else {
+    const p1 = groveBuyPreview(k, 1), p10 = groveBuyPreview(k, 10), pMax = groveBuyPreview(k, Infinity);
+    const mk = (label, prev) => {
+      const head = label === '1' ? (lvl > 0 ? 'Deepen' : 'Unlock') : '×' + label;
+      const sub = prev.count > 0 ? `<small>${prev.count} lv · ${ringWord(prev.cost)}</small>` : '<small>—</small>';
+      return `<button class="gbuy" data-up="${k}" data-amt="${label}" ${prev.count > 0 ? '' : 'disabled'}>${head}<br>${sub}</button>`;
+    };
+    body = `<div class="gdesc">${g.desc}</div><div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
+  }
+  pop.innerHTML = `<div class="gtitle"><span class="gglyph">${avail ? g.glyph : '🔒'}</span>${avail ? g.name : '???'}${g.max > 1 && avail ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>${body}`;
+  pop.classList.add('open');
+  positionGrovePopover(k);
+}
+function positionGrovePopover(k) {
+  const pop = document.getElementById('grovepopover');
+  const svg = document.getElementById('grovesvg');
+  const wrap = document.getElementById('grovetreewrap');
+  if (!pop || !svg || !wrap) return;
+  const g = GROVE[k];
+  if (!g || g._x == null) return;
+  const r = svg.getBoundingClientRect();
+  const wrapR = wrap.getBoundingClientRect();
+  const scale = r.width / GROVE_VIEW;
+  // viewBox center maps to SVG center; then translate by pan, then scale to screen.
+  const sx = r.left - wrapR.left + r.width / 2 + (g._x + grovePan.x) * scale;
+  const sy = r.top - wrapR.top + r.height / 2 + (g._y + grovePan.y) * scale;
+  // Center popover horizontally on node; place below it. Clamp within wrap.
+  pop.style.left = Math.max(8, Math.min(wrap.clientWidth - 252, sx - 124)) + 'px';
+  pop.style.top  = Math.min(wrap.clientHeight - 160, Math.max(8, sy + 50)) + 'px';
+}
+
 function renderGrove() {
   const ringWord = n => `${n} ring${n === 1 ? '' : 's'}`;
   document.getElementById('ringtotal').textContent = `· ${ringWord(META.rings)} to spend`;
@@ -2591,40 +2842,11 @@ function renderGrove() {
     <div class="cutnote">Felling banks the rings and regrows a fresh sapling. Rings and eternal upgrades are kept forever; the old tree is stashed (Restore backup can bring it back).</div>`;
   // Grove upgrades are locked until the player has felled at least one tree.
   if (META.treesCut === 0) {
-    document.getElementById('groveups').innerHTML = `<div class="gcard" style="grid-column:1/-1;text-align:center;opacity:.7">
-      <div class="gdesc">Eternal upgrades unlock after your first cut. Grow the sapling and fell it to begin the skill tree.</div>
+    document.getElementById('groveups').innerHTML = `<div style="text-align:center;opacity:.7;border:1px solid #2e3f31;background:rgba(20,30,22,.6);border-radius:14px;padding:18px 14px;color:#9db89f;font-size:13px">
+      Eternal upgrades unlock after your first cut. Grow the sapling and fell it to begin the skill tree.
     </div>`;
   } else {
-    // Group nodes by tier; only show nodes whose parent is purchased (or that have no parent).
-    const tiers = {};
-    for (const k of Object.keys(GROVE)) {
-      if (!groveAvailable(k)) continue;
-      const t = GROVE[k].tier || 1;
-      (tiers[t] = tiers[t] || []).push(k);
-    }
-    const tierKeys = Object.keys(tiers).map(Number).sort((a,b) => a-b);
-    document.getElementById('groveups').innerHTML = tierKeys.map(t => `
-      <div class="gtier" style="grid-column:1/-1;font-size:11px;color:#7d8c7e;text-transform:uppercase;letter-spacing:.08em;margin-top:${t===tierKeys[0]?0:6}px">Tier ${t}</div>
-      ${tiers[t].map(k => {
-        const g = GROVE[k], lvl = metaLvl(k), maxed = lvl >= g.max, cost = costGrove(k);
-        const afford = META.rings >= cost && !maxed;
-        return `<div class="gcard ${maxed ? 'maxed' : ''}">
-          <div class="gtitle"><span class="gglyph">${g.glyph}</span>${g.name}${g.max > 1 ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>
-          <div class="gdesc">${g.desc}</div>
-          ${maxed ? `<button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>` : (() => {
-            const p1 = groveBuyPreview(k, 1);
-            const p10 = groveBuyPreview(k, 10);
-            const pMax = groveBuyPreview(k, Infinity);
-            const mk = (label, prev) => {
-              const head = label === '1' ? (lvl > 0 ? 'Deepen' : 'Unlock') : '×' + label;
-              const sub = prev.count > 0 ? `<small>${prev.count} lv · ${ringWord(prev.cost)}</small>` : '<small>—</small>';
-              return `<button class="gbuy" data-up="${k}" data-amt="${label}" ${prev.count > 0 ? '' : 'disabled'}>${head}<br>${sub}</button>`;
-            };
-            return `<div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
-          })()}
-        </div>`;
-      }).join('')}
-    `).join('');
+    renderGroveTree();
   }
   document.getElementById('grovespecies').innerHTML = Object.keys(SPECIES).map(k => {
     const s = SPECIES[k], sel = META.species === k, unlocked = speciesUnlocked(k);
@@ -2826,11 +3048,18 @@ function enableHacks() {
   }
   META.rings = Math.max(META.rings, 1e9);
   META.totalRings = Math.max(META.totalRings || 0, META.rings);
-  // Flood every current resource pool.
+  // Flood every current resource pool, including acorns and the canopy cap.
   S.sap = 1e15; S.resin = 1e15; S.amber = 1e15;
+  META.acorns = 9999;
+  META.canopy = META.canopy || { ripe: 0, growMs: 0 };
+  META.canopy.ripe = 0;
+  META.chocolateUnlocked = true;
+  // Grant every achievement on the board.
+  for (const k of Object.keys(ACHIEVEMENTS)) {
+    META.achievements[k] = META.achievements[k] || { t: Date.now() };
+  }
   saveMeta(); save();
-  grantAchievement('hacker');
-  toast('💻 HACKER MODE — infinite resources.');
+  toast('💻 HACKER MODE — infinite resources, all achievements granted.');
   sfx('buy');
   renderGrove();
 }
@@ -2848,6 +3077,50 @@ function checkCheat(raw) {
   }
   for (const f of FOUNDERS) {
     if (v === f.key) { summonFounder(f.key); return true; }
+  }
+  if (v === 'chocolate') {
+    if (META.chocolateUnlocked) { toast('🍫 Chocolate species already unlocked.'); return true; }
+    META.chocolateUnlocked = true; saveMeta();
+    grantAchievement('chocolatier');
+    toast('🍫 Chocolate species unlocked! Pick it from the Grove on your next cut.');
+    sfx('buy');
+    return true;
+  }
+  if (v === 'gitgud') {
+    BLOOMS.gitgud = BLOOMS.gitgud || { name:'GIT GUD', icon:'⚔️', color:'#d99a8c', dur:10, weight:0, leafMult:()=>10, descOf:()=>'×10 leaf production (short)' };
+    S.bloomKind = 'gitgud';
+    S.bloomT = Math.max(S.bloomT || 0, 10);
+    META.silksong = META.silksong || {};
+    META.silksong.gitgud = true; saveMeta();
+    toast('⚔️ GIT GUD! ×10 production for 10 seconds');
+    sfx('buy');
+    if (Object.keys(META.silksong).length >= 4) grantAchievement('silksong');
+    return true;
+  }
+  if (v === 'shaw' || v === 'hadino' || v === 'hegale') {
+    META.silksong = META.silksong || {};
+    META.silksong[v] = true;
+    const minutes = 5;
+    const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 60 * minutes;
+    S.sap += inst;
+    saveMeta();
+    toast(`🧵 ${v.charAt(0).toUpperCase() + v.slice(1)}! +${fmt(inst)} sap (≈${minutes} min of production)`);
+    sfx('buy');
+    if (Object.keys(META.silksong).length >= 4) grantAchievement('silksong');
+    return true;
+  }
+  if (v === 'chocoholic') {
+    if (!META || META.species !== 'chocolate') { toast('🍫 Chocoholic only works with the Chocolate tree planted.'); return true; }
+    // Custom bloom: ×3 leaf for 5 min, plus an instant bank dump of 5 min of current production.
+    BLOOMS.chocoholic = BLOOMS.chocoholic || { name:'Chocoholic', icon:'🍫', color:'#a26240', dur:300, weight:0, leafMult:()=>3, descOf:()=>'×3 leaf production' };
+    S.bloomKind = 'chocoholic';
+    S.bloomT = Math.max(S.bloomT || 0, 300);
+    const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 300;
+    S.sap += inst;
+    grantAchievement('chocoholic');
+    toast(`🍫 CHOCOHOLIC! ×3 production for 5 min · +${fmt(inst)} sap instantly`);
+    sfx('buy');
+    return true;
   }
   return false;
 }
@@ -2870,11 +3143,18 @@ function renderPantheon() {
   if (!pantheon) return;
   const slots = META.pantheonSlots || [];
   const slotsEl = document.getElementById('panSlots');
-  slotsEl.innerHTML = slots.map((k, i) => {
-    if (!k) return `<div class="panslot" data-slot="${i}"><div class="pg">＋</div><div class="pn">EMPTY</div><div class="pe">click to fill</div></div>`;
+  const nUnlocked = META.pantheonSlotsUnlocked || 0;
+  const nextSlotCost = nUnlocked < SLOT_UNLOCK_COSTS.length ? SLOT_UNLOCK_COSTS[nUnlocked] : null;
+  let slotsHtml = slots.map((k, i) => {
+    if (!k) return `<div class="panslot" data-slot="${i}"><div class="pg">＋</div><div class="pn">EMPTY</div><div class="pe">click a deity below</div></div>`;
     const g = PANTHEON[k];
     return `<div class="panslot filled" data-slot="${i}" data-unslot="1"><div class="pg">${g.glyph}</div><div class="pn">${g.name.toUpperCase()}</div><div class="pe">click to remove</div></div>`;
   }).join('');
+  if (nextSlotCost !== null) {
+    const can = META.acorns >= nextSlotCost;
+    slotsHtml += `<div class="panslot slotbuy ${can ? '' : 'cantafford'}" data-buyslot="1"><div class="pg">🔒</div><div class="pn">${nextSlotCost === 0 ? 'FIRST SLOT' : '+SLOT'}</div><div class="pe">${nextSlotCost === 0 ? 'click — free!' : `🌰 ${nextSlotCost}`}</div></div>`;
+  }
+  slotsEl.innerHTML = slotsHtml;
   const godsEl = document.getElementById('panGods');
   godsEl.innerHTML = Object.keys(PANTHEON).map(k => {
     const g = PANTHEON[k];
@@ -2888,7 +3168,11 @@ function renderPantheon() {
       btn = `<button class="godbtn" data-act="unslot" data-god="${k}">Remove from pedestal</button>`;
     } else {
       const hasOpen = slots.some(x => !x);
-      btn = `<button class="godbtn" data-act="slot" data-god="${k}" ${hasOpen ? '' : 'disabled'}>${hasOpen ? 'Slot' : 'No open slot'}</button>`;
+      const firstSlotFree = !((META.deityFirstSlot || {})[k]);
+      const cost = firstSlotFree ? 0 : SLOT_REUSE_COST;
+      const canAfford = META.acorns >= cost;
+      const lbl = !hasOpen ? 'No open slot' : (firstSlotFree ? 'Slot (free first time)' : `Slot · 🌰 ${cost}`);
+      btn = `<button class="godbtn" data-act="slot" data-god="${k}" ${hasOpen && canAfford ? '' : 'disabled'}>${lbl}</button>`;
     }
     return `<div class="godcard ${unlocked ? 'unlocked' : ''} ${slotted ? 'slotted' : ''}">
       <div class="godhead"><span class="gh">${unlocked ? g.glyph : '❓'}</span><span class="gn">${unlocked ? g.name : '???'}</span></div>
@@ -2907,6 +3191,17 @@ pantheon?.addEventListener('click', e => {
   if (e.target === pantheon || e.target.id === 'panClose') { closePantheon(); return; }
   const slotEl = e.target.closest('.panslot');
   if (slotEl) {
+    if (slotEl.dataset.buyslot === '1') {
+      const nUnlocked = META.pantheonSlotsUnlocked || 0;
+      const cost = SLOT_UNLOCK_COSTS[nUnlocked];
+      if (cost === undefined) return;
+      if (META.acorns < cost) { toast(`Need 🌰 ${cost} acorns to unlock another slot.`); return; }
+      META.acorns -= cost;
+      META.pantheonSlotsUnlocked = nUnlocked + 1;
+      META.pantheonSlots.push(null);
+      saveMeta(); renderPantheon(); sfx('buy');
+      return;
+    }
     const i = +slotEl.dataset.slot;
     if (slotEl.dataset.unslot === '1') {
       META.pantheonSlots[i] = null; saveMeta(); renderPantheon();
@@ -2929,7 +3224,17 @@ pantheon?.addEventListener('click', e => {
   if (act === 'slot') {
     const slots = META.pantheonSlots;
     const idx = slots.findIndex(x => !x);
-    if (idx >= 0) { slots[idx] = k; saveMeta(); renderPantheon(); sfx('plink'); grantAchievement('godSlotted'); }
+    if (idx < 0) return;
+    META.deityFirstSlot = META.deityFirstSlot || {};
+    const isFirstSlot = !META.deityFirstSlot[k];
+    const cost = isFirstSlot ? 0 : SLOT_REUSE_COST;
+    if (!isFirstSlot && META.acorns < cost) { toast(`Re-slotting costs 🌰 ${cost}. Bank one first.`); return; }
+    META.acorns -= cost;
+    META.deityFirstSlot[k] = true;
+    slots[idx] = k;
+    saveMeta(); renderPantheon();
+    sfx('plink');
+    grantAchievement('godSlotted');
     return;
   }
   if (act === 'unslot') {
