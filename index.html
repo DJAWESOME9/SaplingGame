@@ -856,11 +856,11 @@ const ACHIEVEMENTS = {
   refCount4:  { name:'Refinery Row',     glyph:'⚗️', desc:'Own 4 refineries at once.' },
   capCount4:  { name:'Power Bank',       glyph:'🔌', desc:'Own 4 capacitors at once.' },
   nodes30:    { name:'Sapling Grown',    glyph:'🌳', desc:'Reach 30 nodes on a tree.' },
-  nodes60:    { name:'Mighty Oak',       glyph:'🌲', cat:'challenge', desc:'Reach 60 nodes on a tree.' },
+  nodes60:    { name:'Mighty Oak',       glyph:'🌲', desc:'Reach 60 nodes on a tree.' },
   // Resources
   sap10k:     { name:'Sap Hoarder',      glyph:'💧', desc:'Bank 10k sap at once.' },
   sap1m:      { name:'Ocean of Sap',     glyph:'🌊', desc:'Bank 1M sap at once.' },
-  sap1b:      { name:'Sap Singularity',  glyph:'🌌', cat:'challenge', desc:'Bank 1B sap at once.' },
+  sap1b:      { name:'Sap Singularity',  glyph:'🌌', desc:'Bank 1B sap at once.' },
   // Speed-run milestones — timed from a freshly planted tree.
   speedSap1:  { name:'Fast Sprout',      glyph:'⏱️', cat:'challenge', desc:'Reach 1,000 sap within 2 minutes of a fresh tree.' },
   speedSap2:  { name:'Sap Sprinter',     glyph:'🏃', cat:'challenge', desc:'Reach 100k sap within 10 minutes of a fresh tree.' },
@@ -872,13 +872,13 @@ const ACHIEVEMENTS = {
   puppy:      { name:'Good Boy',         glyph:'🐶', cat:'secret', desc:'Summon the puppy.' },
   resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
   amber50:    { name:'Amber Eye',        glyph:'🟧', desc:'Collect 50 amber.' },
-  amber500:   { name:'Amber Lord',       glyph:'👑', cat:'challenge', desc:'Collect 500 amber.' },
+  amber500:   { name:'Amber Lord',       glyph:'👑', desc:'Collect 500 amber.' },
   // Prestige
   firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
   cut5:       { name:'Repeat Forester',  glyph:'🌲', desc:'Cut down 5 trees.' },
-  cut25:      { name:'Lumberjack',       glyph:'🪵', cat:'challenge', desc:'Cut down 25 trees.' },
+  cut25:      { name:'Lumberjack',       glyph:'🪵', desc:'Cut down 25 trees.' },
   rings100:   { name:'Ring Collector',   glyph:'⭕', desc:'Bank 100 rings.' },
-  rings1000:  { name:'Ring Hoarder',     glyph:'💍', cat:'challenge', desc:'Bank 1000 rings.' },
+  rings1000:  { name:'Ring Hoarder',     glyph:'💍', desc:'Bank 1000 rings.' },
   // Roots
   rootUnlock: { name:'Underground',      glyph:'🪴', desc:'Bought your first root advancement.' },
   rootTier3:  { name:'Deeper Roots',     glyph:'🕳️', desc:'Unlock a tier-3 root node.' },
@@ -896,7 +896,7 @@ const ACHIEVEMENTS = {
   bloomOver:  { name:'Overcharged',      glyph:'🔋', desc:'Roll an Overcharge bloom.' },
   // Critters
   scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
-  scare100:   { name:'Exterminator',     glyph:'💀', cat:'challenge', desc:'Scare off 100 critters.' },
+  scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
   pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
   // Polish depth
   polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
@@ -920,19 +920,19 @@ const ACHIEVEMENTS = {
   blightCut:  { name:'Thorn Forester',   glyph:'🪓', cat:'challenge', desc:'Fell a tree in Blight mode.' },
   blightSap:  { name:'Bloom in Blight',  glyph:'🌹', cat:'challenge', desc:'Bank 1M sap during a Blight-mode run.' },
   // Extra scale / prestige
-  nodes100:   { name:'Elder Tree',       glyph:'🎄', cat:'challenge', desc:'Reach 100 nodes on a tree.' },
-  cut100:     { name:'Clearcutter',      glyph:'🪵', cat:'challenge', desc:'Cut down 100 trees.' },
-  sap1t:      { name:'Sap Eternal',      glyph:'♾️', cat:'challenge', desc:'Bank 1 trillion sap at once.' },
-  rings10000: { name:'Ring Dynasty',     glyph:'💎', cat:'challenge', desc:'Bank 10,000 rings.' },
+  nodes100:   { name:'Elder Tree',       glyph:'🎄', desc:'Reach 100 nodes on a tree.' },
+  cut100:     { name:'Clearcutter',      glyph:'🪵', desc:'Cut down 100 trees.' },
+  sap1t:      { name:'Sap Eternal',      glyph:'♾️', desc:'Bank 1 trillion sap at once.' },
+  rings10000: { name:'Ring Dynasty',     glyph:'💎', desc:'Bank 10,000 rings.' },
   allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', cat:'challenge', desc:'Roll every bloom variant.' },
   // Sap-per-second challenges — sustained production rate.
-  rate1k:     { name:'Steady Flow',      glyph:'🚰', cat:'challenge', desc:'Produce 1,000 sap/second.' },
-  rate100k:   { name:'Gusher',           glyph:'⛲', cat:'challenge', desc:'Produce 100k sap/second.' },
-  rate10m:    { name:'Sap Geyser',       glyph:'🌋', cat:'challenge', desc:'Produce 10M sap/second.' },
+  rate1k:     { name:'Steady Flow',      glyph:'🚰', desc:'Produce 1,000 sap/second.' },
+  rate100k:   { name:'Gusher',           glyph:'⛲', desc:'Produce 100k sap/second.' },
+  rate10m:    { name:'Sap Geyser',       glyph:'🌋', desc:'Produce 10M sap/second.' },
   // Lifetime sap challenges — total sap ever produced, across every tree.
-  life1m:     { name:'Lifetime Tapper',  glyph:'🩸', cat:'challenge', desc:'Produce 1M sap over your lifetime.' },
-  life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', cat:'challenge', desc:'Produce 1B sap over your lifetime.' },
-  life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', cat:'challenge', desc:'Produce 1 trillion sap over your lifetime.' },
+  life1m:     { name:'Lifetime Tapper',  glyph:'🩸', desc:'Produce 1M sap over your lifetime.' },
+  life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', desc:'Produce 1B sap over your lifetime.' },
+  life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', desc:'Produce 1 trillion sap over your lifetime.' },
   // One-tree challenges — sap produced by a single tree, no cutting allowed.
   tree1m:     { name:'One and Done',     glyph:'🌳', cat:'challenge', desc:'Produce 1M sap from a single tree.' },
   tree100m:   { name:'Sole Survivor',    glyph:'🌴', cat:'challenge', desc:'Produce 100M sap from a single tree.' },
