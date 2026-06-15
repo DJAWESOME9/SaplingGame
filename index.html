@@ -93,6 +93,9 @@
   .achrow .ad { font-size:11px; color:#7d8c7e; }
   .achrow.locked .ag, .achrow.locked .ah { opacity:.35; filter:grayscale(.6); }
   .achrow.locked .ad { color:#3a4a3c; }
+  .achsec { margin:14px 0 4px; font-size:11px; color:#9fc0a2; letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  .achsec:first-of-type { margin-top:6px; }
+  .achsec .achsub { color:#7d8c7e; font-weight:500; text-transform:none; letter-spacing:0; }
   /* Sethatubby overlay */
   #sethatubby { position:fixed; inset:0; pointer-events:none; z-index:90; display:flex; align-items:center; justify-content:center;
     background:radial-gradient(circle at center, rgba(150,80,200,.32), rgba(40,10,60,.6)); opacity:0; transition:opacity .4s; }
@@ -602,6 +605,9 @@ const GROVE = {
   everbloom: { name:'Everbloom',       glyph:'🌸', tier:5, parent:'verdanttouch', max:3, cost:l=>300+l*200, desc:'Channel surges last +3s and hit +50% harder per level' },
   titanheart:{ name:'Titanheart',      glyph:'🫀', tier:5, parent:'ascendance', max:3, cost:l=>350+l*250, desc:'+100% branch capacity per level' },
   primordial:{ name:'Primordial Bloom',glyph:'🌑', tier:5, parent:'eternity',   max:1, cost:_=>2500,       desc:'All production ×3' },
+  // Achievement payoffs — each non-secret achievement (normal + challenge) feeds these.
+  accolades: { name:'Accolades',       glyph:'🏅', tier:5, parent:'ascendance', max:1, cost:_=>40, desc:'Each non-secret achievement earned grants +1% to all production' },
+  laurels:   { name:'Laurels',         glyph:'🌿', tier:5, parent:'titanheart', max:1, cost:_=>40, desc:'Each non-secret achievement earned grants +1% branch capacity' },
   // Gold-leaf longevity: stay on the tree longer, and their blooms last longer.
   lingering: { name:'Lingering Leaves', glyph:'🍂', tier:3, parent:'sunray',     max:5, cost:l=>4+l*2,  desc:'Gold leaves linger +18% longer before fading per level' },
   everlasting:{ name:'Everlasting Bloom',glyph:'⌛', tier:4, parent:'lingering',  max:5, cost:l=>12+l*6, desc:'Every bloom (gold-leaf, founder, channel) lasts +15% longer per level' },
@@ -758,8 +764,8 @@ function saveMeta() { if (window.__SAPLING_WIPED) return; try { localStorage.set
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
   // Discovery
-  hacker:     { name:'Hacker',           glyph:'💻', desc:'Discovered the dev cheat code.' },
-  sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', desc:'Summoned the purple one.' },
+  hacker:     { name:'Hacker',           glyph:'💻', cat:'secret', desc:'Discovered the dev cheat code.' },
+  sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', cat:'secret', desc:'Summoned the purple one.' },
   // Early-game milestones
   firstLeaf:  { name:'Sprout',           glyph:'🌱', desc:'Grew your very first leaf.' },
   firstAmp:   { name:'Loud and Clear',   glyph:'⚡', desc:'Grew your first amplifier.' },
@@ -775,36 +781,36 @@ const ACHIEVEMENTS = {
   refCount4:  { name:'Refinery Row',     glyph:'⚗️', desc:'Own 4 refineries at once.' },
   capCount4:  { name:'Power Bank',       glyph:'🔌', desc:'Own 4 capacitors at once.' },
   nodes30:    { name:'Sapling Grown',    glyph:'🌳', desc:'Reach 30 nodes on a tree.' },
-  nodes60:    { name:'Mighty Oak',       glyph:'🌲', desc:'Reach 60 nodes on a tree.' },
+  nodes60:    { name:'Mighty Oak',       glyph:'🌲', cat:'challenge', desc:'Reach 60 nodes on a tree.' },
   // Resources
   sap10k:     { name:'Sap Hoarder',      glyph:'💧', desc:'Bank 10k sap at once.' },
   sap1m:      { name:'Ocean of Sap',     glyph:'🌊', desc:'Bank 1M sap at once.' },
-  sap1b:      { name:'Sap Singularity',  glyph:'🌌', desc:'Bank 1B sap at once.' },
+  sap1b:      { name:'Sap Singularity',  glyph:'🌌', cat:'challenge', desc:'Bank 1B sap at once.' },
   // Speed-run milestones — timed from a freshly planted tree.
-  speedSap1:  { name:'Fast Sprout',      glyph:'⏱️', desc:'Reach 1,000 sap within 2 minutes of a fresh tree.' },
-  speedSap2:  { name:'Sap Sprinter',     glyph:'🏃', desc:'Reach 100k sap within 10 minutes of a fresh tree.' },
-  speedSap3:  { name:'Sapspeed',         glyph:'⚡', desc:'Reach 10M sap within 20 minutes of a fresh tree.' },
-  speedSap4:  { name:'Speed Demon',      glyph:'😈', desc:'Reach 1M sap within 5 minutes of a fresh tree.' },
+  speedSap1:  { name:'Fast Sprout',      glyph:'⏱️', cat:'challenge', desc:'Reach 1,000 sap within 2 minutes of a fresh tree.' },
+  speedSap2:  { name:'Sap Sprinter',     glyph:'🏃', cat:'challenge', desc:'Reach 100k sap within 10 minutes of a fresh tree.' },
+  speedSap3:  { name:'Sapspeed',         glyph:'⚡', cat:'challenge', desc:'Reach 10M sap within 20 minutes of a fresh tree.' },
+  speedSap4:  { name:'Speed Demon',      glyph:'😈', cat:'challenge', desc:'Reach 1M sap within 5 minutes of a fresh tree.' },
   channeler:  { name:'Channeler',        glyph:'🫳', desc:'Channel a leaf with Verdant Touch.' },
   acorn10:    { name:'Acorn Hoard',      glyph:'🐿️', desc:'Bank 10 acorns at once.' },
-  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', desc:'Fill every Pantheon pedestal at once.' },
-  puppy:      { name:'Good Boy',         glyph:'🐶', desc:'Summon the puppy.' },
+  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', cat:'challenge', desc:'Fill every Pantheon pedestal at once.' },
+  puppy:      { name:'Good Boy',         glyph:'🐶', cat:'secret', desc:'Summon the puppy.' },
   resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
   amber50:    { name:'Amber Eye',        glyph:'🟧', desc:'Collect 50 amber.' },
-  amber500:   { name:'Amber Lord',       glyph:'👑', desc:'Collect 500 amber.' },
+  amber500:   { name:'Amber Lord',       glyph:'👑', cat:'challenge', desc:'Collect 500 amber.' },
   // Prestige
   firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
   cut5:       { name:'Repeat Forester',  glyph:'🌲', desc:'Cut down 5 trees.' },
-  cut25:      { name:'Lumberjack',       glyph:'🪵', desc:'Cut down 25 trees.' },
+  cut25:      { name:'Lumberjack',       glyph:'🪵', cat:'challenge', desc:'Cut down 25 trees.' },
   rings100:   { name:'Ring Collector',   glyph:'⭕', desc:'Bank 100 rings.' },
-  rings1000:  { name:'Ring Hoarder',     glyph:'💍', desc:'Bank 1000 rings.' },
+  rings1000:  { name:'Ring Hoarder',     glyph:'💍', cat:'challenge', desc:'Bank 1000 rings.' },
   // Roots
   rootUnlock: { name:'Underground',      glyph:'🪴', desc:'Bought your first root advancement.' },
   rootTier3:  { name:'Deeper Roots',     glyph:'🕳️', desc:'Unlock a tier-3 root node.' },
   rootTier5:  { name:'Heart of the Tree',glyph:'❤️‍🔥', desc:'Unlock a tier-5 root node.' },
   // Grove / species
   species2:   { name:'Cultivar',         glyph:'🍎', desc:'Unlock a second tree species.' },
-  speciesAll: { name:'Botanist',         glyph:'🌷', desc:'Unlock every tree species.' },
+  speciesAll: { name:'Botanist',         glyph:'🌷', cat:'challenge', desc:'Unlock every tree species.' },
   groveT4:    { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 grove upgrade.' },
   // Bloom variants — each unlocks on its own kind
   bloomBasic: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
@@ -815,7 +821,7 @@ const ACHIEVEMENTS = {
   bloomOver:  { name:'Overcharged',      glyph:'🔋', desc:'Roll an Overcharge bloom.' },
   // Critters
   scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
-  scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
+  scare100:   { name:'Exterminator',     glyph:'💀', cat:'challenge', desc:'Scare off 100 critters.' },
   pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
   // Polish depth
   polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
@@ -825,12 +831,25 @@ const ACHIEVEMENTS = {
   pantheonOpen: { name:'Pantheon Stirs', glyph:'🏛️', desc:'Wake the Pantheon by banking enough acorns.' },
   godSlotted: { name:'Devotee',          glyph:'🙏', desc:'Slot a tree-god into a pedestal.' },
   founders:   { name:'Founders',         glyph:'🌳', desc:'Summon every founder.' },
-  chocolatier:{ name:'Chocolatier',      glyph:'🍫', desc:'Unlock the Chocolate species.' },
-  chocoholic: { name:'Chocoholic',       glyph:'🍩', desc:'Trigger the Chocoholic blast.' },
+  chocolatier:{ name:'Chocolatier',      glyph:'🍫', cat:'secret', desc:'Unlock the Chocolate species.' },
+  chocoholic: { name:'Chocoholic',       glyph:'🍩', cat:'secret', desc:'Trigger the Chocoholic blast.' },
   firstFunnel:{ name:'Routing Engineer', glyph:'🪣', desc:'Grow your first Funnel.' },
   startingRoots:{ name:'Three Pillars',  glyph:'🪨', desc:'Unlock Amplify, Rich soil, and Keen shears.' },
-  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', desc:'Unlock every single root advancement.' },
-  silksong:   { name:'Silksong',         glyph:'🪡', desc:'Trace the echoes of a long-awaited song.' },
+  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', cat:'challenge', desc:'Unlock every single root advancement.' },
+  silksong:   { name:'Silksong',         glyph:'🪡', cat:'secret', desc:'Trace the echoes of a long-awaited song.' },
+  // Hints
+  hint25:     { name:'Curious',          glyph:'🧐', desc:'Dismiss 25 hints.' },
+  hint50:     { name:'Knows the Ropes',  glyph:'📖', desc:'Dismiss 50 hints.' },
+  // Blight (hard) mode
+  blightStart:{ name:'Into the Blight',  glyph:'🥀', cat:'challenge', desc:'Begin a run in Blight mode.' },
+  blightCut:  { name:'Thorn Forester',   glyph:'🪓', cat:'challenge', desc:'Fell a tree in Blight mode.' },
+  blightSap:  { name:'Bloom in Blight',  glyph:'🌹', cat:'challenge', desc:'Bank 1M sap during a Blight-mode run.' },
+  // Extra scale / prestige
+  nodes100:   { name:'Elder Tree',       glyph:'🎄', cat:'challenge', desc:'Reach 100 nodes on a tree.' },
+  cut100:     { name:'Clearcutter',      glyph:'🪵', cat:'challenge', desc:'Cut down 100 trees.' },
+  sap1t:      { name:'Sap Eternal',      glyph:'♾️', cat:'challenge', desc:'Bank 1 trillion sap at once.' },
+  rings10000: { name:'Ring Dynasty',     glyph:'💎', cat:'challenge', desc:'Bank 10,000 rings.' },
+  allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', cat:'challenge', desc:'Roll every bloom variant.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -843,8 +862,13 @@ function grantAchievement(k) {
 }
 const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (metaLvl('primordial') > 0 ? 3 : 1) * SP().leaf;
-const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * SP().edge;
+// Count of earned achievements that count toward Accolades/Laurels (everything except secret ones).
+const achBonusCount = () => Object.keys((META && META.achievements) || {})
+  .filter(k => ACHIEVEMENTS[k] && ACHIEVEMENTS[k].cat !== 'secret').length;
+const accoladesMult = () => metaLvl('accolades') > 0 ? 1 + 0.01 * achBonusCount() : 1;
+const laurelsMult   = () => metaLvl('laurels')   > 0 ? 1 + 0.01 * achBonusCount() : 1;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (metaLvl('primordial') > 0 ? 3 : 1) * accoladesMult() * SP().leaf;
+const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * laurelsMult() * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
@@ -1044,7 +1068,10 @@ const lvlMax = n => ({
   cap:  4 + 2 * rootLvl('surge'),
 }[n.type] || 99);
 const rootLvl       = k => S.roots[k] || 0;
-const rootAvailable = k => (!ROOTS[k].gated || metaLvl(ROOTS[k].gated) > 0) && (!ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0);
+// Pesticide and its Symbiosis follow-up nullify critters entirely, which would
+// defuse the whole point of Blight mode — so they're unavailable while it's on.
+const BLIGHT_LOCKED_ROOTS = { pesticide: 1, symbiosis: 1 };
+const rootAvailable = k => !(hardMode() && BLIGHT_LOCKED_ROOTS[k]) && (!ROOTS[k].gated || metaLvl(ROOTS[k].gated) > 0) && (!ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0);
 // roots only appear while the core (or a root) is selected, and only once unlocked (prerequisite met)
 function showRoots() {
   if (selectedRoot) return true;
@@ -2438,6 +2465,7 @@ function buildPanel() {
     const title = r.name + (r.max > 1 && lvl > 0 ? ` · lv ${lvl}` : '');
     let body;
     if (lvl >= r.max) body = `<div class="stats">fully grown</div>`;
+    else if (hardMode() && BLIGHT_LOCKED_ROOTS[k]) body = `<div class="stats"><span class="warn">🥀 disabled in Blight mode</span></div>`;
     else if (!rootAvailable(k)) body = `<div class="stats"><span class="warn">requires ${ROOTS[r.parent].name}</span></div>`;
     else body = `<div class="acts">${actBtn('root', lvl > 0 ? 'Deepen root' : 'Unlock', lvl > 0 ? `lv ${lvl} → ${lvl + 1}` : 'permanent advancement', costRoot(k), 'amber')}</div>`;
     panel.innerHTML = `<h3>${title}</h3><div class="stats">${r.desc}</div>${body}`;
@@ -2600,6 +2628,10 @@ elHint?.addEventListener('click', () => {
   S.dismissedHints = S.dismissedHints || [];
   if (!S.dismissedHints.includes(cur)) S.dismissedHints.push(cur);
   elHint.textContent = '';
+  META.hintsDismissed = (META.hintsDismissed || 0) + 1;
+  if (META.hintsDismissed >= 25) grantAchievement('hint25');
+  if (META.hintsDismissed >= 50) grantAchievement('hint50');
+  saveMeta();
   save();
 });
 function hintText() {
@@ -2727,8 +2759,15 @@ function refreshHud() {
   const _totalNodes = Object.keys(S.nodes).length;
   if (_totalNodes >= 30) grantAchievement('nodes30');
   if (_totalNodes >= 60) grantAchievement('nodes60');
+  if (_totalNodes >= 100) grantAchievement('nodes100');
   if (META.rings >= 100) grantAchievement('rings100');
   if (META.rings >= 1000) grantAchievement('rings1000');
+  if (META.rings >= 10000) grantAchievement('rings10000');
+  if (S.sap >= 1e12) grantAchievement('sap1t');
+  if (hardMode() && S.sap >= 1e6) grantAchievement('blightSap');
+  // Kaleidoscope: every distinct bloom variant rolled at least once.
+  if (['bloomSurge','bloomReso','bloomVerd','bloomRefn','bloomOver'].every(k => META.achievements[k]))
+    grantAchievement('allBlooms');
   {
     const _h = hintText();
     const _muted = (S.dismissedHints || []).includes(_h);
@@ -3228,6 +3267,8 @@ function finalizeCut() {
   grantAchievement('firstCut');
   if (META.treesCut >= 5) grantAchievement('cut5');
   if (META.treesCut >= 25) grantAchievement('cut25');
+  if (META.treesCut >= 100) grantAchievement('cut100');
+  if (hardMode()) grantAchievement('blightCut');
   saveMeta();
   newGame(); computeFlow(0);
   selected = null; selectedRoot = null;
@@ -3807,13 +3848,29 @@ function renderAchievements() {
   const owned = META.achievements || {};
   const total = Object.keys(ACHIEVEMENTS).length;
   const unlocked = Object.keys(owned).length;
-  achPanel.innerHTML = `<h3>Achievements · ${unlocked}/${total}</h3>` + Object.keys(ACHIEVEMENTS).map(k => {
+  const catOf = k => (ACHIEVEMENTS[k].cat || 'normal');
+  const rowHtml = k => {
     const a = ACHIEVEMENTS[k], has = !!owned[k];
     return `<div class="achrow ${has ? '' : 'locked'}">
       <div class="ag">${has ? a.glyph : '🔒'}</div>
       <div class="at"><div class="ah">${has ? a.name : '???'}</div><div class="ad">${has ? a.desc : '???'}</div></div>
     </div>`;
-  }).join('');
+  };
+  const sections = [
+    { cat:'normal',    title:'Achievements', note:'+1% each' },
+    { cat:'challenge', title:'Challenges',   note:'+1% each' },
+    { cat:'secret',    title:'Secrets',      note:'no bonus' },
+  ];
+  const bonusOn = metaLvl('accolades') > 0 || metaLvl('laurels') > 0;
+  let html = `<h3>Achievements · ${unlocked}/${total}</h3>`;
+  for (const s of sections) {
+    const keys = Object.keys(ACHIEVEMENTS).filter(k => catOf(k) === s.cat);
+    if (!keys.length) continue;
+    const got = keys.filter(k => owned[k]).length;
+    const note = bonusOn && s.cat !== 'secret' ? ` <span class="achsub">${s.note}</span>` : '';
+    html += `<div class="achsec">${s.title} · ${got}/${keys.length}${note}</div>` + keys.map(rowHtml).join('');
+  }
+  achPanel.innerHTML = html;
 }
 trophy?.addEventListener('click', () => {
   const open = achPanel.classList.toggle('open');
@@ -3976,6 +4033,7 @@ document.getElementById('introBegin')?.addEventListener('click', () => {
   // hard reset), so lock it in here alongside marking the intro as seen.
   if (introHardCheck?.checked) {
     META.hardMode = true;
+    grantAchievement('blightStart');
     refreshCheatBadges();
   }
   META.seenIntro = true; saveMeta();
@@ -3986,6 +4044,7 @@ document.getElementById('intro')?.addEventListener('click', e => {
   if (e.target.id === 'intro') {
     if (introHardCheck?.checked && !META.seenIntro) {
       META.hardMode = true;
+      grantAchievement('blightStart');
       refreshCheatBadges();
     }
     META.seenIntro = true; saveMeta();
