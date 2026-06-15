@@ -654,7 +654,13 @@ function loadMeta() {
   if (!Array.isArray(META.pantheonSlots)) META.pantheonSlots = [];
   if (typeof META.pantheonSlotsUnlocked !== 'number') META.pantheonSlotsUnlocked = 0;
   if (!META.deityFirstSlot) META.deityFirstSlot = {};
-  while (META.pantheonSlots.length < (META.pantheonSlotsUnlocked || 0)) META.pantheonSlots.push(null);
+  // Reconcile the two fields and hard-cap at PANTHEON_SLOTS so legacy saves
+  // (which started with [null,null,null] before the slot economy existed)
+  // don't render 3 empty slots plus an extra buy-slot tile.
+  META.pantheonSlotsUnlocked = Math.max(META.pantheonSlotsUnlocked, META.pantheonSlots.length);
+  if (META.pantheonSlotsUnlocked > PANTHEON_SLOTS) META.pantheonSlotsUnlocked = PANTHEON_SLOTS;
+  if (META.pantheonSlots.length > PANTHEON_SLOTS) META.pantheonSlots.length = PANTHEON_SLOTS;
+  while (META.pantheonSlots.length < META.pantheonSlotsUnlocked) META.pantheonSlots.push(null);
   if (typeof META.pantheonOpened !== 'boolean') META.pantheonOpened = false;
   if (!META.foundersUsed || typeof META.foundersUsed !== 'object') META.foundersUsed = {};
   if (typeof META.rings !== 'number') META.rings = 0;
