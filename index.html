@@ -267,7 +267,7 @@
   #grovesvg:active { cursor:grabbing; }
   #grovehint { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:11px; color:#7d8c7e;
     pointer-events:none; letter-spacing:.04em; }
-  #grovezoom { position:absolute; bottom:8px; right:8px; display:flex; flex-direction:column; gap:4px; }
+  #grovezoom { position:absolute; top:8px; right:8px; z-index:4; display:flex; flex-direction:column; gap:4px; }
   #grovezoom button { width:32px; height:32px; background:rgba(20,30,22,.85); border:1px solid #3c5340;
     color:#dceade; border-radius:6px; cursor:pointer; font-size:16px; line-height:1; padding:0;
     font-family:inherit; touch-action:manipulation; }
@@ -286,7 +286,7 @@
   .gn-glyph { font-size:30px; pointer-events:none; }
   .gn-lvl { font-size:14px; fill:#cdbf9a; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums; }
   #grovepopover { position:absolute; display:none; width:min(360px, calc(100% - 16px)); background:rgba(14,21,15,.98);
-    border:1px solid #6f9a75; border-radius:11px; padding:11px 13px 12px; z-index:5;
+    border:1px solid #6f9a75; border-radius:11px; padding:11px 13px 12px; z-index:8;
     box-shadow:0 -4px 24px rgba(0,0,0,.55); }
   #grovepopover.open { display:block; animation:grovePopIn .18s ease-out; }
   @keyframes grovePopIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
@@ -1499,6 +1499,17 @@ function sfx(kind) {
     tone(523, 0.12, 'triangle', 0.09);
     tone(659, 0.12, 'triangle', 0.09, 0.1);
     tone(784, 0.22, 'sine', 0.09, 0.2);
+  } else if (kind === 'bug') {
+    // Short squishy thwack when you swat a critter.
+    if (now - (AU.last.bug || 0) < 50) return;
+    AU.last.bug = now;
+    tone(180, 0.08, 'square', 0.08);
+    tone(90, 0.12, 'sawtooth', 0.07, 0.02);
+  } else if (kind === 'squish') {
+    // Downward squelch when a critter is finished off.
+    tone(260, 0.06, 'square', 0.08);
+    tone(120, 0.18, 'sawtooth', 0.09, 0.03);
+    tone(70, 0.22, 'sine', 0.06, 0.08);
   }
 }
 
@@ -1760,6 +1771,9 @@ function scareCritters(nodeId) {
         META.crittersScared = (META.crittersScared || 0) + 1;
         if (META.crittersScared >= 10) grantAchievement('scare10');
         if (META.crittersScared >= 100) grantAchievement('scare100');
+        sfx('squish');
+      } else {
+        sfx('bug');
       }
     }
   }
@@ -1904,6 +1918,39 @@ function nodeRadius(n) {
   if (n.type === 'cap') return 13 + Math.min(n.lvl, 5);
   if (n.type === 'funnel') return 14;
   return 8.5 + Math.min(n.lvl, 6) * 1.2;
+}
+// Draw a leaf's gold-leaf indicator (extracted so it can run in a top pass).
+function drawGift(n, px, py, rr, time) {
+  if (!n.giftGain) return;
+  const p = clamp(n.giftAge / Math.max(n.giftLife, 0.001), 0, 1);
+  const scale = Math.sin(Math.PI * p);
+  const alpha = scale;
+  const a = (n.giftA || 0) + Math.sin(time * 2 + n.id) * 0.06;
+  const dist = rr * (1.2 + scale * 0.18);
+  const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
+  const br = rr * (0.26 + 0.08 * scale);
+  const glow = ctx.createRadialGradient(bx, by, br * 0.25, bx, by, br * 2.5);
+  const goldR = n.giftBig ? 255 : 240, goldG = n.giftBig ? 150 : 211, goldB = n.giftBig ? 70 : 109;
+  glow.addColorStop(0, `rgba(${goldR},${goldG},${goldB},${(n.giftBig ? 0.36 : 0.24) * alpha})`);
+  glow.addColorStop(1, `rgba(${goldR},${goldG},${goldB},0)`);
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(bx, by, br * 2.5, 0, TAU); ctx.fill();
+  ctx.save();
+  ctx.translate(bx, by);
+  ctx.rotate(a + Math.PI / 5);
+  const bigScale = n.giftBig ? 1.6 : 1;
+  ctx.scale((0.55 + scale * 0.75) * bigScale, (0.55 + scale * 0.75) * bigScale);
+  ctx.beginPath();
+  ctx.moveTo(0, -br * 1.6);
+  ctx.quadraticCurveTo(br * 1.2, -br * 0.3, 0, br * 1.5);
+  ctx.quadraticCurveTo(-br * 1.2, -br * 0.3, 0, -br * 1.6);
+  ctx.closePath();
+  ctx.fillStyle = `rgba(${goldR},${goldG},${goldB},${0.5 + 0.35 * alpha})`;
+  ctx.fill();
+  ctx.lineWidth = 1 * cam.scale;
+  ctx.strokeStyle = n.giftBig ? `rgba(255,210,140,${0.85 * alpha})` : `rgba(255,240,180,${0.7 * alpha})`;
+  ctx.stroke();
+  ctx.restore();
 }
 function draw(time) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2072,37 +2119,7 @@ function draw(time) {
       ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU);
       ctx.fillStyle = SP().tint || '#3f9e4f'; ctx.fill();
       ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
-      if (n.giftGain) {
-        const p = clamp(n.giftAge / Math.max(n.giftLife, 0.001), 0, 1);
-        const scale = Math.sin(Math.PI * p);
-        const alpha = scale;
-        const a = (n.giftA || 0) + Math.sin(time * 2 + n.id) * 0.06;
-        const dist = rr * (1.2 + scale * 0.18);
-        const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
-        const br = rr * (0.26 + 0.08 * scale);
-        const glow = ctx.createRadialGradient(bx, by, br * 0.25, bx, by, br * 2.5);
-        const goldR = n.giftBig ? 255 : 240, goldG = n.giftBig ? 150 : 211, goldB = n.giftBig ? 70 : 109;
-        glow.addColorStop(0, `rgba(${goldR},${goldG},${goldB},${(n.giftBig ? 0.36 : 0.24) * alpha})`);
-        glow.addColorStop(1, `rgba(${goldR},${goldG},${goldB},0)`);
-        ctx.fillStyle = glow;
-        ctx.beginPath(); ctx.arc(bx, by, br * 2.5, 0, TAU); ctx.fill();
-        ctx.save();
-        ctx.translate(bx, by);
-        ctx.rotate(a + Math.PI / 5);
-        const bigScale = n.giftBig ? 1.6 : 1;
-        ctx.scale((0.55 + scale * 0.75) * bigScale, (0.55 + scale * 0.75) * bigScale);
-        ctx.beginPath();
-        ctx.moveTo(0, -br * 1.6);
-        ctx.quadraticCurveTo(br * 1.2, -br * 0.3, 0, br * 1.5);
-        ctx.quadraticCurveTo(-br * 1.2, -br * 0.3, 0, -br * 1.6);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(${goldR},${goldG},${goldB},${0.5 + 0.35 * alpha})`;
-        ctx.fill();
-        ctx.lineWidth = 1 * cam.scale;
-        ctx.strokeStyle = n.giftBig ? `rgba(255,210,140,${0.85 * alpha})` : `rgba(255,240,180,${0.7 * alpha})`;
-        ctx.stroke();
-        ctx.restore();
-      }
+      // Gold-leaf indicator is drawn in a later top pass so it's never covered.
     } else if (n.type === 'amp') {
       if (flash > 0.01) {
         const hg = ctx.createRadialGradient(px, py, rr * 0.5, px, py, rr * (1.9 + flash * 0.5));
@@ -2177,6 +2194,16 @@ function draw(time) {
   }
 
   drawCritters();
+
+  // Gold leaves on top of everything (nodes + critters) so they're never hidden.
+  for (const id in S.nodes) {
+    const n = N(id);
+    if (n.type !== 'leaf' || !n.giftGain) continue;
+    const px = sx(n.x), py = sy(n.y), r = nodeRadius(n) * cam.scale;
+    if (!visible(px, py, r + 40)) continue;
+    const popScale = 1 + ((n.fx && n.fx.pop) || 0) * 0.14;
+    drawGift(n, px, py, r * popScale, time);
+  }
 
   // floating text
   ctx.font = '600 13px ui-sans-serif, system-ui';
@@ -2794,7 +2821,7 @@ document.addEventListener('pointerdown', e => {
 volSlider.value = AU.vol;
 volSlider.addEventListener('input', () => { setVol(parseFloat(volSlider.value)); sfx('plink'); });
 // ---------- the grove: prestige overlay ----------
-const RING_K = 6000;            // bigger = rings rarer (tunable)
+const RING_K = 9000;            // bigger = rings rarer (tunable)
 const grove = document.getElementById('grove');
 function treeValue() {
   let life = 0;
@@ -2803,7 +2830,7 @@ function treeValue() {
 }
 // Exponent < 0.5 slows ring scaling: the first rings stay early (treeValue≈RING_K
 // → 1) but big trees yield proportionally fewer rings than a sqrt curve.
-const ringGain = () => Math.floor(Math.pow(treeValue() / RING_K, 0.40) * ringMult());
+const ringGain = () => Math.floor(Math.pow(treeValue() / RING_K, 0.34) * ringMult());
 function replantIfPristine() {
   // while the sapling is untouched, keep re-applying live grove/species choices to it
   if (S && S.pristine) { newGame(); computeFlow(0); buildPanel(); save(); }
@@ -2839,11 +2866,14 @@ function buyGrove(k, n) {
   }
   if (bought > 0) {
     sfx('buy'); saveMeta(); replantIfPristine();
-    // Stash + re-show the open popover so quick ×10 / Max chains keep working.
-    const openK = (document.querySelector('#grovepopover.open') && document.querySelector('#grovepopover.open button[data-up]'))
-                ? document.querySelector('#grovepopover.open button[data-up]').dataset.up : null;
+    toast(`${g.glyph} ${g.name} ${metaLvl(k) >= g.max ? 'fully grown' : 'lv ' + metaLvl(k)} — ${bought > 1 ? `bought ${bought} levels` : 'bought'}`);
     renderGrove();
-    if (openK) showGrovePopover(openK);
+    showGrovePopover(k);
+  } else {
+    // Nothing bought — tell the player why instead of failing silently.
+    if (metaLvl(k) >= g.max) toast(`${g.name} is already fully grown.`);
+    else toast(`Not enough rings — need ${costGrove(k)} for ${g.name} (have ${META.rings}).`);
+    sfx('plink');
   }
   return bought;
 }
@@ -2999,7 +3029,7 @@ function bindGroveDrag() {
     }
     if (!grovePan.dragging) return;
     const dx = e.clientX - grovePan.sx, dy = e.clientY - grovePan.sy;
-    if (Math.hypot(dx, dy) > 4) grovePan.moved = true;
+    if (Math.hypot(dx, dy) > 10) grovePan.moved = true;
     const rect = svg.getBoundingClientRect();
     const view = GROVE_VIEW / rect.width;
     grovePan.x = grovePan.ox + dx * view;
@@ -3061,10 +3091,15 @@ function showGrovePopover(k) {
     body = `<div class="gdesc">${g.desc}</div><button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>`;
   } else {
     const p1 = groveBuyPreview(k, 1), p10 = groveBuyPreview(k, 10), pMax = groveBuyPreview(k, Infinity);
+    // Buttons stay clickable even when unaffordable so a tap always gives feedback
+    // (buyGrove toasts the reason) instead of silently doing nothing.
     const mk = (label, prev) => {
       const head = label === '1' ? (lvl > 0 ? 'Deepen' : 'Unlock') : '×' + label;
-      const sub = prev.count > 0 ? `<small>${prev.count} lv · ${ringWord(prev.cost)}</small>` : '<small>—</small>';
-      return `<button class="gbuy" data-up="${k}" data-amt="${label}" ${prev.count > 0 ? '' : 'disabled'}>${head}<br>${sub}</button>`;
+      const sub = label === '1'
+        ? `<small>${ringWord(costGrove(k))}</small>`
+        : (prev.count > 0 ? `<small>${prev.count} lv · ${ringWord(prev.cost)}</small>` : '<small>—</small>');
+      const dim = (label === '1' ? META.rings < costGrove(k) : prev.count === 0) ? ' style="opacity:.5"' : '';
+      return `<button class="gbuy" data-up="${k}" data-amt="${label}"${dim}>${head}<br>${sub}</button>`;
     };
     body = `<div class="gdesc">${g.desc}</div><div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
   }
@@ -3381,6 +3416,16 @@ function _checkCheatInner(raw) {
   }
   if (v === 'puppy') {
     summonPuppy();
+    return true;
+  }
+  if (v === 'sonic') {
+    // ×3 leaf production for 5 minutes, plus an instant 5 minutes of sap.
+    BLOOMS.sonic = BLOOMS.sonic || { name:'Sonic', icon:'💨', color:'#3a7adf', dur:300, weight:0, leafMult:()=>3, descOf:()=>'×3 leaf production' };
+    applyBloom('sonic', 300);
+    const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 300;
+    S.sap += inst;
+    toast(`💨 SONIC! ×3 production for 5 min · +${fmt(inst)} sap instantly`);
+    sfx('bloom');
     return true;
   }
   for (const f of FOUNDERS) {
