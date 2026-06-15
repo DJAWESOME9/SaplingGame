@@ -83,7 +83,7 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Bramble, Patience | T3 | Critters appear less often / offline production % |
 | Resin Glaze, Lacquer | T3 / Seasoned | Polish gives extra %, +1 max polish per node |
 | Born Resonant, Verdure | T3 / Resonant | Amp start level / max leaf level |
-| **Birthright** | T3 / Resonant | Every new branch starts +1 level higher per level (max 10) |
+| **Birthright** | T3 / Resonant | Every new branch starts +1 thickness level higher per level (more capacity from birth) |
 | Deep Roots | T3 / Windfall | New trees start with key Roots pre-unlocked |
 | Graft Apple/Peach/Grape/Maple/Pine | T2-T3 | Unlock species |
 | Squirrelry | T3 / Nest | Acorns ripen 10% faster per level |
@@ -91,7 +91,6 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Canopy Charm | T5 / Worldtree | Acorns ripen 20% faster per level, +1 max ripe slot per level |
 | Symbiosis | T5 / Pesticide | Pesticide no longer costs −15% production |
 | Born Refined, Born Charged | T3 | New refineries / capacitors begin +1 level higher per level |
-| Thick Bark | T4 / Heartgirth | New branches start +1 thickness level higher per level (capacity from birth) |
 | Golden Bough | T3 / Sunray | Gold leaves pay +25% more sap per level |
 | Amber Heart | T4 / Crescent | Pruning yields +25% more amber per level |
 | Verdant Touch | T4 / Sunray | Unlocks the **Channel** active ability |

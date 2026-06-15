@@ -652,7 +652,7 @@ const GROVE = {
   lacquer:   { name:'Lacquer',         glyph:'🪞', tier:3, parent:'seasoned',  max:7,  cost:l=>5+l*2, desc:'+1 max polish per level (base cap 3)' },
   verdure:   { name:'Verdure',         glyph:'🌳', tier:3, parent:'resonant',  max:4,  cost:l=>4+l*2, desc:'+1 max leaf level per level' },
   // Universal start-level boost.
-  birthright:{ name:'Birthright',      glyph:'⭐', tier:3, parent:'resonant',  max:10, cost:l=>6+l*3, desc:'New branches (leaves, amps, refineries, capacitors) start +1 level higher per level' },
+  birthright:{ name:'Birthright',      glyph:'⭐', tier:3, parent:'resonant',  max:6,  cost:l=>6+l*3, desc:'New branches start +1 thickness level higher per level (more capacity from birth)' },
   // Tier 4 — late-game depth
   ascendance:{ name:'Ascendance',     glyph:'🌌', tier:4, parent:'birthright', max:5, cost:l=>10+l*4, desc:'+25% to all production per level' },
   eternalSap:{ name:'Eternal Sap',    glyph:'♾️', tier:4, parent:'patience',   max:4, cost:l=>10+l*4, desc:'+4h to the offline production cap per level' },
@@ -683,7 +683,6 @@ const GROVE = {
   // Branches that start larger — new nodes/edges spawn already grown.
   bornrefined:{ name:'Born Refined',   glyph:'⚗️', tier:3, parent:'glaze',     max:4, cost:l=>4+l*2,  desc:'New refineries begin +1 level higher per level' },
   borncharged:{ name:'Born Charged',   glyph:'🔋', tier:3, parent:'resonant',  max:4, cost:l=>4+l*2,  desc:'New capacitors begin +1 level higher per level' },
-  thickbark: { name:'Thick Bark',      glyph:'🛡️', tier:4, parent:'girth',     max:5, cost:l=>10+l*5, desc:'New branches start +1 thickness level higher per level (more capacity from birth)' },
   // Other eternal boons.
   goldenbough:{ name:'Golden Bough',   glyph:'🍯', tier:3, parent:'sunray',    max:4, cost:l=>5+l*3,  desc:'Gold leaves pay +25% more sap per level' },
   amberheart:{ name:'Amber Heart',     glyph:'🧡', tier:4, parent:'crescent',  max:4, cost:l=>8+l*4,  desc:'Pruning yields +25% more amber per level' },
@@ -1249,16 +1248,15 @@ function startLvl(type) {
     if (type === 'cap')  return 4 + 2 * rootLvl('surge');
     return 1;
   }
-  const birth = metaLvl('birthright');
-  if (type === 'leaf') return Math.min(1 + metaLvl('seasoned') + birth, 10 + 2 * rootLvl('verdance') + metaLvl('verdure'));
-  if (type === 'amp')  return Math.min(1 + metaLvl('resonant') + birth, 5 + 2 * rootLvl('vigor'));
-  if (type === 'ref')  return Math.min(1 + birth + metaLvl('bornrefined'), 4 + 2 * rootLvl('distill'));
-  if (type === 'cap')  return Math.min(1 + birth + metaLvl('borncharged'), 4 + 2 * rootLvl('surge'));
+  if (type === 'leaf') return Math.min(1 + metaLvl('seasoned'), 10 + 2 * rootLvl('verdance') + metaLvl('verdure'));
+  if (type === 'amp')  return Math.min(1 + metaLvl('resonant'), 5 + 2 * rootLvl('vigor'));
+  if (type === 'ref')  return Math.min(1 + metaLvl('bornrefined'), 4 + 2 * rootLvl('distill'));
+  if (type === 'cap')  return Math.min(1 + metaLvl('borncharged'), 4 + 2 * rootLvl('surge'));
   return 1;
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: (parent != null ? metaLvl('thickbark') : 0), extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: (parent != null ? metaLvl('birthright') : 0), extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
