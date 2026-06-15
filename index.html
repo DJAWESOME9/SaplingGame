@@ -243,6 +243,12 @@
   #grovesvg:active { cursor:grabbing; }
   #grovehint { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:11px; color:#7d8c7e;
     pointer-events:none; letter-spacing:.04em; }
+  #grovezoom { position:absolute; bottom:8px; right:8px; display:flex; flex-direction:column; gap:4px; }
+  #grovezoom button { width:32px; height:32px; background:rgba(20,30,22,.85); border:1px solid #3c5340;
+    color:#dceade; border-radius:6px; cursor:pointer; font-size:16px; line-height:1; padding:0;
+    font-family:inherit; touch-action:manipulation; }
+  #grovezoom button:hover { border-color:#6f9a75; background:rgba(36,56,39,.95); }
+  #grovesvg { touch-action:none; }
   .ge line { transition:stroke .15s; }
   .gn .gnode { cursor:pointer; }
   .gn .gnode circle { fill:#1a2520; stroke:#3c5340; stroke-width:2; transition:fill .15s, stroke .15s; }
@@ -2707,18 +2713,24 @@ function groveLayout() {
     }
   }
 }
-let grovePan = { x: 0, y: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false };
+let grovePan = { x: 0, y: 0, scale: 1, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false };
+const grovePtrs = new Map();
+let grovePinch = null;
+const GROVE_ZOOM_MIN = 0.4, GROVE_ZOOM_MAX = 2.5;
 const GROVE_VIEW = 1800; // square viewBox edge length
 function renderGroveTree() {
   groveLayout();
   let edges = '';
   let circles = '';
+  // Only render nodes the player has 'unlocked' — parent purchased (or rootless).
+  // Edges only between visible parent→child pairs.
   for (const k of Object.keys(GROVE)) {
     const g = GROVE[k];
     if (g._x == null) continue;
+    if (!groveAvailable(k)) continue;
     if (g.parent) {
       const p = GROVE[g.parent];
-      if (p && p._x != null) {
+      if (p && p._x != null && groveAvailable(g.parent)) {
         const ownedParent = metaLvl(g.parent) > 0;
         edges += `<line x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="${ownedParent ? '#5a8a64' : '#2a3026'}" stroke-width="${ownedParent ? 3 : 1.5}" stroke-linecap="round"/>`;
       }
@@ -2727,64 +2739,100 @@ function renderGroveTree() {
   for (const k of Object.keys(GROVE)) {
     const g = GROVE[k];
     if (g._x == null) continue;
+    if (!groveAvailable(k)) continue;
     const lvl = metaLvl(k);
     const maxed = lvl >= g.max;
-    const avail = groveAvailable(k);
     const cost = costGrove(k);
-    const afford = avail && !maxed && META.rings >= cost;
+    const afford = !maxed && META.rings >= cost;
     const cls = ['gnode'];
     if (lvl > 0) cls.push('owned');
     if (maxed) cls.push('maxed');
-    if (!avail) cls.push('locked');
     else if (afford) cls.push('afford');
     if (g.unlocks) cls.push('species');
     circles += `<g class="${cls.join(' ')}" data-up="${k}" transform="translate(${g._x},${g._y})">
       <circle r="36"/>
-      <text class="gn-glyph" y="4" text-anchor="middle">${avail ? g.glyph : '🔒'}</text>
+      <text class="gn-glyph" y="4" text-anchor="middle">${g.glyph}</text>
       ${g.max > 1 ? `<text class="gn-lvl" y="56" text-anchor="middle">${lvl}/${g.max}</text>` : (maxed ? `<text class="gn-lvl" y="56" text-anchor="middle">✓</text>` : '')}
     </g>`;
   }
   document.getElementById('groveups').innerHTML = `<div id="grovetreewrap">
     <svg id="grovesvg" viewBox="${-GROVE_VIEW/2} ${-GROVE_VIEW/2} ${GROVE_VIEW} ${GROVE_VIEW}" preserveAspectRatio="xMidYMid meet">
-      <g id="grovepan" transform="translate(${grovePan.x},${grovePan.y})">
+      <g id="grovepan" transform="translate(${grovePan.x},${grovePan.y}) scale(${grovePan.scale || 1})">
         <g class="ge">${edges}</g>
         <g class="gn">${circles}</g>
       </g>
     </svg>
     <div id="grovepopover"></div>
-    <div id="grovehint">Drag to pan · click a node to buy</div>
+    <div id="grovehint">Drag to pan · scroll / pinch to zoom · click a node</div>
+    <div id="grovezoom"><button id="grovezoomin" type="button">+</button><button id="grovezoomreset" type="button">⟲</button><button id="grovezoomout" type="button">−</button></div>
   </div>`;
   bindGroveDrag();
 }
+function applyGroveTransform() {
+  const inner = document.getElementById('grovepan');
+  if (inner) inner.setAttribute('transform', `translate(${grovePan.x},${grovePan.y}) scale(${grovePan.scale})`);
+}
 function bindGroveDrag() {
   const svg = document.getElementById('grovesvg');
-  const inner = document.getElementById('grovepan');
   const pop = document.getElementById('grovepopover');
   let currentPopK = null;
+  const popHere = el => pop && pop.contains(el);
+  const refreshPopPos = () => { if (currentPopK) positionGrovePopover(currentPopK); };
   svg.addEventListener('pointerdown', e => {
-    // If the click started inside the popover, ignore — the buttons handle it.
-    if (pop.contains(e.target)) return;
-    grovePan.dragging = true; grovePan.moved = false;
-    grovePan.sx = e.clientX; grovePan.sy = e.clientY;
-    grovePan.ox = grovePan.x; grovePan.oy = grovePan.y;
+    if (popHere(e.target)) return;
+    grovePtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    if (grovePtrs.size === 1) {
+      grovePan.dragging = true; grovePan.moved = false;
+      grovePan.sx = e.clientX; grovePan.sy = e.clientY;
+      grovePan.ox = grovePan.x; grovePan.oy = grovePan.y;
+    } else if (grovePtrs.size === 2) {
+      // Begin pinch: capture starting distance + center
+      const pts = [...grovePtrs.values()];
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      grovePinch = { d0: Math.hypot(dx, dy), s0: grovePan.scale, ox: grovePan.x, oy: grovePan.y, cx: (pts[0].x + pts[1].x) / 2, cy: (pts[0].y + pts[1].y) / 2 };
+      grovePan.dragging = false; // single-finger pan paused during pinch
+    }
     e.preventDefault();
   });
   svg.addEventListener('pointermove', e => {
+    if (!grovePtrs.has(e.pointerId)) return;
+    grovePtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (grovePinch && grovePtrs.size >= 2) {
+      const pts = [...grovePtrs.values()];
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      const d = Math.hypot(dx, dy);
+      const next = clamp(grovePinch.s0 * (d / grovePinch.d0), GROVE_ZOOM_MIN, GROVE_ZOOM_MAX);
+      // Zoom around pinch center (world point under center stays under center)
+      const rect = svg.getBoundingClientRect();
+      const view = GROVE_VIEW / rect.width;
+      const cxView = (grovePinch.cx - rect.left - rect.width/2) * view;
+      const cyView = (grovePinch.cy - rect.top - rect.height/2) * view;
+      const sRatio = next / grovePan.scale;
+      grovePan.x = cxView - (cxView - grovePan.x) * sRatio;
+      grovePan.y = cyView - (cyView - grovePan.y) * sRatio;
+      grovePan.scale = next;
+      applyGroveTransform();
+      refreshPopPos();
+      grovePan.moved = true;
+      return;
+    }
     if (!grovePan.dragging) return;
     const dx = e.clientX - grovePan.sx, dy = e.clientY - grovePan.sy;
     if (Math.hypot(dx, dy) > 4) grovePan.moved = true;
     const rect = svg.getBoundingClientRect();
-    const scale = GROVE_VIEW / rect.width;
-    grovePan.x = grovePan.ox + dx * scale;
-    grovePan.y = grovePan.oy + dy * scale;
-    inner.setAttribute('transform', `translate(${grovePan.x},${grovePan.y})`);
-    if (currentPopK) positionGrovePopover(currentPopK);
+    const view = GROVE_VIEW / rect.width;
+    grovePan.x = grovePan.ox + dx * view;
+    grovePan.y = grovePan.oy + dy * view;
+    applyGroveTransform();
+    refreshPopPos();
   });
-  const endDrag = e => {
+  const endPtr = e => {
+    grovePtrs.delete(e.pointerId);
+    try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (grovePtrs.size < 2) grovePinch = null;
     if (!grovePan.dragging) return;
     grovePan.dragging = false;
-    try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
     if (grovePan.moved) return;
     const tEl = e.target.closest('.gnode');
     if (tEl) {
@@ -2795,8 +2843,28 @@ function bindGroveDrag() {
       pop.classList.remove('open');
     }
   };
-  svg.addEventListener('pointerup', endDrag);
-  svg.addEventListener('pointercancel', endDrag);
+  svg.addEventListener('pointerup', endPtr);
+  svg.addEventListener('pointercancel', endPtr);
+  // Wheel zoom centered on cursor
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const view = GROVE_VIEW / rect.width;
+    const cxView = (e.clientX - rect.left - rect.width/2) * view;
+    const cyView = (e.clientY - rect.top - rect.height/2) * view;
+    const factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+    const next = clamp(grovePan.scale * factor, GROVE_ZOOM_MIN, GROVE_ZOOM_MAX);
+    const sRatio = next / grovePan.scale;
+    grovePan.x = cxView - (cxView - grovePan.x) * sRatio;
+    grovePan.y = cyView - (cyView - grovePan.y) * sRatio;
+    grovePan.scale = next;
+    applyGroveTransform();
+    refreshPopPos();
+  }, { passive: false });
+  // Zoom buttons
+  document.getElementById('grovezoomin')?.addEventListener('click', () => { grovePan.scale = clamp(grovePan.scale * 1.2, GROVE_ZOOM_MIN, GROVE_ZOOM_MAX); applyGroveTransform(); refreshPopPos(); });
+  document.getElementById('grovezoomout')?.addEventListener('click', () => { grovePan.scale = clamp(grovePan.scale / 1.2, GROVE_ZOOM_MIN, GROVE_ZOOM_MAX); applyGroveTransform(); refreshPopPos(); });
+  document.getElementById('grovezoomreset')?.addEventListener('click', () => { grovePan.x = 0; grovePan.y = 0; grovePan.scale = 1; applyGroveTransform(); refreshPopPos(); });
 }
 function showGrovePopover(k) {
   const pop = document.getElementById('grovepopover');
@@ -2833,10 +2901,11 @@ function positionGrovePopover(k) {
   if (!g || g._x == null) return;
   const r = svg.getBoundingClientRect();
   const wrapR = wrap.getBoundingClientRect();
-  const scale = r.width / GROVE_VIEW;
-  // viewBox center maps to SVG center; then translate by pan, then scale to screen.
-  const sx = r.left - wrapR.left + r.width / 2 + (g._x + grovePan.x) * scale;
-  const sy = r.top - wrapR.top + r.height / 2 + (g._y + grovePan.y) * scale;
+  const screenPerView = r.width / GROVE_VIEW;
+  // Inner group does: translate(pan) scale(zoom). So world point goes
+  // (x * zoom + panX) → in viewBox space → mapped to screen via screenPerView.
+  const sx = r.left - wrapR.left + r.width / 2 + (g._x * grovePan.scale + grovePan.x) * screenPerView;
+  const sy = r.top - wrapR.top + r.height / 2 + (g._y * grovePan.scale + grovePan.y) * screenPerView;
   // Center popover horizontally on node; place below it. Clamp within wrap.
   pop.style.left = Math.max(8, Math.min(wrap.clientWidth - 252, sx - 124)) + 'px';
   pop.style.top  = Math.min(wrap.clientHeight - 160, Math.max(8, sy + 50)) + 'px';
@@ -2875,6 +2944,7 @@ function renderGrove() {
   document.getElementById('plantBtn').textContent = S && S.pristine ? 'Plant this sapling' : 'Return to your tree';
 }
 function openGrove() {
+  grovePan.x = 0; grovePan.y = 0; grovePan.scale = 1;
   grove.classList.add('open');
   renderGrove();
   settings.classList.remove('open'); gear.classList.remove('open');
