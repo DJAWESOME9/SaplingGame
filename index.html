@@ -3061,6 +3061,7 @@ function enableHacks() {
   META.canopy = META.canopy || { ripe: 0, growMs: 0 };
   META.canopy.ripe = 0;
   META.chocolateUnlocked = true;
+  META.pantheonOpened = true;
   // Grant every achievement on the board.
   for (const k of Object.keys(ACHIEVEMENTS)) {
     META.achievements[k] = META.achievements[k] || { t: Date.now() };
@@ -3325,6 +3326,12 @@ acornBtn?.addEventListener('click', () => {
       toast('🏛️ The Pantheon stirs awake — long-press the acorn to open it.');
     }
     return;
+  }
+  // Auto-wake the Pantheon if the player already has enough acorns banked
+  // (covers hacker mode, save imports, restored backups, etc.).
+  if (!META.pantheonOpened && acornsBanked() >= PANTHEON_OPEN_COST) {
+    META.pantheonOpened = true; saveMeta();
+    grantAchievement('pantheonOpen');
   }
   if (META.pantheonOpened) openPantheon();
   else toast(`Bank ${PANTHEON_OPEN_COST} acorns to wake the Pantheon (${acornsBanked()}/${PANTHEON_OPEN_COST}).`);
