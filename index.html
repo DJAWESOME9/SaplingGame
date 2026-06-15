@@ -43,6 +43,18 @@
   #reset { pointer-events:auto; background:#241a18; border:1px solid #5a3530; color:#dba79e;
     border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1; }
   #bloombadge { pointer-events:auto; }
+  #touchbadge { pointer-events:auto; }
+  #boosttip { position:fixed; z-index:9000; display:none; max-width:320px; pointer-events:none;
+    background:rgba(16,22,17,.97); border:1px solid #6f9a75; border-radius:10px; padding:9px 11px;
+    box-shadow:0 8px 26px rgba(0,0,0,.5); color:#dceade; font-size:12px; line-height:1.45;
+    font-variant-numeric:tabular-nums; }
+  #boosttip .bt-title { font-weight:700; color:#cfe3d1; margin-bottom:5px; font-size:12px; }
+  #boosttip .bt-row { display:flex; gap:7px; align-items:baseline; padding:2px 0; }
+  #boosttip .bt-ico { flex:0 0 auto; }
+  #boosttip .bt-name { font-weight:600; flex:0 0 auto; }
+  #boosttip .bt-time { color:#f0d9a0; flex:0 0 auto; font-weight:600; }
+  #boosttip .bt-eff { color:#9fb6a2; }
+  #boosttip .bt-none { color:#8aa08d; font-style:italic; }
   #reset:hover { border-color:#8a4f47; background:#31201d; color:#f3c3ba; }
   #hardreset { width:100%; background:#2a1212; border:1px solid #6e1f1f; color:#f0a8a8;
     border-radius:10px; padding:8px 10px; font-size:12px; cursor:pointer; margin-top:14px;
@@ -213,6 +225,25 @@
     .introbox h2 { font-size:20px; }
     .introlede, .introlist li { font-size:12.5px; }
   }
+  /* ---- Welcome Back: offline / idle earnings popup ---- */
+  #welcome { position:fixed; inset:0; display:none; z-index:62; background:rgba(6,10,7,.82);
+    backdrop-filter:blur(5px); align-items:center; justify-content:center; padding:24px 16px; }
+  #welcome.open { display:flex; }
+  .wbbox { width:340px; max-width:92vw; background:rgba(14,21,15,.98);
+    border:1px solid #2e3f31; border-radius:16px; padding:22px 22px 18px; box-shadow:0 20px 60px rgba(0,0,0,.55);
+    animation:toastPop .32s ease-out; }
+  .wbbox h2 { margin:0 0 2px; font-size:21px; letter-spacing:.03em; color:#e7ddc4; }
+  .wbsub { color:#9db89f; font-size:13px; line-height:1.5; margin:0 0 16px; }
+  .wblist { list-style:none; padding:0; margin:0 0 18px; display:grid; gap:8px; }
+  .wblist li { display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    background:rgba(20,28,22,.7); border:1px solid #2a3a2c; border-radius:10px; padding:9px 12px; }
+  .wblist .wbk { color:#9db89f; font-size:12.5px; }
+  .wblist .wbv { color:#f0d9a0; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .wblist .wbv small { color:#8fa891; font-weight:400; font-size:11px; margin-left:4px; }
+  #wbClose { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
+    border-radius:10px; padding:11px 14px; font-size:14px; font-weight:600; cursor:pointer;
+    transition:border-color .14s ease, background .14s ease; }
+  #wbClose:hover { border-color:#6f9a75; background:#243827; }
   /* ---- Pantheon: tree-gods minigame ---- */
   #pantheon { position:fixed; inset:0; display:none; z-index:55; background:rgba(8,6,16,.82);
     backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:24px 16px; }
@@ -443,6 +474,19 @@
     <button id="introBegin">Begin growing 🌱</button>
   </div>
 </div>
+<div id="welcome" role="dialog" aria-labelledby="wbTitle">
+  <div class="wbbox">
+    <h2 id="wbTitle">😴 Welcome Back</h2>
+    <p class="wbsub" id="wbDur"></p>
+    <ul class="wblist">
+      <li><span class="wbk">Sap earned</span><span class="wbv" id="wbSap"></span></li>
+      <li id="wbResinRow"><span class="wbk">Resin earned</span><span class="wbv" id="wbResin"></span></li>
+      <li><span class="wbk">Offline rate</span><span class="wbv" id="wbRate"></span></li>
+      <li id="wbAcornRow"><span class="wbk">Acorns</span><span class="wbv" id="wbAcorn"></span></li>
+    </ul>
+    <button id="wbClose">Collect</button>
+  </div>
+</div>
 <div id="topbar">
   <span class="title">Sapling</span>
   <div class="statcard" id="sapcard">
@@ -463,14 +507,15 @@
     <span class="statrate" id="amberrate"></span>
     <span class="statdetail" id="amberdetail"></span>
   </div>
-  <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
-  <span id="touchbadge" title="Verdant Touch — hold a leaf to channel a production surge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
+  <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
+  <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
   <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="gear" aria-label="Settings">⚙</button>
 </div>
+<div id="boosttip"></div>
 <div id="settings">
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
@@ -856,6 +901,20 @@ const ACHIEVEMENTS = {
   sap1t:      { name:'Sap Eternal',      glyph:'♾️', cat:'challenge', desc:'Bank 1 trillion sap at once.' },
   rings10000: { name:'Ring Dynasty',     glyph:'💎', cat:'challenge', desc:'Bank 10,000 rings.' },
   allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', cat:'challenge', desc:'Roll every bloom variant.' },
+  // Sap-per-second challenges — sustained production rate.
+  rate1k:     { name:'Steady Flow',      glyph:'🚰', cat:'challenge', desc:'Produce 1,000 sap/second.' },
+  rate100k:   { name:'Gusher',           glyph:'⛲', cat:'challenge', desc:'Produce 100k sap/second.' },
+  rate10m:    { name:'Sap Geyser',       glyph:'🌋', cat:'challenge', desc:'Produce 10M sap/second.' },
+  // Lifetime sap challenges — total sap ever produced, across every tree.
+  life1m:     { name:'Lifetime Tapper',  glyph:'🩸', cat:'challenge', desc:'Produce 1M sap over your lifetime.' },
+  life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', cat:'challenge', desc:'Produce 1B sap over your lifetime.' },
+  life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', cat:'challenge', desc:'Produce 1 trillion sap over your lifetime.' },
+  // One-tree challenges — sap produced by a single tree, no cutting allowed.
+  tree1m:     { name:'One and Done',     glyph:'🌳', cat:'challenge', desc:'Produce 1M sap from a single tree.' },
+  tree100m:   { name:'Sole Survivor',    glyph:'🌴', cat:'challenge', desc:'Produce 100M sap from a single tree.' },
+  tree10b:    { name:'Eternal Tree',     glyph:'🪵', cat:'challenge', desc:'Produce 10B sap from a single tree.' },
+  // Blight (hard) mode: bugs that linger devour leaves.
+  leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'challenge', desc:'Let a Blight bug eat one of your leaves.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -923,6 +982,10 @@ const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.8
 const hardMode     = () => !!(META && META.hardMode);
 const hardLeafMult = () => hardMode() ? 0.85 : 1;
 const critterCap   = () => hardMode() ? 5 : 3;
+// Blight mode only: a bug left sitting on a leaf this many seconds devours it.
+// The leaf flashes a warning for the final BUG_EAT_WARN seconds.
+const BUG_EAT_TIME = 16;
+const BUG_EAT_WARN = 6;
 // Verdant Touch: a charge meter that fills over time, then drains while you hold a
 // leaf to pour a production surge (delivered through the bloom system as 'channel').
 const touchOwned    = () => metaLvl('verdanttouch') > 0;
@@ -959,7 +1022,7 @@ const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish 
 const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'cap';
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
-const costPolish  = n => Math.ceil(20 * Math.pow(1.8, n.polish || 0));
+const costPolish  = n => Math.ceil(35 * Math.pow(2.0, n.polish || 0));
 const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
@@ -969,16 +1032,20 @@ const maxKids  = n => {
   return Math.min(hardCap, (CFG.baseKids[n.type] || 0) + crownBonus + canopyBonus + spKids + (n.extraKids || 0));
 };
 
+// Total branches on the tree, and a gentle compounding "crowding" surcharge:
+// the more nodes you already have, the pricier each new node and upgrade.
+const totalNodes = () => (S.counts.leaf || 0) + (S.counts.amp || 0) + (S.counts.ref || 0) + (S.counts.cap || 0) + (S.counts.funnel || 0);
+const crowdMult  = () => Math.pow(1.05, Math.max(0, totalNodes() - 1));
 const GROW = {
-  leaf: { cur: 'sap',   cost: () => 15 * Math.pow(1.4, Math.max(0, S.counts.leaf - 1)) * thriftMult(),
+  leaf: { cur: 'sap',   cost: () => 15 * Math.pow(1.4, Math.max(0, S.counts.leaf - 1)) * thriftMult() * crowdMult(),
           label: 'Grow leaf', sub: '+1/s producer' },
-  amp:  { cur: 'sap',   cost: () => 70 * Math.pow(2.0, S.counts.amp) * thriftMult(),
+  amp:  { cur: 'sap',   cost: () => 70 * Math.pow(2.0, S.counts.amp) * thriftMult() * crowdMult(),
           label: 'Grow amplifier', sub: '×2 to passing flow' },
-  ref:  { cur: 'sap',   cost: () => 350 * Math.pow(2.6, S.counts.ref) * thriftMult(),
+  ref:  { cur: 'sap',   cost: () => 350 * Math.pow(2.6, S.counts.ref) * thriftMult() * crowdMult(),
           label: 'Grow refinery', sub: 'turns sap into resin' },
-  cap:  { cur: 'resin', cost: () => 15 * Math.pow(2.0, S.counts.cap) * thriftMult(),
+  cap:  { cur: 'resin', cost: () => 30 * Math.pow(2.35, S.counts.cap) * thriftMult() * crowdMult(),
           label: 'Grow capacitor', sub: 'stores flow, bursts it boosted' },
-  funnel: { cur: 'sap', cost: () => 240 * Math.pow(2.2, S.counts.funnel || 0) * thriftMult(),
+  funnel: { cur: 'sap', cost: () => 240 * Math.pow(2.2, S.counts.funnel || 0) * thriftMult() * crowdMult(),
           label: 'Grow funnel', sub: 'passes flow · branch carries ×10' },
 };
 const growUnlocked = t =>
@@ -992,10 +1059,10 @@ const costUp = n => ({
   leaf: 20 * Math.pow(1.6, n.lvl - 1),
   amp:  80 * Math.pow(2, n.lvl - 1),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
-  cap:  15 * Math.pow(2, n.lvl - 1),
-}[n.type]);
+  cap:  32 * Math.pow(2.3, n.lvl - 1),
+}[n.type] * crowdMult());
 const costEdge  = n => 25 * Math.pow(2.1, n.edgeLvl);
-const costGraft = () => 30 * Math.pow(1.8, S.graftsBought);
+const costGraft = () => 55 * Math.pow(2.0, S.graftsBought) * crowdMult();
 // ---------- roots: the advancement tree under the core ----------
 const ROOTS = {
   // tier 1
@@ -1108,21 +1175,16 @@ function buyRoot(k) {
   buildPanel(); save();
 }
 const branchLife = n => {
-  let total = n.life;
+  if (!n) return 0;
+  let total = n.life || 0;
   for (const id of n.children) total += branchLife(N(id));
   return total;
 };
-// Each prune ramps up the parent's lifetime amber take, and that damps the next
-// prune off the same parent — bigger amber harvests yield diminishing returns.
-const PRUNE_DAMP_K = 0.015;
-const pruneDamp = parent => 1 / (1 + (parent && parent.amberEarned ? parent.amberEarned : 0) * PRUNE_DAMP_K);
-const pruneGain = n => {
-  // Exponent < 0.5 keeps the first few amber early (life≈pruneK → 1) but makes
-  // later amber scale noticeably slower than a plain sqrt would.
-  const raw = Math.pow(branchLife(n) / CFG.pruneK, 0.40) * shearsMult() * SP().ring * pantheonAmberMult();
-  const parent = n.parent != null ? N(n.parent) : null;
-  return Math.floor(raw * pruneDamp(parent));
-};
+// Amber is limited purely by connected lifetime: branchLife sums every connected
+// branch (so they all add up), and the exponent < 0.5 makes the payout slow down
+// the larger that total gets — diminishing returns with no per-parent damping.
+const pruneGain = n =>
+  Math.floor(Math.pow(branchLife(n) / CFG.pruneK, 0.40) * shearsMult() * SP().ring * pantheonAmberMult());
 
 // ---------- state ----------
 let S;
@@ -1144,7 +1206,7 @@ function startLvl(type) {
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false, amberEarned: 0,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
@@ -1165,7 +1227,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1365,10 +1427,10 @@ function harvestLeaf(id) {
     applyBloom(kind);
     toast(`${b.icon} ${b.name}! ${b.descOf()} for ${b.dur}s`);
     spawnBurst(n.x, n.y, b.color, 26, 170, 1.15);
-    spawnFloaty(n.x, n.y, `+${gain} sap · ${b.icon} ${b.name}`, b.color);
+    spawnFloaty(n.x, n.y, `+${fmt(gain)} sap · ${b.icon} ${b.name}`, b.color);
     sfx('bloom');
   } else {
-    spawnFloaty(n.x, n.y, `+${gain} sap`, '#f0c469');
+    spawnFloaty(n.x, n.y, `+${fmt(gain)} sap`, '#f0c469');
     spawnBurst(n.x, n.y, '#f0d36d', 14, 105, 0.75);
     sfx('gold');
   }
@@ -1400,7 +1462,7 @@ function upgrade(id) {
   if (S[cur] < c) return;
   S[cur] -= c; n.lvl++; S.pristine = false;
   sfx('buy');
-  pulseNode(n, 0.9, 0.75);
+  pulseNode(n, 1.25, 0.8);
   spawnBurst(n.x, n.y,
     n.type === 'cap' ? '#7fe3ee' :
     n.type === 'ref' ? '#f0b07e' :
@@ -1467,14 +1529,45 @@ const c = edgeCurve(n);
     delete S.nodes[d];
   }
   S.amber += gain;
-  if (p) p.amberEarned = (p.amberEarned || 0) + gain;
   S.ms.pruned = true;
   sfx('prune');
-  spawnFloaty(n.x, n.y, `+${gain} amber`, '#f0a050');
+  spawnFloaty(n.x, n.y, `+${fmt(gain)} amber`, '#f0a050');
   spawnBurst(mid.x, mid.y, '#f0a050', 18, 110, 0.85);
   spawnBurst(n.x, n.y, '#f3c3ba', 8, 70, 0.5);
   pulseNode(p, 0.8, 0.75);
   selected = null;
+  layout();
+  buildPanel();
+  save();
+}
+// Blight mode: a bug devours a leaf it has camped on too long. Removes the leaf
+// (and anything hanging off it) with no amber payout — pure loss, unlike doPrune.
+function eatLeaf(id) {
+  const n = N(id);
+  if (!n || n.parent == null) return;
+  const p = N(n.parent);
+  const stack = [id], doomed = [];
+  while (stack.length) {
+    const cur = N(stack.pop());
+    if (!cur) continue;
+    doomed.push(cur.id);
+    for (const k of cur.children) stack.push(k);
+  }
+  if (p) p.children = p.children.filter(k => k !== id);
+  const gone = new Set(doomed);
+  // Drop any critters that were on the devoured nodes (no kill credit — they win this one).
+  critters = critters.filter(c => !gone.has(c.nodeId));
+  for (const d of doomed) {
+    const nd = N(d);
+    if (nd && S.counts[nd.type] != null) S.counts[nd.type]--;
+    delete S.nodes[d];
+  }
+  S.pristine = false;
+  spawnFloaty(n.x, n.y, '🍂 eaten!', '#d07a55');
+  spawnBurst(n.x, n.y, '#8a5a3a', 16, 95, 0.85);
+  sfx('squish');
+  grantAchievement('leafEaten');
+  if (selected === id) selected = null;
   layout();
   buildPanel();
   save();
@@ -1726,6 +1819,9 @@ function updateDrops(dt) {
     n.fx = n.fx || { pop: 0, flash: 0 };
     n.fx.pop = Math.max(0, (n.fx.pop || 0) - dt * 4.2);
     n.fx.flash = Math.max(0, (n.fx.flash || 0) - dt * 2.4);
+    // Chew (Blight bug eating a leaf) decays fast so it clears the moment a bug leaves;
+    // updateCritters re-asserts it every frame while a bug is actively gnawing.
+    n.fx.chew = Math.max(0, (n.fx.chew || 0) - dt * 5);
     if (n.type === 'leaf') {
       if (n.giftGain) {
         n.giftAge += dt;
@@ -1869,6 +1965,28 @@ function updateCritters(dt) {
         // Critters sit indefinitely now — the only way to remove one is to scare it off.
         c.x = node.x; c.y = node.y;
         c.t += dt;
+        // Blight mode: a bug camped on a leaf eats it once its timer runs out.
+        if (hardMode() && c.type === 'bug' && node.type === 'leaf') {
+          // chew ramps 0→1 across the warning window, driving both the gnaw
+          // animation (drawCritters) and the leaf shrink/bite marks (draw).
+          const chew = clamp((c.t - (BUG_EAT_TIME - BUG_EAT_WARN)) / BUG_EAT_WARN, 0, 1);
+          c.chew = chew;
+          if (chew > 0) {
+            node.fx.flash = Math.max(node.fx.flash, 0.4 + 0.6 * chew);
+            node.fx.chew = Math.max(node.fx.chew || 0, chew);
+            // Spit out leaf bits in time with the gnawing.
+            c.nibbleT = (c.nibbleT || 0) - dt;
+            if (c.nibbleT <= 0) {
+              c.nibbleT = 0.22;
+              const oc = (typeof SP === 'function' && SP().tint) || '#3f9e4f';
+              spawnBurst(node.x + (Math.random() - 0.5) * 8, node.y + (Math.random() - 0.5) * 8, oc, 3, 55, 0.45);
+              sfx('bug');
+            }
+          }
+          if (c.t >= BUG_EAT_TIME) { eatLeaf(c.nodeId); break; } // eatLeaf rebuilds `critters`; bail this frame
+        } else {
+          c.chew = 0;
+        }
       }
     } else {
       const spd = clamp(dt * 4.2, 0, 1);
@@ -1878,7 +1996,7 @@ function updateCritters(dt) {
     }
   }
 }
-function drawCritters() {
+function drawCritters(time = 0) {
   const sc = cam.scale;
   for (const c of critters) {
     const joltOff = (c.jolt || 0) > 0 ? Math.sin(c.jolt * 28) * c.jolt * 5 * cam.scale : 0;
@@ -1925,10 +2043,14 @@ function drawCritters() {
       ctx.restore();
     } else {
       const legWig = Math.sin(c.wing * 1.2) * (c.state === 'sitting' ? 0.5 : 3);
+      // Gnawing: a fast chomp cycle while eating a leaf (bite=1 → lunged forward, jaws shut).
+      const ch = c.chew || 0;
+      const bite = ch > 0 ? (Math.sin(time * 26 + c.nodeId) * 0.5 + 0.5) : 0;
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(px, py - 8 * sc);
       ctx.scale(sc, sc);
+      if (ch > 0) ctx.translate(ch * (0.6 + bite * 1.8), 0); // lunge toward the leaf as it bites
       // body
       ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 3, 0, 0, TAU);
       ctx.fillStyle = '#1e4a1e'; ctx.fill();
@@ -1943,6 +2065,13 @@ function drawCritters() {
       ctx.strokeStyle = '#3aaa3a'; ctx.stroke();
       // eye
       ctx.fillStyle = '#b0ee30'; ctx.beginPath(); ctx.arc(6.2, -0.8, 0.9, 0, TAU); ctx.fill();
+      // mandibles — snap shut as the bug lunges (open wide between bites)
+      if (ch > 0) {
+        const open = (0.3 + (1 - bite) * 1.5) * ch;
+        ctx.strokeStyle = '#102910'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(7.4, -0.5); ctx.quadraticCurveTo(9.6, -0.5 - open, 10.4, -open * 0.4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(7.4, 0.5); ctx.quadraticCurveTo(9.6, 0.5 + open, 10.4, open * 0.4); ctx.stroke();
+      }
       // antennae
       ctx.strokeStyle = '#3aaa3a'; ctx.lineWidth = 0.9;
       ctx.beginPath(); ctx.moveTo(6.8, -1.8); ctx.lineTo(10 + legWig * 0.4, -5.5); ctx.stroke();
@@ -1974,6 +2103,8 @@ function drawCutOverlay() {
 }
 
 // ---------- drawing ----------
+// Visual size caps out so the tree stays readable; past the cap, each upgrade
+// still fires the pop/bounce animation (see upgrade → pulseNode) so it reads as growth.
 function nodeRadius(n) {
   if (n.type === 'core') return 17;
   if (n.type === 'amp') return 12 + Math.min(n.lvl, 5) * 1.2;
@@ -1988,8 +2119,12 @@ function drawGift(n, px, py, rr, time) {
   const p = clamp(n.giftAge / Math.max(n.giftLife, 0.001), 0, 1);
   const scale = Math.sin(Math.PI * p);
   const alpha = scale;
-  const a = (n.giftA || 0) + Math.sin(time * 2 + n.id) * 0.06;
-  const dist = rr * (1.2 + scale * 0.18);
+  // Sway in the breeze: a slow primary wobble plus a faster shiver, a touch
+  // wider for big gold leaves, so they drift around the leaf as they grow/shrink.
+  const swayAmt = n.giftBig ? 1.4 : 1;
+  const sway = (Math.sin(time * 1.7 + n.id * 1.7) * 0.22 + Math.sin(time * 3.3 + n.id) * 0.07) * swayAmt;
+  const a = (n.giftA || 0) + sway;
+  const dist = rr * (1.2 + scale * 0.18 + Math.sin(time * 1.3 + n.id) * 0.06);
   const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
   const br = rr * (0.26 + 0.08 * scale);
   const glow = ctx.createRadialGradient(bx, by, br * 0.25, bx, by, br * 2.5);
@@ -2000,7 +2135,7 @@ function drawGift(n, px, py, rr, time) {
   ctx.beginPath(); ctx.arc(bx, by, br * 2.5, 0, TAU); ctx.fill();
   ctx.save();
   ctx.translate(bx, by);
-  ctx.rotate(a + Math.PI / 5);
+  ctx.rotate(a + Math.PI / 5 + Math.sin(time * 2.4 + n.id) * 0.22 * swayAmt);
   const bigScale = n.giftBig ? 1.6 : 1;
   ctx.scale((0.55 + scale * 0.75) * bigScale, (0.55 + scale * 0.75) * bigScale);
   ctx.beginPath();
@@ -2179,9 +2314,27 @@ function draw(time) {
         ctx.fillStyle = hg;
         ctx.beginPath(); ctx.arc(px, py, rr * (1.9 + flash * 0.5), 0, TAU); ctx.fill();
       }
-      ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU);
+      // Blight chew: the leaf shrinks, trembles, browns, and gets bitten chunks taken out.
+      const chew = (n.fx && n.fx.chew) || 0;
+      const lr = chew > 0 ? rr * (1 - 0.55 * chew) : rr;
+      const cx = px + (chew > 0 ? (Math.random() - 0.5) * chew * 3.5 * cam.scale : 0);
+      const cy = py + (chew > 0 ? (Math.random() - 0.5) * chew * 3.5 * cam.scale : 0);
+      ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
       ctx.fillStyle = SP().tint || '#3f9e4f'; ctx.fill();
       ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
+      if (chew > 0) {
+        // Brown rot wash over the shrinking leaf.
+        ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
+        ctx.fillStyle = `rgba(74,48,22,${0.55 * chew})`; ctx.fill();
+        // Bitten-out chunks around the rim.
+        ctx.fillStyle = '#0e1611';
+        const bites = 2 + Math.floor(chew * 4);
+        for (let bi = 0; bi < bites; bi++) {
+          const ba = (bi / bites) * TAU + n.id * 1.3;
+          const bx = cx + Math.cos(ba) * lr, by = cy + Math.sin(ba) * lr;
+          ctx.beginPath(); ctx.arc(bx, by, lr * (0.28 + 0.18 * chew), 0, TAU); ctx.fill();
+        }
+      }
       // Gold-leaf indicator is drawn in a later top pass so it's never covered.
     } else if (n.type === 'amp') {
       if (flash > 0.01) {
@@ -2256,7 +2409,7 @@ function draw(time) {
     }
   }
 
-  drawCritters();
+  drawCritters(time);
 
   // Gold leaves on top of everything (nodes + critters) so they're never hidden.
   for (const id in S.nodes) {
@@ -2687,7 +2840,7 @@ function hintText() {
   if (rootLvl('capacitance') > 0 && S.counts.cap === 0 && S.resin >= GROW.cap.cost())
     return 'Capacitors store flow and release it boosted — but bursts can overflow thin branches.';
   // polish/lock features (newer mechanics) — small reminders
-  if (S.resin >= 8 && S.counts.leaf >= 2 && !S.ms.polished) return 'Spend resin to ✨ Polish a leaf, amp, or capacitor for a permanent +6% boost.';
+  if (S.resin >= 35 && S.counts.leaf >= 2 && !S.ms.polished) return 'Spend resin to ✨ Polish a leaf, amp, or capacitor for a permanent +6% boost.';
   if (S.counts.leaf + S.counts.amp >= 4 && !S.ms.locked) return 'Tap the 🔓 lock on any node\'s panel to protect it from accidental upgrades or pruning.';
   // first cut nudge
   if (META && META.treesCut === 0 && S.maxLife >= 4000) return '🪓 The tree is sizable. Tap the Cut button to fell it for rings and unlock eternal upgrades.';
@@ -2700,6 +2853,53 @@ function hintText() {
     }
   }
   return '';
+}
+// ---------- Active-boost hover tooltip ----------
+// Hovering either boost badge lists every active boost: its name, remaining time, and effect.
+let boostTipOn = false, boostTipX = 0, boostTipY = 0;
+function boostTipHTML() {
+  const rows = [];
+  for (const x of activeBlooms()) {
+    const b = BLOOMS[x.kind];
+    rows.push(`<div class="bt-row"><span class="bt-ico">${b.icon}</span><span class="bt-name">${b.name}</span><span class="bt-time">${Math.ceil(x.t)}s</span><span class="bt-eff">${b.descOf()}</span></div>`);
+  }
+  if (touchOwned()) {
+    const cap = touchBoostDur(), c = (S.touch && S.touch.charge) || 0, pct = Math.round(c / cap * 100);
+    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">channeling ×${touchMult().toFixed(1)} production</span></div>`);
+    else rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${pct >= 100 ? 'ready' : pct + '%'}</span><span class="bt-eff">${pct >= 100 ? `hold a leaf for a ${touchBoostDur()}s ×${touchMult().toFixed(1)} surge` : 'charging…'}</span></div>`);
+  }
+  const body = rows.length ? rows.join('') : '<div class="bt-none">No active boosts right now.</div>';
+  return `<div class="bt-title">Active boosts</div>${body}`;
+}
+function refreshBoostTip() {
+  const tip = document.getElementById('boosttip');
+  if (!tip) return;
+  tip.innerHTML = boostTipHTML();
+  const pad = 12, w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = boostTipX + 14, top = boostTipY + 16;
+  if (left + w + pad > innerWidth)  left = boostTipX - w - 14;
+  if (top + h + pad > innerHeight)  top = boostTipY - h - 16;
+  tip.style.left = Math.max(pad, left) + 'px';
+  tip.style.top  = Math.max(pad, top) + 'px';
+}
+function showBoostTip(e) {
+  boostTipOn = true; boostTipX = e.clientX; boostTipY = e.clientY;
+  const tip = document.getElementById('boosttip');
+  if (tip) tip.style.display = 'block';
+  refreshBoostTip();
+}
+function moveBoostTip(e) { if (!boostTipOn) return; boostTipX = e.clientX; boostTipY = e.clientY; refreshBoostTip(); }
+function hideBoostTip() {
+  boostTipOn = false;
+  const tip = document.getElementById('boosttip');
+  if (tip) tip.style.display = 'none';
+}
+for (const id of ['bloombadge', 'touchbadge']) {
+  const el = document.getElementById(id);
+  if (!el) continue;
+  el.addEventListener('mouseenter', showBoostTip);
+  el.addEventListener('mousemove', moveBoostTip);
+  el.addEventListener('mouseleave', hideBoostTip);
 }
 function refreshHud() {
   let leafOut = 0, refOut = 0;
@@ -2717,10 +2917,6 @@ function refreshHud() {
       bb.textContent = blooms.length === 1
         ? `${BLOOMS[blooms[0].kind].icon} ${BLOOMS[blooms[0].kind].name} · ${minT}s`
         : `${blooms.map(x => BLOOMS[x.kind].icon).join('')} · ${minT}s`;
-      bb.title = blooms.map(x => {
-        const b = BLOOMS[x.kind];
-        return `${b.icon} ${b.name} · ${Math.ceil(x.t)}s · ${b.descOf()}`;
-      }).join('\n');
       const lead = BLOOMS[blooms[0].kind];
       bb.style.borderColor = lead.color;
       bb.style.color = lead.color;
@@ -2739,6 +2935,7 @@ function refreshHud() {
       else { tb.textContent = `🫳 Charging ${pct}%`; tb.style.borderColor = '#34543c'; }
     } else if (tb.style.display !== 'none') { tb.style.display = 'none'; tb.classList.remove('ready'); }
   }
+  if (boostTipOn) refreshBoostTip();
   elSap.textContent = fmt(S.sap) + ' sap';
   elSapRate.textContent = '+' + fmt(S.ema.s) + '/s';
   elSapDetail.textContent = `Leaves ${fmt(leafOut)}/s · leaking ${fmt(S.wasteSap)}/s sap`;
@@ -2779,6 +2976,21 @@ function refreshHud() {
   if (META.rings >= 10000) grantAchievement('rings10000');
   if (S.sap >= 1e12) grantAchievement('sap1t');
   if (hardMode() && S.sap >= 1e6) grantAchievement('blightSap');
+  // Sap-per-second milestones — from the smoothed income rate.
+  { const rate = (S.ema && S.ema.s) || 0;
+    if (rate >= 1000) grantAchievement('rate1k');
+    if (rate >= 100000) grantAchievement('rate100k');
+    if (rate >= 1e7) grantAchievement('rate10m'); }
+  // Lifetime sap milestones — total ever produced across every tree.
+  { const life = (META && META.lifetimeSap) || 0;
+    if (life >= 1e6) grantAchievement('life1m');
+    if (life >= 1e9) grantAchievement('life1b');
+    if (life >= 1e12) grantAchievement('life1t'); }
+  // One-tree milestones — sap produced by the current tree since it was planted.
+  { const ts = (S && S.treeSap) || 0;
+    if (ts >= 1e6) grantAchievement('tree1m');
+    if (ts >= 1e8) grantAchievement('tree100m');
+    if (ts >= 1e10) grantAchievement('tree10b'); }
   // Kaleidoscope: every distinct bloom variant rolled at least once.
   if (['bloomSurge','bloomReso','bloomVerd','bloomRefn','bloomOver'].every(k => META.achievements[k]))
     grantAchievement('allBlooms');
@@ -2803,12 +3015,61 @@ function save() {
   }
   const nodes = Object.values(S.nodes).map(n => ({
     id: n.id, type: n.type, parent: n.parent, children: n.children, lvl: n.lvl, edgeLvl: n.edgeLvl,
-    extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, amberEarned: n.amberEarned || 0, life: n.life, buf: n.buf, discharging: n.discharging,
+    extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, life: n.life, buf: n.buf, discharging: n.discharging,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
-    roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, runStart: S.runStart || Date.now(), nodes }));
+    roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, nodes }));
+}
+// Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85% (100% with Eternity).
+const offlineRateNow = () => metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
+const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance') + 4 * metaLvl('eternalSap')) * SP().offline * 3600;
+// Credit production for a real-time gap. Called from load() (page reopened) and
+// from the main loop / visibilitychange when the tab was suspended without a
+// reload (laptop asleep, tab backgrounded) — those paths never re-run load(),
+// so without this the tree earned nothing while the JS clock was frozen.
+function creditOffline(awaySecRaw) {
+  const away = clamp(awaySecRaw, 0, offlineCapSecNow());
+  if (away <= 30) return;
+  computeFlow(0); // capacitors pass through for the offline estimate
+  const rate = offlineRateNow();
+  const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
+  if (sap + resin > 0) {
+    S.sap += sap;
+    S.resin += resin;
+    grantAchievement('offline');
+  }
+  // Offline acorn ripening — 10% of the away time counts toward growth.
+  let acornsRipened = 0, growthMs = 0;
+  if (acornsUnlocked()) {
+    growthMs = away * 1000 * 0.1;
+    const before = acornsRipe();
+    tickAcorns(growthMs);
+    acornsRipened = acornsRipe() - before;
+  }
+  showWelcomeBack({ away, rate, sap, resin, acornsRipened, growthMs });
+}
+// Fill and open the Welcome Back popup. Shared by the away paths (creditOffline)
+// and the foreground-idle path, which both produce a lump summary on return.
+function showWelcomeBack(s) {
+  if (!s || s.away < 30) return;
+  if (s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0) return;
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('wbDur', `You were away for ${fmtAcornTimer(s.away * 1000)}.`);
+  set('wbSap', fmt(s.sap));
+  set('wbRate', `${Math.round(s.rate * 100)}%`);
+  const resinRow = document.getElementById('wbResinRow');
+  if (s.resin > 0.05) { resinRow.style.display = ''; set('wbResin', fmt(s.resin)); }
+  else resinRow.style.display = 'none';
+  const acornRow = document.getElementById('wbAcornRow');
+  if (s.growthMs > 0) {
+    acornRow.style.display = '';
+    const e = document.getElementById('wbAcorn');
+    if (s.acornsRipened > 0) e.innerHTML = `🌰 ${s.acornsRipened} ripened <small>+${fmtAcornTimer(s.growthMs)} growth</small>`;
+    else e.innerHTML = `<small>+${fmtAcornTimer(s.growthMs)} toward next 🌰</small>`;
+  } else acornRow.style.display = 'none';
+  document.getElementById('welcome').classList.add('open');
 }
 function load() {
   let d;
@@ -2826,12 +3087,13 @@ function load() {
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0, ...d.roots },
     graftsBought: d.graftsBought || 0, ms: d.ms || {},
     incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0,
+    treeSap: (typeof d.treeSap === 'number') ? d.treeSap : 0,
     touch: { charge: 0 }, channeling: false, channelNode: null,
     // Old saves predate the run timer; treat them as long-running so reloading an
     // established tree can't trivially hand out the speed-run achievements.
     runStart: (typeof d.runStart === 'number') ? d.runStart : (Date.now() - 24 * 3600 * 1000) };
   for (const m of d.nodes) {
-    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, amberEarned: 0, life: 0, buf: { s: 0, r: 0 }, discharging: false,
+    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, buf: { s: 0, r: 0 }, discharging: false,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
       giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
@@ -2852,23 +3114,7 @@ function load() {
   layout();
   for (const id in S.nodes) { const n = N(id); n.x = n.tx; n.y = n.ty; }
   prepareEdgeCache();
-  computeFlow(0); // capacitors pass through for the offline estimate
-  const away = clamp((Date.now() - d.t) / 1000, 0,
-    (4 + 4 * S.roots.heartwood + 2 * metaLvl('endurance') + 4 * metaLvl('eternalSap')) * SP().offline * 3600);
-  if (away > 30 && S.incomeS + S.incomeR > 0) {
-    // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85%.
-    const offlineRate = metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
-    S.sap += S.incomeS * away * offlineRate;
-    S.resin += S.incomeR * away * offlineRate;
-    grantAchievement('offline');
-    let msg = `While you were away, your tree produced ${fmt(S.incomeS * away * offlineRate)} sap (${Math.round(offlineRate * 100)}% offline rate)`;
-    if (S.incomeR * away * offlineRate > 0.05) msg += ` and ${fmt(S.incomeR * away * offlineRate)} resin`;
-    toast(msg + '.');
-  }
-  // Offline acorn ripening — 10% of the away time counts toward growth.
-  if (away > 30 && acornsUnlocked()) {
-    tickAcorns(away * 1000 * 0.1);
-  }
+  creditOffline((Date.now() - d.t) / 1000);
 }
 let toastTimer = null;
 function toast(msg) {
@@ -3482,6 +3728,12 @@ function checkCheat(raw) {
     sfx('plink');
     return true; // consume the input so it clears
   }
+  // Codes that are switched off for now: consume the input and let the player know.
+  if (v && (DISABLED_CODES.has(v) || FOUNDERS.some(f => f.key === v))) {
+    toast('That code is disabled right now.');
+    sfx('plink');
+    return true; // consume the input so it clears
+  }
   // Every code is one-time use except the hacks code, which stays
   // re-runnable for dev convenience.
   if (v && !isHackCode(v) && META && META.usedCodes && META.usedCodes[v]) {
@@ -3956,24 +4208,80 @@ document.getElementById('restore').addEventListener('click', () => {
 });
 setInterval(save, 6000);
 window.addEventListener('beforeunload', save);
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { save(); hiddenAt = Date.now(); }
+  else if (hiddenAt) {
+    // Tab came back from the background. rAF was paused while hidden, so credit
+    // the gap at the offline rate and re-anchor the wall clock to avoid the
+    // main loop double-counting it below.
+    const gap = (Date.now() - hiddenAt) / 1000; hiddenAt = 0;
+    creditOffline(gap);
+    wallLast = Date.now();
+  }
+});
+
+// ---------- idle detection ----------
+// The window can sit open in the foreground (unfocused, second monitor, user
+// walked away) without ever firing visibilitychange or freezing the rAF clock,
+// so none of the away paths trip and the tree would earn full online income
+// indefinitely. Treat a stretch with no user input as idle and drop live
+// production to the same offline rate as being away.
+const IDLE_AFTER_MS = 3 * 60 * 1000; // 3 min of no input → idle
+let lastInput = Date.now();
+let wasIdle = false;
+// Accumulators for the foreground-idle stretch, summed into the Welcome Back
+// popup shown when input resumes.
+let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0;
+const markInput = () => { lastInput = Date.now(); };
+for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove']) {
+  window.addEventListener(ev, markInput, { passive: true });
+}
 
 // ---------- main loop ----------
 let last = performance.now();
+let wallLast = Date.now();
 function frame(now) {
   // Wrap the body in try/finally so an exception in any subsystem can't kill
   // the RAF chain. The chain dying was the source of the post-cut freeze: a
   // throw inside frame() skipped the requestAnimationFrame call at the end.
   try {
+    // The rAF clock (performance.now) freezes while the machine is asleep, and
+    // dt below is clamped to 0.1s — so a sleep gap would earn nothing. Watch the
+    // wall clock for a jump the loop can't otherwise see and credit it offline.
+    const wallNow = Date.now();
+    const wallGap = (wallNow - wallLast) / 1000;
+    wallLast = wallNow;
+    if (wallGap > 30) creditOffline(wallGap);
     const dt = clamp((now - last) / 1000, 0, 0.1);
     last = now;
     const time = now / 1000;
     computeFlow(dt);
-    S.sap += S.incomeS * dt;
-    S.resin += S.incomeR * dt;
+    // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
+    // instead of full, matching the away mechanic so leaving the window open
+    // can't farm full income. wallGap (sleep) above is credited separately.
+    const idle = (Date.now() - lastInput) > IDLE_AFTER_MS;
+    if (idle && !wasIdle) {
+      idleSap = 0; idleResin = 0; idleGrowth = 0;
+      idleRipeStart = acornsRipe(); idleEnteredAt = Date.now();
+    }
+    if (!idle && wasIdle) {
+      showWelcomeBack({ away: (Date.now() - idleEnteredAt) / 1000, rate: offlineRateNow(),
+        sap: idleSap, resin: idleResin, acornsRipened: acornsRipe() - idleRipeStart, growthMs: idleGrowth });
+    }
+    wasIdle = idle;
+    const prod = idle ? offlineRateNow() : 1;
+    const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
+    S.sap += sapInc;
+    S.resin += resinInc;
+    if (idle) { idleSap += sapInc; idleResin += resinInc; }
     // Lifetime sap drives the acorn unlock — accumulate raw income, never the
     // hacker-mode refill below.
-    if (S.incomeS > 0) META.lifetimeSap = (META.lifetimeSap || 0) + S.incomeS * dt;
+    if (S.incomeS > 0) {
+      META.lifetimeSap = (META.lifetimeSap || 0) + sapInc;
+      // Per-tree total — resets with each newGame(), powers the one-tree challenges.
+      S.treeSap = (S.treeSap || 0) + sapInc;
+    }
     // Latch the acorn unlock the first time you hit 1M sap (lifetime or banked).
     if (META && !META.acornsOnce && ((META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP || S.sap >= ACORN_UNLOCK_SAP)) {
       META.acornsOnce = true; saveMeta();
@@ -3997,7 +4305,11 @@ function frame(now) {
     }
     // Acorn ripening — driven by active-play wall-clock; offline time is
     // handled separately in load() at a 10% rate.
-    if (META && META.canopy && acornsUnlocked()) tickAcorns(dt * 1000);
+    if (META && META.canopy && acornsUnlocked()) {
+      const gm = dt * 1000 * (idle ? 0.1 : 1);
+      tickAcorns(gm);
+      if (idle) idleGrowth += gm;
+    }
     // Hacker mode: refill pools every frame so purchases never drain them.
     if (META && META.hacks) {
       if (S.sap < 1e14) S.sap = 1e15;
@@ -4048,6 +4360,9 @@ resize();
 loadMeta();
 load();
 refreshCheatBadges();
+document.getElementById('wbClose')?.addEventListener('click', () => {
+  document.getElementById('welcome').classList.remove('open');
+});
 // ---------- intro overlay: shown on first play and after hard reset ----------
 function openIntro() {
   const el = document.getElementById('intro');
