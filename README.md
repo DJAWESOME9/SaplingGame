@@ -60,10 +60,7 @@ Click the core to reveal a downward-growing skill tree. Costs are paid in amber 
 - **Soil → Verdance → Sunlight** (leaf production multipliers and caps)
 - **Soil → Crown** (more branch slots on the core)
 - **Shears → Thrift / Heartwood** (cheaper growth, more offline time)
-- **Sunray → Verdant Touch → Everbloom** (the active-ability branch)
 - Tier-5 deep roots like Cascade, Reservoir, Resonance, Sunlight reward focused investment in one specialty
-
-**Verdant Touch** (tier-4 root) unlocks the **Channel**: a charge meter that fills over real time, then drains while you press and hold a leaf to pour a ×(2 + level) production surge into *that* leaf. **Everbloom** makes each surge last longer and hit harder.
 
 ## The Grove (prestige)
 
@@ -93,6 +90,13 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Pesticide | T4 / Bramble | Unlocks the 🧴 pesticide toggle |
 | Canopy Charm | T5 / Worldtree | Acorns ripen 20% faster per level, +1 max ripe slot per level |
 | Symbiosis | T5 / Pesticide | Pesticide no longer costs −15% production |
+| Verdant Touch | T4 / Sunray | Unlocks the **Channel** active ability |
+| Everbloom | T5 / Verdant Touch | Channel surges last +3s and hit +50% harder per level |
+| **Verdant Tide** | T5 / Everbloom | Channel surge pours into **every leaf at once**, not just the held one |
+
+### The Channel (Verdant Touch)
+
+Once **Verdant Touch** is bought in the Grove, a charge meter fills over real time. Press and **hold a leaf** to drain it and pour a ×(2 + level) production surge into *that one leaf*. **Everbloom** makes each surge last longer and hit harder; **Verdant Tide** spreads the surge across **all** leaves at once instead of just the one you're holding.
 
 Grove upgrade cards offer **×1**, **×10**, and **Max** bulk-buy buttons showing how many levels fit your rings and the total cost.
 

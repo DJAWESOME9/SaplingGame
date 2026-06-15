@@ -677,6 +677,7 @@ const GROVE = {
   // Active ability — charges over time, then hold a leaf to channel a production surge.
   verdanttouch:{ name:'Verdant Touch', glyph:'🫳', tier:4, parent:'sunray',     max:5, cost:l=>24+l*14, desc:'Unlocks the Channel — hold a leaf to pour a ×(2+level) production surge from a charge that refills over time (longer surge per level)' },
   everbloom: { name:'Everbloom',       glyph:'🌸', tier:5, parent:'verdanttouch', max:3, cost:l=>300+l*200, desc:'Channel surges last +3s and hit +50% harder per level' },
+  verdanttide:{ name:'Verdant Tide',   glyph:'🌊', tier:5, parent:'everbloom',  max:1, cost:_=>1200, desc:'The Channel surge pours into every leaf at once, not just the one you hold' },
   titanheart:{ name:'Titanheart',      glyph:'🫀', tier:5, parent:'ascendance', max:3, cost:l=>350+l*250, desc:'+100% branch capacity per level' },
   primordial:{ name:'Primordial Bloom',glyph:'🌑', tier:5, parent:'eternity',   max:1, cost:_=>2500,       desc:'All production ×3' },
   // Achievement payoffs — each non-secret achievement (normal + challenge) feeds these.
@@ -995,7 +996,9 @@ const bloomProductOf = fn => activeBlooms().reduce((m, x) => m * (BLOOMS[x.kind]
 // The Channel surge only boosts the single leaf being channeled, so it's excluded
 // from the global leaf multiplier and applied per-node via channelMult() instead.
 const bloomLeafMult  = () => activeBlooms().reduce((m, x) => m * (x.kind !== 'channel' && BLOOMS[x.kind].leafMult ? BLOOMS[x.kind].leafMult() : 1), 1);
-const channelMult    = n => (S.channeling && n && n.id != null && n.id === S.channelNode) ? touchMult() : 1;
+// The Channel surge boosts only the held leaf — unless Verdant Tide is owned, in
+// which case it pours into every leaf at once.
+const channelMult    = n => (S.channeling && n && n.id != null && (metaLvl('verdanttide') > 0 || n.id === S.channelNode)) ? touchMult() : 1;
 const bloomRefMult   = () => bloomProductOf('refMult');
 const bloomCapMult   = () => bloomProductOf('capMult');
 // Pesticide: toggle that blocks critters at a constant production penalty.
@@ -1019,7 +1022,7 @@ const TOUCH_FILL    = 75;  // seconds of real time to fully charge
 const touchBoostDur = () => 8 + 2 * metaLvl('verdanttouch') + 3 * metaLvl('everbloom'); // seconds of surge at full charge
 const touchMult     = () => (2 + metaLvl('verdanttouch')) * (1 + 0.5 * metaLvl('everbloom'));
 BLOOMS.channel = { name:'Channel', icon:'🫳', color:'#9fe0b0', dur:1, weight:0,
-  leafMult:()=>touchMult(), descOf:()=>`×${touchMult().toFixed(1)} production on the channeled leaf` };
+  leafMult:()=>touchMult(), descOf:()=>`×${touchMult().toFixed(1)} production ${metaLvl('verdanttide') > 0 ? 'on all leaves' : 'on the channeled leaf'}` };
 // Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
 const bloomMult      = bloomLeafMult;
 // Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
@@ -2906,7 +2909,7 @@ function boostTipHTML() {
   }
   if (touchOwned()) {
     const cap = touchBoostDur(), c = (S.touch && S.touch.charge) || 0, pct = Math.round(c / cap * 100);
-    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">×${touchMult().toFixed(1)} on channeled leaf</span></div>`);
+    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">×${touchMult().toFixed(1)} ${metaLvl('verdanttide') > 0 ? 'on all leaves' : 'on channeled leaf'}</span></div>`);
     else rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${pct >= 100 ? 'ready' : pct + '%'}</span><span class="bt-eff">${pct >= 100 ? `hold a leaf for a ${touchBoostDur()}s ×${touchMult().toFixed(1)} surge` : 'charging…'}</span></div>`);
   }
   const body = rows.length ? rows.join('') : '<div class="bt-none">No active boosts right now.</div>';
