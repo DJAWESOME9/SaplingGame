@@ -891,7 +891,11 @@ const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
 const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * Math.pow(1.5, rootLvl('nimbus'));
-const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay();
+// Each leaf grows gold leaves on its own timer, so the more leaves you have the
+// more often gold leaves appear overall. Stretch each leaf's timer with the leaf
+// count (sqrt, so it's gentle) to keep the aggregate rate from snowballing.
+const goldLeafCrowding = () => Math.max(1, 0.7 + 0.3 * Math.sqrt((S && S.counts && S.counts.leaf) || 1));
+const leafGiftDelay = n => clamp(50 / Math.max(leafRate(n), 0.75), 40, 140) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
@@ -1184,7 +1188,7 @@ function computeFlow(dt) {
         if (n.giftT <= 0) {
           n.giftAge = 0;
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
-          n.giftBig = Math.random() < 0.06;
+          n.giftBig = Math.random() < 0.09;
           if (n.giftBig) n.giftLife *= 1.6;
           n.giftGain = Math.max(6, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.03 + leafRate(n) * 5) * SP().gold * pantheonGoldPayout()));
           n.giftA = jitter(n.id) * TAU;
