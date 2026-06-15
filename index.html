@@ -54,6 +54,7 @@
   .cbadge { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:3px 8px; border-radius:6px; }
   .cbadge.codes { background:#3a2410; color:#f0d9a0; border:1px solid #b16a2a; }
   .cbadge.hacks { background:#3a1212; color:#f0a0a0; border:1px solid #b03a3a; }
+  .cbadge.blight { background:#2a1018; color:#f0a0c0; border:1px solid #a83a6a; }
   #savecode { width:100%; box-sizing:border-box; margin-top:10px; min-height:64px; max-height:140px; resize:vertical;
     background:#0f1611; border:1px solid #2e3f31; color:#cfdcc9; border-radius:8px; padding:6px 8px;
     font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; line-height:1.3; word-break:break-all; }
@@ -187,6 +188,14 @@
   .introlist b { color:#e7ddc4; font-weight:600; }
   .introlist .ig { display:inline-block; width:22px; text-align:center; margin-right:6px; }
   .introtip { color:#7d8c7e; font-size:11.5px; line-height:1.45; margin:0 0 16px; }
+  .introhard { display:flex; align-items:flex-start; gap:11px; background:rgba(42,16,24,.5);
+    border:1px solid #5a2540; border-radius:10px; padding:11px 13px; margin:0 0 14px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .introhard:hover { border-color:#a83a6a; }
+  .introhard.on { background:rgba(60,18,34,.7); border-color:#d05a8a; }
+  .introhard input { margin:2px 0 0; width:17px; height:17px; accent-color:#d05a8a; cursor:pointer; flex:0 0 auto; }
+  .introhard .ihtext { font-size:12.5px; line-height:1.45; color:#e6b8cc; }
+  .introhard .ihtext b { color:#f0c0d6; font-weight:700; }
+  .introhard .ihtext span { color:#b58aa0; }
   #introBegin { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:11px 14px; font-size:14px; font-weight:600; cursor:pointer; }
   #introBegin:hover { border-color:#6f9a75; background:#243827; }
@@ -285,8 +294,8 @@
   .gn .gnode.species.maxed circle { fill:#3a2410; stroke:#f0d9a0; }
   .gn-glyph { font-size:30px; pointer-events:none; }
   .gn-lvl { font-size:14px; fill:#cdbf9a; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums; }
-  #grovepopover { position:absolute; display:none; width:min(360px, calc(100% - 16px)); background:rgba(14,21,15,.98);
-    border:1px solid #6f9a75; border-radius:11px; padding:11px 13px 12px; z-index:8;
+  #grovepopover { position:fixed; display:none; width:min(360px, calc(100vw - 16px)); background:rgba(14,21,15,.98);
+    border:1px solid #6f9a75; border-radius:11px; padding:11px 13px 12px; z-index:70;
     box-shadow:0 -4px 24px rgba(0,0,0,.55); }
   #grovepopover.open { display:block; animation:grovePopIn .18s ease-out; }
   @keyframes grovePopIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
@@ -419,6 +428,10 @@
       <li><span class="ig">🍃</span><b>Cut the tree</b> when it's grown to bank <b>rings</b> — eternal upgrades and new species in the Grove.</li>
     </ul>
     <p class="introtip">Tip: tap the 🔓 lock on any node's panel to protect it from accidental upgrades or pruning. Drag to pan, pinch or scroll to zoom.</p>
+    <label class="introhard" id="introHard">
+      <input type="checkbox" id="introHardCheck">
+      <span class="ihtext"><b>🥀 Activate Blight mode</b> — for veterans who want a fight. <span>Critters swarm harder, leaf output is taxed −15%, and every cheat code is disabled. You can only leave it with a hard reset.</span></span>
+    </label>
     <button id="introBegin">Begin growing 🌱</button>
   </div>
 </div>
@@ -612,7 +625,7 @@ const groveAvailable = k => {
 };
 let META;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -676,10 +689,13 @@ const pantheonAmberMult    = () => godProductOf('amberMult');
 const ACORN_UNLOCK_SAP = 1_000_000;
 const acornsRipe   = () => (META && META.canopy && META.canopy.ripe) || 0;
 const acornsBanked = () => (META && META.acorns) || 0;
-// Acorns stay locked until 1M lifetime sap has been produced. Once you have any
-// acorns banked or ripe (across a save migration or restored backup), they stay
-// unlocked — the threshold is a one-time gate.
-const acornsUnlocked = () => (META && (META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP) || acornsBanked() > 0 || acornsRipe() > 0;
+// Acorns unlock once you reach 1M sap — either produced over your lifetime OR
+// banked right now (offline/codes count). Once tripped, META.acornsOnce keeps
+// them unlocked forever; banked/ripe acorns also imply unlocked.
+const acornsUnlocked = () => !!(META && META.acornsOnce)
+  || (META && (META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP)
+  || (typeof S !== 'undefined' && S && (S.sap || 0) >= ACORN_UNLOCK_SAP)
+  || acornsBanked() > 0 || acornsRipe() > 0;
 function tickAcorns(ms) {
   if (!META || !META.canopy) return;
   META.canopy.growMs -= ms;
@@ -714,6 +730,7 @@ function loadMeta() {
   META.up = META.up || {};
   META.achievements = META.achievements || {};
   if (typeof META.hacks !== 'boolean') META.hacks = false;
+  if (typeof META.hardMode !== 'boolean') META.hardMode = false;
   if (typeof META.acorns !== 'number') META.acorns = 0;
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (!META.canopy || typeof META.canopy !== 'object') META.canopy = { ripe: 0, growMs: ACORN_INTERVAL_MS };
@@ -871,6 +888,11 @@ const pesticideOwned = () => metaLvl('pesticide') > 0;
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
 const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
 const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.85) : 1;
+// Blight mode: opt-in hard mode (chosen on first play or after a hard reset).
+// Critters swarm harder, leaf output is taxed, and cheat codes are disabled.
+const hardMode     = () => !!(META && META.hardMode);
+const hardLeafMult = () => hardMode() ? 0.85 : 1;
+const critterCap   = () => hardMode() ? 5 : 3;
 // Verdant Touch: a charge meter that fills over time, then drains while you hold a
 // leaf to pour a production surge (delivered through the bloom system as 'channel').
 const touchOwned    = () => metaLvl('verdanttouch') > 0;
@@ -890,7 +912,7 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * Math.pow(1.5, rootLvl('nimbus'));
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so the more leaves you have the
 // more often gold leaves appear overall. Stretch each leaf's timer with the leaf
 // count (sqrt, so it's gentle) to keep the aggregate rate from snowballing.
@@ -1735,7 +1757,7 @@ function updateDrops(dt) {
 
 // ---------- critters: birds and insects that land on nodes and slow them ----------
 function spawnCritter() {
-  if (critters.length >= 3) return;
+  if (critters.length >= critterCap()) return;
   const ids = Object.keys(S.nodes).filter(id => {
     const n = N(id);
     return n.type !== 'core' && !critters.some(c => c.nodeId === +id && c.state !== 'leaving');
@@ -1743,9 +1765,9 @@ function spawnCritter() {
   if (!ids.length) return;
   const nodeId = +ids[Math.floor(Math.random() * ids.length)];
   const node = N(nodeId);
-  const hp = 2 + Math.floor(Math.random() * 3) + rootLvl('bastion');
+  const hp = 2 + Math.floor(Math.random() * 3) + rootLvl('bastion') + (hardMode() ? 2 : 0);
   critters.push({
-    type: Math.random() < 0.55 ? 'bird' : 'bug',
+    type: Math.random() < (hardMode() ? 0.2 : 0.55) ? 'bird' : 'bug',
     x: node.x + (Math.random() - 0.5) * 120,
     y: node.y - 140 - Math.random() * 80,
     nodeId,
@@ -1783,7 +1805,7 @@ function updateCritters(dt) {
   if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); return; }
   if (critterSpawnT <= 0) {
     spawnCritter();
-    critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble')) * (1 + 0.3 * rootLvl('bastion'));
+    critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble')) * (1 + 0.3 * rootLvl('bastion')) * (hardMode() ? 0.45 : 1);
   }
   for (let i = critters.length - 1; i >= 0; i--) {
     const c = critters[i];
@@ -2996,6 +3018,10 @@ function bindGroveDrag() {
       grovePan.dragging = true; grovePan.moved = false;
       grovePan.sx = e.clientX; grovePan.sy = e.clientY;
       grovePan.ox = grovePan.x; grovePan.oy = grovePan.y;
+      // Record the tapped node NOW — setPointerCapture below retargets later
+      // pointer events to the <svg>, so reading e.target on pointerup is unreliable.
+      const gEl = e.target.closest && e.target.closest('.gnode');
+      grovePan.downK = gEl ? gEl.dataset.up : null;
     } else if (grovePtrs.size === 2) {
       // Begin pinch: capture starting distance + center
       const pts = [...grovePtrs.values()];
@@ -3044,9 +3070,8 @@ function bindGroveDrag() {
     if (!grovePan.dragging) return;
     grovePan.dragging = false;
     if (grovePan.moved) return;
-    const tEl = e.target.closest('.gnode');
-    if (tEl) {
-      currentPopK = tEl.dataset.up;
+    if (grovePan.downK) {
+      currentPopK = grovePan.downK;
       showGrovePopover(currentPopK);
     } else {
       currentPopK = null;
@@ -3108,15 +3133,14 @@ function showGrovePopover(k) {
   positionGrovePopover(k);
 }
 function positionGrovePopover(k) {
-  // Dock the info panel to the bottom-center of the tree, like the roots panel —
-  // it stays put while you pan/zoom and isn't hidden behind the node you tapped.
+  // Fixed to the bottom-center of the viewport, like the roots panel — always
+  // reachable regardless of how far the grove is scrolled or the tree panned.
   const pop = document.getElementById('grovepopover');
-  const wrap = document.getElementById('grovetreewrap');
-  if (!pop || !wrap) return;
+  if (!pop) return;
   const w = pop.offsetWidth || 320;
-  pop.style.left = Math.max(8, (wrap.clientWidth - w) / 2) + 'px';
+  pop.style.left = Math.max(8, (window.innerWidth - w) / 2) + 'px';
   pop.style.top = 'auto';
-  pop.style.bottom = '12px';
+  pop.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
 }
 
 function renderGrove() {
@@ -3138,7 +3162,11 @@ function renderGrove() {
   } else {
     renderGroveTree();
   }
-  document.getElementById('grovespecies').innerHTML = Object.keys(SPECIES).map(k => {
+  document.getElementById('grovespecies').innerHTML = Object.keys(SPECIES).filter(k => {
+    // Chocolate is a secret species — stay hidden entirely until its code is used.
+    if (k === 'chocolate') return !!(META && META.chocolateUnlocked);
+    return true;
+  }).map(k => {
     const s = SPECIES[k], sel = META.species === k, unlocked = speciesUnlocked(k);
     return `<div class="scard ${sel ? 'sel' : ''} ${unlocked ? '' : 'locked'}" data-sp="${k}" style="${unlocked ? '' : 'opacity:.45;cursor:not-allowed'}">
       ${sel ? '<div class="sbadge">growing</div>' : ''}
@@ -3377,12 +3405,19 @@ function refreshCheatBadges() {
   const el = document.getElementById('cheatbadges');
   if (!el) return;
   let html = '';
+  if (META && META.hardMode) html += '<span class="cbadge blight" title="Blight mode is active: critters swarm harder, leaf output is taxed, and cheat codes are disabled. Hard reset to leave it.">🥀 Blight Mode</span>';
   if (META && META.codesUsed) html += '<span class="cbadge codes" title="You have entered at least one cheat code on this save.">Used Codes</span>';
   if (META && META.hacks) html += '<span class="cbadge hacks" title="HACKER MODE is active on this save.">Hacks</span>';
   el.innerHTML = html;
 }
 function checkCheat(raw) {
   const v = (raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Blight (hard) mode disables every cheat code — no shortcuts.
+  if (v && hardMode()) {
+    toast('🥀 Codes are disabled in Blight mode.');
+    sfx('plink');
+    return true; // consume the input so it clears
+  }
   // Every code is one-time use except the hacks code (djawesome9), which stays
   // re-runnable for dev convenience.
   if (v && v !== 'djawesome9' && META && META.usedCodes && META.usedCodes[v]) {
@@ -3843,6 +3878,10 @@ function frame(now) {
     // Lifetime sap drives the acorn unlock — accumulate raw income, never the
     // hacker-mode refill below.
     if (S.incomeS > 0) META.lifetimeSap = (META.lifetimeSap || 0) + S.incomeS * dt;
+    // Latch the acorn unlock the first time you hit 1M sap (lifetime or banked).
+    if (META && !META.acornsOnce && ((META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP || S.sap >= ACORN_UNLOCK_SAP)) {
+      META.acornsOnce = true; saveMeta();
+    }
     tickBlooms(dt);
     // Verdant Touch: refill the charge meter, or drain it while channeling a leaf.
     if (touchOwned()) {
@@ -3917,18 +3956,38 @@ refreshCheatBadges();
 function openIntro() {
   const el = document.getElementById('intro');
   if (el) el.classList.add('open');
+  // The Blight-mode opt-in is only offered on a genuine first run (or after a
+  // hard reset, which clears seenIntro). Hide it when re-opened via "Show intro"
+  // or if the save is already running Blight mode.
+  const hardEl = document.getElementById('introHard');
+  if (hardEl) hardEl.style.display = (META.seenIntro || META.hardMode) ? 'none' : '';
 }
 function closeIntro() {
   const el = document.getElementById('intro');
   if (el) el.classList.remove('open');
 }
+const introHard = document.getElementById('introHard');
+const introHardCheck = document.getElementById('introHardCheck');
+introHardCheck?.addEventListener('change', () => {
+  introHard?.classList.toggle('on', introHardCheck.checked);
+});
 document.getElementById('introBegin')?.addEventListener('click', () => {
+  // The Blight-mode choice is only offered on the intro (first play / after a
+  // hard reset), so lock it in here alongside marking the intro as seen.
+  if (introHardCheck?.checked) {
+    META.hardMode = true;
+    refreshCheatBadges();
+  }
   META.seenIntro = true; saveMeta();
   closeIntro();
 });
 document.getElementById('intro')?.addEventListener('click', e => {
   // Click the dimmed backdrop to dismiss (counts as seen, since they've at least skimmed it)
   if (e.target.id === 'intro') {
+    if (introHardCheck?.checked && !META.seenIntro) {
+      META.hardMode = true;
+      refreshCheatBadges();
+    }
     META.seenIntro = true; saveMeta();
     closeIntro();
   }
