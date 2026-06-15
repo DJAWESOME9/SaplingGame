@@ -90,6 +90,10 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Pesticide | T4 / Bramble | Unlocks the 🧴 pesticide toggle |
 | Canopy Charm | T5 / Worldtree | Acorns ripen 20% faster per level, +1 max ripe slot per level |
 | Symbiosis | T5 / Pesticide | Pesticide no longer costs −15% production |
+| Born Refined, Born Charged | T3 | New refineries / capacitors begin +1 level higher per level |
+| Thick Bark | T4 / Heartgirth | New branches start +1 thickness level higher per level (capacity from birth) |
+| Golden Bough | T3 / Sunray | Gold leaves pay +25% more sap per level |
+| Amber Heart | T4 / Crescent | Pruning yields +25% more amber per level |
 | Verdant Touch | T4 / Sunray | Unlocks the **Channel** active ability |
 | Everbloom | T5 / Verdant Touch | Channel surges last +3s and hit +50% harder per level |
 | **Verdant Tide** | T5 / Everbloom | Channel surge pours into **every leaf at once**, not just the held one |

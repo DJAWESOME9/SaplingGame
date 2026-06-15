@@ -680,6 +680,13 @@ const GROVE = {
   verdanttide:{ name:'Verdant Tide',   glyph:'🌊', tier:5, parent:'everbloom',  max:1, cost:_=>1200, desc:'The Channel surge pours into every leaf at once, not just the one you hold' },
   titanheart:{ name:'Titanheart',      glyph:'🫀', tier:5, parent:'ascendance', max:3, cost:l=>350+l*250, desc:'+100% branch capacity per level' },
   primordial:{ name:'Primordial Bloom',glyph:'🌑', tier:5, parent:'eternity',   max:1, cost:_=>2500,       desc:'All production ×3' },
+  // Branches that start larger — new nodes/edges spawn already grown.
+  bornrefined:{ name:'Born Refined',   glyph:'⚗️', tier:3, parent:'glaze',     max:4, cost:l=>4+l*2,  desc:'New refineries begin +1 level higher per level' },
+  borncharged:{ name:'Born Charged',   glyph:'🔋', tier:3, parent:'resonant',  max:4, cost:l=>4+l*2,  desc:'New capacitors begin +1 level higher per level' },
+  thickbark: { name:'Thick Bark',      glyph:'🛡️', tier:4, parent:'girth',     max:5, cost:l=>10+l*5, desc:'New branches start +1 thickness level higher per level (more capacity from birth)' },
+  // Other eternal boons.
+  goldenbough:{ name:'Golden Bough',   glyph:'🍯', tier:3, parent:'sunray',    max:4, cost:l=>5+l*3,  desc:'Gold leaves pay +25% more sap per level' },
+  amberheart:{ name:'Amber Heart',     glyph:'🧡', tier:4, parent:'crescent',  max:4, cost:l=>8+l*4,  desc:'Pruning yields +25% more amber per level' },
   // Achievement payoffs — each non-secret achievement (normal + challenge) feeds these.
   accolades: { name:'Accolades',       glyph:'🏅', tier:5, parent:'ascendance', max:1, cost:_=>40, desc:'Each non-secret achievement earned grants +1% to all production' },
   laurels:   { name:'Laurels',         glyph:'🌿', tier:5, parent:'titanheart', max:1, cost:_=>40, desc:'Each non-secret achievement earned grants +1% branch capacity' },
@@ -951,6 +958,9 @@ function grantAchievement(k) {
 }
 const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
+// Eternal boons: gold-leaf payout and amber-from-pruning multipliers.
+const metaGoldMult  = () => 1 + 0.25 * metaLvl('goldenbough');
+const metaAmberMult = () => 1 + 0.25 * metaLvl('amberheart');
 // Count of earned achievements that count toward Accolades/Laurels (everything except secret ones).
 const achBonusCount = () => Object.keys((META && META.achievements) || {})
   .filter(k => ACHIEVEMENTS[k] && ACHIEVEMENTS[k].cat !== 'secret').length;
@@ -1222,7 +1232,7 @@ const pruneGainRaw = n => {
   const total = treeValue();                 // current connected lifetime flow
   const branch = branchLife(n);              // what this cut removes
   const marginal = lifeAmber(total) - lifeAmber(total - branch);
-  return marginal * shearsMult() * SP().ring * pantheonAmberMult();
+  return marginal * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
 };
 // Amber is integer, but marginal cuts are fractional — carry the remainder so a
 // branch-by-branch dismantle banks the same total as one trunk cut (parts = whole).
@@ -1242,13 +1252,13 @@ function startLvl(type) {
   const birth = metaLvl('birthright');
   if (type === 'leaf') return Math.min(1 + metaLvl('seasoned') + birth, 10 + 2 * rootLvl('verdance') + metaLvl('verdure'));
   if (type === 'amp')  return Math.min(1 + metaLvl('resonant') + birth, 5 + 2 * rootLvl('vigor'));
-  if (type === 'ref')  return Math.min(1 + birth, 4 + 2 * rootLvl('distill'));
-  if (type === 'cap')  return Math.min(1 + birth, 4 + 2 * rootLvl('surge'));
+  if (type === 'ref')  return Math.min(1 + birth + metaLvl('bornrefined'), 4 + 2 * rootLvl('distill'));
+  if (type === 'cap')  return Math.min(1 + birth + metaLvl('borncharged'), 4 + 2 * rootLvl('surge'));
   return 1;
 }
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
-  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: 0, extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
+  const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: (parent != null ? metaLvl('thickbark') : 0), extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
     life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
@@ -1349,7 +1359,7 @@ function computeFlow(dt) {
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
           n.giftBig = Math.random() < 0.09;
           if (n.giftBig) n.giftLife *= 1.6;
-          n.giftGain = Math.max(6, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.03 + leafRate(n) * 5) * SP().gold * pantheonGoldPayout()));
+          n.giftGain = Math.max(6, Math.round(((S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.03 + leafRate(n) * 5) * SP().gold * pantheonGoldPayout() * metaGoldMult()));
           n.giftA = jitter(n.id) * TAU;
         }
       }
