@@ -11,8 +11,13 @@
   button { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   canvas { position:fixed; inset:0; display:block; touch-action:none; }
   #topbar { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:14px;
+    flex-wrap:wrap; row-gap:8px;
     padding:max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
     pointer-events:none; user-select:none; }
+  /* Contextual items (blooms, channel, pesticide, acorns) take a full-width slim
+     second row so the cards + controls above always stay on one line. flex-basis
+     forces the wrap; JS hides this entirely when no item inside is active. */
+  #topextra { display:none; flex-basis:100%; flex-wrap:wrap; align-items:center; gap:8px 10px; pointer-events:none; }
   #topbar .title { font-weight:700; letter-spacing:.12em; color:#9db89f; font-size:13px; text-transform:uppercase; }
   #topbar .statcard { pointer-events:auto; min-width:180px; padding:8px 12px 9px; border-radius:12px;
     border:1px solid rgba(58,74,60,.9); background:rgba(16,24,18,.72); backdrop-filter:blur(6px);
@@ -321,16 +326,30 @@
     font-family:inherit; touch-action:manipulation; }
   #grovezoom button:hover { border-color:#6f9a75; background:rgba(36,56,39,.95); }
   #grovesvg { touch-action:none; }
-  .ge line { transition:stroke .15s; }
+  .ge line { transition:stroke .15s, stroke-width .15s; }
+  .ge line.flow { stroke-dasharray:5 13; animation:groveFlow 1.4s linear infinite; opacity:.9; }
+  @keyframes groveFlow { to { stroke-dashoffset:-18; } }
   .gn .gnode { cursor:pointer; }
+  .gn .gnode .gn-fx { transform-origin:0 0; transition:transform .15s ease; }
+  .gn .gnode:hover .gn-fx { transform:scale(1.08); }
   .gn .gnode circle { fill:#1a2520; stroke:#3c5340; stroke-width:2; transition:fill .15s, stroke .15s; }
   .gn .gnode:hover circle { fill:#243827; }
-  .gn .gnode.owned circle { fill:#1d3624; stroke:#6f9a75; }
-  .gn .gnode.maxed circle { fill:#2a4a30; stroke:#9fd9a8; }
-  .gn .gnode.afford circle { stroke:#dceade; stroke-width:3; filter:drop-shadow(0 0 6px rgba(220,234,222,.4)); }
+  .gn .gnode.owned circle { fill:#1d3624; stroke:#6f9a75; filter:drop-shadow(0 0 5px rgba(111,154,117,.35)); }
+  .gn .gnode.maxed circle { fill:#2a4a30; stroke:#9fd9a8; filter:drop-shadow(0 0 7px rgba(159,217,168,.5)); }
+  .gn .gnode.afford circle { stroke:#dceade; stroke-width:3; animation:groveAfford 1.7s ease-in-out infinite; }
   .gn .gnode.locked circle { fill:#10160e; stroke:#1e2a20; opacity:.55; }
   .gn .gnode.species circle { stroke:#caa64f; }
-  .gn .gnode.species.maxed circle { fill:#3a2410; stroke:#f0d9a0; }
+  .gn .gnode.species.afford circle { animation:groveAffordGold 1.7s ease-in-out infinite; }
+  .gn .gnode.species.maxed circle { fill:#3a2410; stroke:#f0d9a0; filter:drop-shadow(0 0 8px rgba(240,217,160,.55)); }
+  @keyframes groveAfford { 0%,100% { filter:drop-shadow(0 0 4px rgba(220,234,222,.3)); } 50% { filter:drop-shadow(0 0 11px rgba(220,234,222,.75)); } }
+  @keyframes groveAffordGold { 0%,100% { filter:drop-shadow(0 0 4px rgba(240,217,160,.35)); } 50% { filter:drop-shadow(0 0 12px rgba(240,217,160,.8)); } }
+  .gn .gnode.appear .gn-fx { animation:groveAppear .55s cubic-bezier(.2,1.4,.5,1) backwards; }
+  @keyframes groveAppear { 0% { opacity:0; transform:scale(.2); } 60% { opacity:1; transform:scale(1.14); } 100% { transform:scale(1); } }
+  .gn .gnode.bought .gn-fx { animation:groveBought .5s ease-out; }
+  @keyframes groveBought { 0% { transform:scale(1); } 30% { transform:scale(1.38); } 100% { transform:scale(1); } }
+  .gcore { fill:#243827; stroke:#6f9a75; stroke-width:2; transform-origin:0 0;
+    filter:drop-shadow(0 0 12px rgba(111,154,117,.55)); animation:groveCore 3.2s ease-in-out infinite; }
+  @keyframes groveCore { 0%,100% { opacity:.85; transform:scale(1); } 50% { opacity:1; transform:scale(1.09); } }
   .gn-glyph { font-size:30px; pointer-events:none; }
   .gn-lvl { font-size:14px; fill:#cdbf9a; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums; }
   #grovepopover { position:fixed; display:none; width:min(360px, calc(100vw - 16px)); background:rgba(14,21,15,.98);
@@ -507,13 +526,17 @@
     <span class="statrate" id="amberrate"></span>
     <span class="statdetail" id="amberdetail"></span>
   </div>
-  <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
-  <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
-  <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
-  <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="gear" aria-label="Settings">⚙</button>
+  <!-- Contextual items live on their own slim second row so they never break up
+       the resource cards / controls when they appear. Hidden entirely when empty. -->
+  <div id="topextra">
+    <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
+    <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
+    <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
+    <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
+  </div>
 </div>
 <div id="boosttip"></div>
 <div id="settings">
@@ -969,7 +992,10 @@ function tickBlooms(dt) {
   S.blooms = S.blooms.filter(x => x.t > 0);
 }
 const bloomProductOf = fn => activeBlooms().reduce((m, x) => m * (BLOOMS[x.kind][fn] ? BLOOMS[x.kind][fn]() : 1), 1);
-const bloomLeafMult  = () => bloomProductOf('leafMult');
+// The Channel surge only boosts the single leaf being channeled, so it's excluded
+// from the global leaf multiplier and applied per-node via channelMult() instead.
+const bloomLeafMult  = () => activeBlooms().reduce((m, x) => m * (x.kind !== 'channel' && BLOOMS[x.kind].leafMult ? BLOOMS[x.kind].leafMult() : 1), 1);
+const channelMult    = n => (S.channeling && n && n.id != null && n.id === S.channelNode) ? touchMult() : 1;
 const bloomRefMult   = () => bloomProductOf('refMult');
 const bloomCapMult   = () => bloomProductOf('capMult');
 // Pesticide: toggle that blocks critters at a constant production penalty.
@@ -993,7 +1019,7 @@ const TOUCH_FILL    = 75;  // seconds of real time to fully charge
 const touchBoostDur = () => 8 + 2 * metaLvl('verdanttouch') + 3 * metaLvl('everbloom'); // seconds of surge at full charge
 const touchMult     = () => (2 + metaLvl('verdanttouch')) * (1 + 0.5 * metaLvl('everbloom'));
 BLOOMS.channel = { name:'Channel', icon:'🫳', color:'#9fe0b0', dur:1, weight:0,
-  leafMult:()=>touchMult(), descOf:()=>`×${touchMult().toFixed(1)} leaf production while channeling` };
+  leafMult:()=>touchMult(), descOf:()=>`×${touchMult().toFixed(1)} production on the channeled leaf` };
 // Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
 const bloomMult      = bloomLeafMult;
 // Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
@@ -1005,7 +1031,7 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * Math.pow(1.5, rootLvl('nimbus'));
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so the more leaves you have the
 // more often gold leaves appear overall. Stretch each leaf's timer with the leaf
 // count (sqrt, so it's gentle) to keep the aggregate rate from snowballing.
@@ -1180,11 +1206,24 @@ const branchLife = n => {
   for (const id of n.children) total += branchLife(N(id));
   return total;
 };
-// Amber is limited purely by connected lifetime: branchLife sums every connected
-// branch (so they all add up), and the exponent < 0.5 makes the payout slow down
-// the larger that total gets — diminishing returns with no per-parent damping.
-const pruneGain = n =>
-  Math.floor(Math.pow(branchLife(n) / CFG.pruneK, 0.40) * shearsMult() * SP().ring * pantheonAmberMult());
+// Amber is limited purely by connected lifetime, with diminishing returns as the
+// whole tree's lifetime flow grows (exponent < 0.5). Payout for a cut is MARGINAL:
+// the drop in the curve Φ caused by removing that branch's life from the connected
+// total. This telescopes — cutting A+B as two cuts, in either order, or as one
+// parent cut, all sum to Φ(total) − Φ(total − A − B). So parts always add up to the
+// whole, instead of each small cut re-climbing the steep part of the curve.
+const lifeAmber = x => Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
+// Real-valued marginal amber for cutting branch n (before integer flooring): the
+// drop in the curve from removing this branch's life from the connected total.
+const pruneGainRaw = n => {
+  const total = treeValue();                 // current connected lifetime flow
+  const branch = branchLife(n);              // what this cut removes
+  const marginal = lifeAmber(total) - lifeAmber(total - branch);
+  return marginal * shearsMult() * SP().ring * pantheonAmberMult();
+};
+// Amber is integer, but marginal cuts are fractional — carry the remainder so a
+// branch-by-branch dismantle banks the same total as one trunk cut (parts = whole).
+const pruneGain = n => Math.floor(pruneGainRaw(n) + (S.amberCarry || 0));
 
 // ---------- state ----------
 let S;
@@ -1227,7 +1266,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, amberCarry: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1511,7 +1550,9 @@ function doPrune(id) { const __n = N(id); if (__n && __n.locked) return;
   const n = N(id);
   if (!n || n.parent == null) return;
   S.pristine = false;
-  const gain = pruneGain(n);
+  const raw = pruneGainRaw(n) + (S.amberCarry || 0);
+  const gain = Math.floor(raw);
+  S.amberCarry = raw - gain;                 // keep the fraction for the next cut
   const p = N(n.parent);
 const c = edgeCurve(n);
   const mid = curvePt(c, 0.5);
@@ -2865,7 +2906,7 @@ function boostTipHTML() {
   }
   if (touchOwned()) {
     const cap = touchBoostDur(), c = (S.touch && S.touch.charge) || 0, pct = Math.round(c / cap * 100);
-    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">channeling ×${touchMult().toFixed(1)} production</span></div>`);
+    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">×${touchMult().toFixed(1)} on channeled leaf</span></div>`);
     else rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${pct >= 100 ? 'ready' : pct + '%'}</span><span class="bt-eff">${pct >= 100 ? `hold a leaf for a ${touchBoostDur()}s ×${touchMult().toFixed(1)} surge` : 'charging…'}</span></div>`);
   }
   const body = rows.length ? rows.join('') : '<div class="bt-none">No active boosts right now.</div>';
@@ -2945,9 +2986,16 @@ function refreshHud() {
   elAmberCard.style.display = '';
   elAmber.textContent = fmt(S.amber) + ' amber';
   elAmberRate.textContent = 'from pruning';
-  elAmberDetail.textContent = `Branches remember ${fmt(S.maxLife)} lifetime flow`;
+  elAmberDetail.textContent = `Branches remember ${fmt(treeValue())} lifetime flow`;
   refreshPesticide();
   refreshAcorns();
+  // Collapse the second row unless one of its items is showing, so it never
+  // adds an empty band on a fresh tree.
+  const tx = document.getElementById('topextra');
+  if (tx) {
+    const any = [...tx.children].some(c => c.style.display !== 'none');
+    tx.style.display = any ? 'flex' : 'none';
+  }
   refreshMiniDock();
   // Resource / scale milestones — cheap checks, idempotent grants.
   if (S.sap >= 10000) grantAchievement('sap10k');
@@ -3020,7 +3068,7 @@ function save() {
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
-    roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, nodes }));
+    roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, amberCarry: S.amberCarry || 0, nodes }));
 }
 // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85% (100% with Eternity).
 const offlineRateNow = () => metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
@@ -3088,6 +3136,7 @@ function load() {
     graftsBought: d.graftsBought || 0, ms: d.ms || {},
     incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0,
     treeSap: (typeof d.treeSap === 'number') ? d.treeSap : 0,
+    amberCarry: (typeof d.amberCarry === 'number') ? d.amberCarry : 0,
     touch: { charge: 0 }, channeling: false, channelNode: null,
     // Old saves predate the run timer; treat them as long-running so reloading an
     // established tree can't trivially hand out the speed-run achievements.
@@ -3186,6 +3235,7 @@ function buyGrove(k, n) {
     if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
   }
   if (bought > 0) {
+    groveJustBought = k;
     sfx('buy'); saveMeta(); replantIfPristine();
     toast(`${g.glyph} ${g.name} ${metaLvl(k) >= g.max ? 'fully grown' : 'lv ' + metaLvl(k)} — ${bought > 1 ? `bought ${bought} levels` : 'bought'}`);
     renderGrove();
@@ -3249,6 +3299,10 @@ const grovePtrs = new Map();
 let grovePinch = null;
 const GROVE_ZOOM_MIN = 0.4, GROVE_ZOOM_MAX = 2.5;
 const GROVE_VIEW = 1800; // square viewBox edge length
+// Track which nodes have already animated in (reset each time the grove opens, so
+// every open replays the grow-in cascade) and the node just purchased (for a pop).
+let groveSeen = new Set();
+let groveJustBought = null;
 function renderGroveTree() {
   groveLayout();
   let edges = '';
@@ -3263,7 +3317,9 @@ function renderGroveTree() {
       const p = GROVE[g.parent];
       if (p && p._x != null && groveAvailable(g.parent)) {
         const ownedParent = metaLvl(g.parent) > 0;
-        edges += `<line x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="${ownedParent ? '#5a8a64' : '#2a3026'}" stroke-width="${ownedParent ? 3 : 1.5}" stroke-linecap="round"/>`;
+        edges += `<line x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="${ownedParent ? '#3f6a49' : '#2a3026'}" stroke-width="${ownedParent ? 3 : 1.5}" stroke-linecap="round"/>`;
+        // Owned edges get a brighter dashed "sap flow" line animating outward.
+        if (ownedParent) edges += `<line class="flow" x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="#a8e6b4" stroke-width="2" stroke-linecap="round"/>`;
       }
     }
   }
@@ -3280,16 +3336,26 @@ function renderGroveTree() {
     if (maxed) cls.push('maxed');
     else if (afford) cls.push('afford');
     if (g.unlocks) cls.push('species');
+    // Newly-revealed nodes animate in (staggered by depth); the just-bought node pops.
+    if (!groveSeen.has(k)) { cls.push('appear'); }
+    if (k === groveJustBought) cls.push('bought');
+    const delay = groveSeen.has(k) ? 0 : (g._depth || 0) * 0.08;
+    groveSeen.add(k);
     circles += `<g class="${cls.join(' ')}" data-up="${k}" transform="translate(${g._x},${g._y})">
-      <circle r="36"/>
-      <text class="gn-glyph" y="4" text-anchor="middle">${g.glyph}</text>
-      ${g.max > 1 ? `<text class="gn-lvl" y="56" text-anchor="middle">${lvl}/${g.max}</text>` : (maxed ? `<text class="gn-lvl" y="56" text-anchor="middle">✓</text>` : '')}
+      <g class="gn-fx" style="${delay ? `animation-delay:${delay}s` : ''}">
+        <circle r="36"/>
+        <text class="gn-glyph" y="4" text-anchor="middle">${g.glyph}</text>
+        ${g.max > 1 ? `<text class="gn-lvl" y="56" text-anchor="middle">${lvl}/${g.max}</text>` : (maxed ? `<text class="gn-lvl" y="56" text-anchor="middle">✓</text>` : '')}
+      </g>
     </g>`;
   }
+  groveJustBought = null;
   document.getElementById('groveups').innerHTML = `<div id="grovetreewrap">
     <svg id="grovesvg" viewBox="${-GROVE_VIEW/2} ${-GROVE_VIEW/2} ${GROVE_VIEW} ${GROVE_VIEW}" preserveAspectRatio="xMidYMid meet">
       <g id="grovepan" transform="translate(${grovePan.x},${grovePan.y}) scale(${grovePan.scale || 1})">
         <g class="ge">${edges}</g>
+        <circle class="gcore" r="30"/>
+        <text class="gcore-glyph" y="9" text-anchor="middle" font-size="28" pointer-events="none">🌳</text>
         <g class="gn">${circles}</g>
       </g>
     </svg>
@@ -3480,6 +3546,7 @@ function renderGrove() {
 }
 function openGrove() {
   grovePan.x = 0; grovePan.y = 0; grovePan.scale = 1;
+  groveSeen = new Set(); // replay the grow-in cascade each time the grove opens
   grove.classList.add('open');
   renderGrove();
   settings.classList.remove('open'); gear.classList.remove('open');

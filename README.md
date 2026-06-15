@@ -10,6 +10,7 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 - **Drag** to pan, **scroll** or **pinch** to zoom
 - **Click the core** to reveal the Roots advancement tree underground
 - **Click a leaf with a glow** to harvest a gold leaf
+- **Hold (press and hold) a leaf** to channel a **Verdant Touch** surge once that ability is unlocked
 - **Click a bug or bird** sitting on a node to scare it off (it deals one damage per click)
 - **🪓 Cut** button in the topbar → fells the tree and opens the Grove (prestige)
 - **🧴 Pesticide** (after Grove unlock) → arms a sap-cost toggle that stops critters; −15% leaf production while on (removed by **Symbiosis**)
@@ -26,7 +27,7 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 | **Resin** 🟠 | Refined from sap by Refinery nodes | Capacitors, grafting, polishing |
 | **Amber** 🟤 | Pruning branches | Permanent Roots-tree advancement (per-tree) |
 | **Rings** 🍃 | Cutting down a grown tree | Eternal Grove upgrades and species unlocks (across all trees) |
-| **Acorns** 🌰 | Ripen on the canopy (~1 per hour of active play; offline at 10%) | Pantheon gods and eternal acorn-tempo upgrades |
+| **Acorns** 🌰 | Ripen on the canopy (~1 per 2h of active play; offline counts at 10% rate) | Pantheon gods and eternal acorn-tempo upgrades |
 
 Acorns unlock after **1M lifetime sap** produced. A hint appears at 50% progress. Bank ripe acorns with the topbar 🌰 button; bank **3** to wake the **Pantheon**.
 
@@ -49,7 +50,7 @@ Every node panel has a small lock toggle. Locking a node hides every spend butto
 
 Every connection between nodes is a **branch** with throughput capacity. Flow that exceeds capacity leaks (red drips) — thicken the edge to widen capacity, or it's wasted.
 
-**Pruning** a branch sacrifices it and everything below it for **amber**, based on the branch's lifetime flow. Amber buys advancement in the Roots tree under the core. Each parent tracks its own amber-earned total, and future prunes from the same parent yield diminishing returns — spread your prunes around to keep the rate up.
+**Pruning** a branch sacrifices it and everything below it for **amber**, based on the branch's lifetime flow. Amber buys advancement in the Roots tree under the core. Payout has **diminishing returns** as the whole tree's connected lifetime flow grows, so a sprawling tree pays less per cut than a young one. The amber for a cut is *marginal* — the drop it causes in that curve — so dismantling a tree branch-by-branch banks exactly the same total as one trunk cut (the parts always sum to the whole). Fractional amber carries over between cuts so nothing is lost to rounding.
 
 ## Roots tree
 
@@ -59,7 +60,10 @@ Click the core to reveal a downward-growing skill tree. Costs are paid in amber 
 - **Soil → Verdance → Sunlight** (leaf production multipliers and caps)
 - **Soil → Crown** (more branch slots on the core)
 - **Shears → Thrift / Heartwood** (cheaper growth, more offline time)
+- **Sunray → Verdant Touch → Everbloom** (the active-ability branch)
 - Tier-5 deep roots like Cascade, Reservoir, Resonance, Sunlight reward focused investment in one specialty
+
+**Verdant Touch** (tier-4 root) unlocks the **Channel**: a charge meter that fills over real time, then drains while you press and hold a leaf to pour a ×(2 + level) production surge into *that* leaf. **Everbloom** makes each surge last longer and hit harder.
 
 ## The Grove (prestige)
 
@@ -113,15 +117,27 @@ Birds and bugs occasionally land on producer nodes and **slow their throughput t
 
 **Pesticide** (Grove upgrade) adds a topbar toggle. Arming it costs ~30 seconds of current sap production, immediately routes all critters off the tree, and prevents new spawns while active. Leaf production is −15% while armed unless you own **Symbiosis**.
 
+## Blight mode (hard mode)
+
+An opt-in hard mode for veterans, chosen from a checkbox on the first-run intro (or after a hard reset). Once active:
+
+- **Critters swarm harder** and a bug left sitting on a leaf too long will **devour** it outright.
+- **Leaf output is taxed −15%** for the whole run.
+- **Every cheat code is disabled**, and the **Pesticide** / **Symbiosis** roots are locked out.
+- Its own challenge achievements: **Into the Blight**, **Thorn Forester**, **Bloom in Blight**, **Devoured**.
+
+It's a **one-way door**: you can leave via **Exit Blight mode** in the gear menu, but only after your first cut — and once you leave, you can't re-enter.
+
 ## Save data and settings
 
-The game autosaves on a timer plus on visibility change. In the gear menu:
+The game autosaves on a timer plus on visibility change. Come back after time away and a **Welcome Back** popup tallies the sap, resin, and acorn progress you banked while offline (subject to the offline rate and cap below). In the gear menu:
 
 - **Restore backup** — roll back to a stashed snapshot (10-min, prereset, etc.)
 - **Save Code** — Export to copy a UTF-8 base64 string of your full state; Import to load one (your current save is stashed to `-prereset` before overwrite)
 - **Show intro** — re-read the first-run intro
+- **Exit Blight mode** — appears only during a Blight run after your first cut; leaving is permanent
 - **Hard reset** — wipes everything (current tree, rings, all upgrades, all backups). Double-confirmed.
-- **Cheat codes** — type in the settings box (e.g. founder names for one-shot ×3 Bloom buffs; summon all six founders for the 🌳 Founders achievement)
+- **Cheat codes** — type in the settings box (e.g. founder names for one-shot ×3 Bloom buffs; summon all six founders for the 🌳 Founders achievement). Disabled in Blight mode.
 
 Saves live in `localStorage`:
 - `sapling-save-v1` — current tree
@@ -136,7 +152,7 @@ Saves live in `localStorage`:
 - A locked node is immune to mistakes (and accidental pruning).
 - Gold leaves fade after a few seconds. Big gold leaves (rarer, larger, orange) trigger a 30-second ×3 **Bloom** on all leaf production.
 - Tutorial hints appear under the topbar — **click to dismiss**; they return when the game advances to a new hint. Cutting the tree resets dismissals.
-- Offline progress is capped at 4 hours, extended by Heartwood (Roots) and Endurance (Grove). Offline time counts toward acorn ripening at 10% rate (~10h offline ≈ 1 acorn).
+- Offline progress is capped at 4 hours, extended by Heartwood (Roots) and Endurance (Grove). Offline time counts toward acorn ripening at 10% rate (~20h offline ≈ 1 acorn).
 
 ## Building from source
 
