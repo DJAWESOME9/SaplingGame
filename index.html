@@ -49,6 +49,11 @@
     text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
   #hardreset:hover { border-color:#a82c2c; background:#3a1818; color:#ffd0d0; }
   #hardreset .sublabel { display:block; font-size:10px; opacity:.7; font-weight:400; text-transform:none; letter-spacing:0; margin-top:2px; }
+  #exitblight { width:100%; background:#2a1018; border:1px solid #6e1f44; color:#f0a8c8;
+    border-radius:10px; padding:8px 10px; font-size:12px; cursor:pointer; margin-top:14px;
+    text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+  #exitblight:hover { border-color:#a82c6a; background:#3a1828; color:#ffd0e6; }
+  #exitblight .sublabel { display:block; font-size:10px; opacity:.7; font-weight:400; text-transform:none; letter-spacing:0; margin-top:2px; }
   #cheatbadges { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:9px; }
   #cheatbadges:empty { display:none; }
   .cbadge { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:3px 8px; border-radius:6px; }
@@ -433,7 +438,7 @@
     <p class="introtip">Tip: tap the 🔓 lock on any node's panel to protect it from accidental upgrades or pruning. Drag to pan, pinch or scroll to zoom.</p>
     <label class="introhard" id="introHard">
       <input type="checkbox" id="introHardCheck">
-      <span class="ihtext"><b>🥀 Activate Blight mode</b> — for veterans who want a fight. <span>Critters swarm harder, leaf output is taxed −15%, and every cheat code is disabled. You can only leave it with a hard reset.</span></span>
+      <span class="ihtext"><b>🥀 Activate Blight mode</b> — for veterans who want a fight. <span>Critters swarm harder, leaf output is taxed −15%, and every cheat code is disabled. You may leave after your first cut — but once you do, you can't re-enter.</span></span>
     </label>
     <button id="introBegin">Begin growing 🌱</button>
   </div>
@@ -475,6 +480,7 @@
   <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
   <div class="savehint">Export to copy your save out, paste a code in and Import to load it (current save is stashed to backup).</div>
   <input id="cheatcode" type="text" autocomplete="off" spellcheck="false" placeholder="Type a code…">
+  <button id="exitblight" style="display:none">Exit Blight mode<span class="sublabel">Available after your first cut — leaving is permanent, you can't re-enter</span></button>
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
 <div id="achievements"></div>
@@ -1252,9 +1258,13 @@ function computeFlow(dt) {
         n.inFlow = s + r;
         if (dt > 0) {
           const size = capSize(n), lim = size * 2;
-          n.buf.s += s * dt; n.buf.r += r * dt;
-          let tot = n.buf.s + n.buf.r;
+          const inS = s, inR = r; // raw incoming flow this tick
           n.bufWaste = 0; n.bufWasteS = 0; n.bufWasteR = 0;
+          // While the capacitor is emptying, let fresh sap/resin flow straight
+          // through the branch instead of topping the buffer back up — it only
+          // refills once fully drained.
+          if (!n.discharging) { n.buf.s += inS * dt; n.buf.r += inR * dt; }
+          let tot = n.buf.s + n.buf.r;
           if (tot > lim) { // buffer overflow leaks at the node
             const k = lim / tot;
             const leak = (tot - lim) / dt;
@@ -1267,12 +1277,16 @@ function computeFlow(dt) {
           }
           if (!n.discharging && tot >= size) { n.discharging = true; sfx('burst'); }
           s = 0; r = 0;
-          if (n.discharging && tot > 0) {
-            const drain = Math.min(tot, capDrain(n) * dt);
-            const fs = n.buf.s / tot, fr = n.buf.r / tot, bonus = capBonus(n);
-            n.buf.s -= drain * fs; n.buf.r -= drain * fr;
-            s = drain * fs * bonus / dt; r = drain * fr * bonus / dt;
-            if (n.buf.s + n.buf.r <= size * 0.02) n.discharging = false;
+          if (n.discharging) {
+            // Pass the incoming flow through untouched, plus the boosted burst drain.
+            s = inS; r = inR;
+            if (tot > 0) {
+              const drain = Math.min(tot, capDrain(n) * dt);
+              const fs = n.buf.s / tot, fr = n.buf.r / tot, bonus = capBonus(n);
+              n.buf.s -= drain * fs; n.buf.r -= drain * fr;
+              s += drain * fs * bonus / dt; r += drain * fr * bonus / dt;
+              if (n.buf.s + n.buf.r <= size * 0.02) n.discharging = false;
+            }
           }
           S.waste += n.bufWaste;
           S.wasteSap += n.bufWasteS;
@@ -3273,6 +3287,7 @@ function finalizeCut() {
   newGame(); computeFlow(0);
   selected = null; selectedRoot = null;
   buildPanel(); save();
+  refreshCheatBadges();  // first cut unlocks the "Exit Blight mode" option in Settings
   if (gain > 0) toast(`You felled your tree and gathered ${gain} ring${gain === 1 ? '' : 's'}.`);
   renderGrove();
   openGrove();
@@ -3446,11 +3461,19 @@ function refreshCheatBadges() {
   const el = document.getElementById('cheatbadges');
   if (!el) return;
   let html = '';
-  if (META && META.hardMode) html += '<span class="cbadge blight" title="Blight mode is active: critters swarm harder, leaf output is taxed, and cheat codes are disabled. Hard reset to leave it.">🥀 Blight Mode</span>';
+  if (META && META.hardMode) html += '<span class="cbadge blight" title="Blight mode is active: critters swarm harder, leaf output is taxed, and cheat codes are disabled. After your first cut you may leave it from Settings — but leaving is permanent.">🥀 Blight Mode</span>';
+  if (META && !META.hardMode && META.blightExited) html += '<span class="cbadge blight" title="You ran Blight mode and chose to leave it. There is no going back without a full hard reset.">🥀 Blight Survived</span>';
   if (META && META.codesUsed) html += '<span class="cbadge codes" title="You have entered at least one cheat code on this save.">Used Codes</span>';
   if (META && META.hacks) html += '<span class="cbadge hacks" title="HACKER MODE is active on this save.">Hacks</span>';
   el.innerHTML = html;
+  // The exit option only appears while Blight mode is live and a tree has been felled.
+  const exitBtn = document.getElementById('exitblight');
+  if (exitBtn) exitBtn.style.display = (META && META.hardMode && (META.treesCut || 0) >= 1) ? '' : 'none';
 }
+// Hacker mode triggers on any text ending in "saysopensesame" (e.g. "alansaysopensesame").
+const isHackCode = v => /saysopensesame$/.test(v || '');
+// Codes that are kept in source but switched off for now.
+const DISABLED_CODES = new Set(['puppy', 'sonic', 'gitgud', 'marriage', 'shaw', 'hadino', 'hegale']);
 function checkCheat(raw) {
   const v = (raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   // Blight (hard) mode disables every cheat code — no shortcuts.
@@ -3459,9 +3482,9 @@ function checkCheat(raw) {
     sfx('plink');
     return true; // consume the input so it clears
   }
-  // Every code is one-time use except the hacks code (djawesome9), which stays
+  // Every code is one-time use except the hacks code, which stays
   // re-runnable for dev convenience.
-  if (v && v !== 'djawesome9' && META && META.usedCodes && META.usedCodes[v]) {
+  if (v && !isHackCode(v) && META && META.usedCodes && META.usedCodes[v]) {
     toast('That code has already been used.');
     sfx('plink');
     return true; // consume the input so it clears
@@ -3470,7 +3493,7 @@ function checkCheat(raw) {
   const result = _checkCheatInner(raw);
   if (result) {
     _markCodesUsed();
-    if (v && v !== 'djawesome9') {
+    if (v && !isHackCode(v)) {
       META.usedCodes = META.usedCodes || {};
       META.usedCodes[v] = true;
       saveMeta();
@@ -3486,21 +3509,25 @@ function _checkCheatInner(raw) {
     summonSethatubby();
     return true;
   }
-  if (v === 'djawesome9') {
+  if (isHackCode(v)) {
     enableHacks();
     return true;
   }
+  // ── Temporarily disabled codes ──────────────────────────────────────────
+  // Kept in source for later, but inert for now. Only Hacker mode, Chocolate,
+  // Chocoholic and Sethatubby remain active.
+  if (DISABLED_CODES.has(v) || FOUNDERS.some(f => f.key === v)) return false;
   if (v === 'puppy') {
     summonPuppy();
     return true;
   }
   if (v === 'sonic') {
-    // ×3 leaf production for 5 minutes, plus an instant 5 minutes of sap.
-    BLOOMS.sonic = BLOOMS.sonic || { name:'Sonic', icon:'💨', color:'#3a7adf', dur:300, weight:0, leafMult:()=>3, descOf:()=>'×3 leaf production' };
-    applyBloom('sonic', 300);
-    const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 300;
+    // ×7 leaf production for 15 seconds, plus an instant 15 seconds of sap.
+    BLOOMS.sonic = BLOOMS.sonic || { name:'Sonic', icon:'💨', color:'#3a7adf', dur:15, weight:0, leafMult:()=>7, descOf:()=>'×7 leaf production' };
+    applyBloom('sonic', 15);
+    const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 15;
     S.sap += inst;
-    toast(`💨 SONIC! ×3 production for 5 min · +${fmt(inst)} sap instantly`);
+    toast(`💨 SONIC! ×7 production for 15s · +${fmt(inst)} sap instantly`);
     sfx('bloom');
     return true;
   }
@@ -3887,6 +3914,18 @@ document.addEventListener('pointerdown', e => {
     achPanel.classList.remove('open'); trophy.classList.remove('open');
   }
 });
+document.getElementById('exitblight')?.addEventListener('click', () => {
+  if (!hardMode() || (META.treesCut || 0) < 1) return;
+  if (!confirm('Leave Blight mode? Critters calm down, the leaf tax lifts, and codes work again — but this is permanent. You can never re-enter Blight mode on this save (only a full hard reset starts a new one).')) return;
+  META.hardMode = false;
+  META.blightExited = true;
+  saveMeta();
+  refreshCheatBadges();
+  buildPanel();        // re-enable the Pesticide/Symbiosis roots in the tree panel
+  refreshPesticide();  // surface the toggle if Pesticide later becomes owned
+  toast('🥀 You left Blight mode. The blight recedes — there is no going back.');
+  sfx('buy');
+});
 document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Hard reset: erase your tree, all rings, every upgrade, and every backup. There is no undo. Continue?')) return;
   if (!confirm('Really? This will wipe ALL Sapling progress. Type-equivalent of starting over from scratch.')) return;
@@ -4029,9 +4068,10 @@ introHardCheck?.addEventListener('change', () => {
   introHard?.classList.toggle('on', introHardCheck.checked);
 });
 document.getElementById('introBegin')?.addEventListener('click', () => {
-  // The Blight-mode choice is only offered on the intro (first play / after a
-  // hard reset), so lock it in here alongside marking the intro as seen.
-  if (introHardCheck?.checked) {
+  // The Blight-mode choice is only offered on a genuine first run (or after a
+  // hard reset, which clears seenIntro) — never when the intro is re-opened
+  // later, so a once-exited Blight run can't be re-entered.
+  if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
     META.hardMode = true;
     grantAchievement('blightStart');
     refreshCheatBadges();
@@ -4042,7 +4082,7 @@ document.getElementById('introBegin')?.addEventListener('click', () => {
 document.getElementById('intro')?.addEventListener('click', e => {
   // Click the dimmed backdrop to dismiss (counts as seen, since they've at least skimmed it)
   if (e.target.id === 'intro') {
-    if (introHardCheck?.checked && !META.seenIntro) {
+    if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
       META.hardMode = true;
       grantAchievement('blightStart');
       refreshCheatBadges();
