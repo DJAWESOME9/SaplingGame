@@ -150,6 +150,17 @@
   #panel button.prune { width:100%; margin-top:10px; background:#241a18; border-color:#5a3530; color:#dba79e; }
   #panel button.prune:hover:not(:disabled) { border-color:#8a4f47; background:#31201d; }
   #panel button.prune.armed { background:#46221c; border-color:#b05a4e; color:#f3c3ba; }
+  /* ---- Minigame dock: bottom-of-screen launchers (Pantheon, more to come) ---- */
+  #minidock { position:fixed; z-index:40; pointer-events:none;
+    left:max(12px, env(safe-area-inset-left));
+    bottom:calc(12px + env(safe-area-inset-bottom));
+    display:flex; align-items:center; gap:8px; }
+  #minidock .docklabel { pointer-events:none; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:#6f7d92; align-self:center; }
+  #minidock button { pointer-events:auto; background:rgba(20,14,30,.82); border:1px solid #3a2d56; color:#caa6e0;
+    border-radius:10px; padding:9px 14px; font-size:14px; cursor:pointer; line-height:1; backdrop-filter:blur(6px);
+    font-family:inherit; white-space:nowrap; transition:border-color .14s ease, color .14s ease, background .14s ease; }
+  #minidock button:hover { border-color:#a374df; color:#f0d9ff; background:rgba(40,28,58,.92); }
   /* ---- Intro overlay: shown on first play / after hard reset ---- */
   #intro { position:fixed; inset:0; display:none; z-index:60; background:rgba(6,10,7,.9);
     backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:32px 16px; }
@@ -300,8 +311,11 @@
   #plantBtn:hover { border-color:#6f9a75; background:#243827; }
   /* ---- mobile / narrow screens ---- */
   @media (max-width: 600px) {
-    #topbar { gap:7px; padding-top:max(8px, env(safe-area-inset-top)); }
+    #topbar { gap:7px; padding-top:max(8px, env(safe-area-inset-top)); flex-wrap:wrap; row-gap:6px; }
     #topbar .title { display:none; }
+    /* Keep the action buttons (incl. settings) intact when the bar wraps */
+    #pestbtn, #acornbtn, #trophy, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
+    #gear { margin-left:0; }
     #topbar .statcard { min-width:0; flex:1 1 0; padding:6px 8px 7px; border-radius:10px; }
     #topbar .statlabel { font-size:9.5px; letter-spacing:.03em; }
     #topbar .statvalue { font-size:15px; }
@@ -362,7 +376,7 @@
     /* Topbar wraps so cards plus action buttons all fit on tiny screens */
     #topbar { flex-wrap:wrap; row-gap:6px; }
     #topbar .statcard { flex:1 1 30%; }
-    #pestbtn, #acornbtn, #trophy, #reset, #gear, #bloombadge { flex:0 0 auto; }
+    #pestbtn, #acornbtn, #trophy, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
     /* Pantheon slots stack vertically when even three across is too tight */
     .panslots { justify-content:flex-start; }
     .panslot { width:48%; height:106px; }
@@ -415,6 +429,7 @@
     <span class="statdetail" id="amberdetail"></span>
   </div>
   <span id="bloombadge" title="Big-gold-leaf bloom: production multiplier" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
+  <span id="touchbadge" title="Verdant Touch — hold a leaf to channel a production surge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
   <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
@@ -442,6 +457,10 @@
 <div id="hint"></div>
 <div id="toast"></div>
 <div id="panel"></div>
+<div id="minidock" style="display:none">
+  <span class="docklabel">Minigames</span>
+  <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
+</div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
     <div class="panhead"><h2 id="panTitle">🏛️ The Pantheon</h2><button id="panClose">✕</button></div>
@@ -550,6 +569,11 @@ const GROVE = {
   symbiosis: { name:'Symbiosis',       glyph:'🤝', tier:5, parent:'pesticide',  max:1, cost:_=>400,        desc:'Pesticide no longer costs −15% production' },
   godseed:   { name:'Godseed',         glyph:'🌟', tier:5, parent:'worldtree',  max:1, cost:_=>1000,       desc:'Resin and capacitor flow both ×3' },
   canopycharm:{ name:'Canopy Charm',   glyph:'🍂', tier:5, parent:'worldtree',  max:3, cost:l=>150+l*100, desc:'Acorns ripen 20% faster per level, +1 max ripe slot per level' },
+  // Active ability — charges over time, then hold a leaf to channel a production surge.
+  verdanttouch:{ name:'Verdant Touch', glyph:'🫳', tier:4, parent:'sunray',     max:5, cost:l=>24+l*14, desc:'Unlocks the Channel — hold a leaf to pour a ×(2+level) production surge from a charge that refills over time (longer surge per level)' },
+  everbloom: { name:'Everbloom',       glyph:'🌸', tier:5, parent:'verdanttouch', max:3, cost:l=>300+l*200, desc:'Channel surges last +3s and hit +50% harder per level' },
+  titanheart:{ name:'Titanheart',      glyph:'🫀', tier:5, parent:'ascendance', max:3, cost:l=>350+l*250, desc:'+100% branch capacity per level' },
+  primordial:{ name:'Primordial Bloom',glyph:'🌑', tier:5, parent:'eternity',   max:1, cost:_=>2500,       desc:'All production ×3' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -572,7 +596,7 @@ let META;
 const MKEY = 'sapling-meta-v1';
 const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false });
 // ---------- acorns + pantheon ----------
-const ACORN_INTERVAL_MS = 60 * 60 * 1000;  // 60 real-world minutes per acorn (active play); offline counts at 10% rate
+const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
 const acornInterval = () => ACORN_INTERVAL_MS * Math.pow(0.9, metaLvl('squirrelry')) * Math.pow(0.8, metaLvl('canopycharm'));
 const acornRipeCap  = () => ACORN_RIPE_CAP + metaLvl('canopycharm');
@@ -599,6 +623,27 @@ const PANTHEON = {
   charon:  { name:'Charon',  glyph:'⚰️', cost:3,
     perk:'Pruning gives ×2 amber', bane:'Sap production −15%',
     amberMult:2.00, leafMult:0.85 },
+  zephyr:  { name:'Zephyr',  glyph:'🍃', cost:2,
+    perk:'+30% leaf production', bane:'Branch capacity −15%',
+    leafMult:1.30, edgeMult:0.85 },
+  hephaestus: { name:'Hephaestus', glyph:'🔨', cost:2,
+    perk:'Refineries yield +60%', bane:'Amplifier multiplier −15%',
+    refMult:1.60, ampMult:0.85 },
+  poseidon: { name:'Poseidon', glyph:'🌊', cost:2,
+    perk:'Capacitor storage ×1.4', bane:'Refineries yield −15%',
+    capStorageMult:1.40, refMult:0.85 },
+  hermes:  { name:'Hermes',  glyph:'🪽', cost:2,
+    perk:'Pruning gives ×1.5 amber', bane:'Capacitor storage −20%',
+    amberMult:1.50, capStorageMult:0.80 },
+  nyx:     { name:'Nyx',     glyph:'🌑', cost:3,
+    perk:'Gold leaves pay ×2.5 sap', bane:'Leaf production −20%',
+    goldPayoutMult:2.50, leafMult:0.80 },
+  ares:    { name:'Ares',    glyph:'⚔️', cost:3,
+    perk:'Amplifier multiplier ×1.7', bane:'Branch capacity −20%',
+    ampMult:1.70, edgeMult:0.80 },
+  gaia:    { name:'Gaia',    glyph:'🌍', cost:3,
+    perk:'+25% leaf production & ×1.25 amber', bane:'Gold leaves ripen 30% slower',
+    leafMult:1.25, amberMult:1.25, goldDelayMult:1.30 },
 };
 const activeGods = () => (META && META.pantheonSlots ? META.pantheonSlots : []).filter(k => k && PANTHEON[k]);
 const godProductOf = key => activeGods().reduce((m, g) => m * (PANTHEON[g][key] || 1), 1);
@@ -753,8 +798,8 @@ function grantAchievement(k) {
 }
 const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * SP().leaf;
-const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * SP().edge;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (metaLvl('primordial') > 0 ? 3 : 1) * SP().leaf;
+const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
@@ -798,6 +843,14 @@ const pesticideOwned = () => metaLvl('pesticide') > 0;
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
 const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
 const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.85) : 1;
+// Verdant Touch: a charge meter that fills over time, then drains while you hold a
+// leaf to pour a production surge (delivered through the bloom system as 'channel').
+const touchOwned    = () => metaLvl('verdanttouch') > 0;
+const TOUCH_FILL    = 75;  // seconds of real time to fully charge
+const touchBoostDur = () => 8 + 2 * metaLvl('verdanttouch') + 3 * metaLvl('everbloom'); // seconds of surge at full charge
+const touchMult     = () => (2 + metaLvl('verdanttouch')) * (1 + 0.5 * metaLvl('everbloom'));
+BLOOMS.channel = { name:'Channel', icon:'🫳', color:'#9fe0b0', dur:1, weight:0,
+  leafMult:()=>touchMult(), descOf:()=>`×${touchMult().toFixed(1)} leaf production while channeling` };
 // Back-compat shim so old code reading bloomMult() keeps working as the leaf multiplier.
 const bloomMult      = bloomLeafMult;
 // Kept for any old saves that reference BLOOM_MULT/BLOOM_DUR in toasts.
@@ -977,7 +1030,9 @@ const branchLife = n => {
 const PRUNE_DAMP_K = 0.015;
 const pruneDamp = parent => 1 / (1 + (parent && parent.amberEarned ? parent.amberEarned : 0) * PRUNE_DAMP_K);
 const pruneGain = n => {
-  const raw = Math.sqrt(branchLife(n) / CFG.pruneK) * shearsMult() * SP().ring * pantheonAmberMult();
+  // Exponent < 0.5 keeps the first few amber early (life≈pruneK → 1) but makes
+  // later amber scale noticeably slower than a plain sqrt would.
+  const raw = Math.pow(branchLife(n) / CFG.pruneK, 0.40) * shearsMult() * SP().ring * pantheonAmberMult();
   const parent = n.parent != null ? N(n.parent) : null;
   return Math.floor(raw * pruneDamp(parent));
 };
@@ -1023,7 +1078,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, blooms: [], pesticideOn: false, dismissedHints: [] };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1221,6 +1276,22 @@ function harvestLeaf(id) {
   pulseNode(n, wasBig ? 1.4 : 1.1, wasBig ? 1.2 : 0.95);
   buildPanel(); save();
   return true;
+}
+// ---------- Verdant Touch: hold a leaf to channel a surge ----------
+function beginChannel(id) {
+  const n = N(id);
+  if (!touchOwned() || !n || n.type !== 'leaf') return;
+  if (!S.touch) S.touch = { charge: 0 };
+  if (S.touch.charge <= 0.05) { toast('🫳 The Channel is still charging…'); sfx('plink'); return; }
+  S.channeling = true; S.channelNode = id;
+  channelActive = true;
+  sfx('burst');
+  pulseNode(n, 1.3, 1.0);
+  spawnFloaty(n.x, n.y, '🫳 Channeling!', '#9fe0b0');
+}
+function endChannel() {
+  S.channeling = false; S.channelNode = null;
+  channelActive = false;
 }
 function upgrade(id) {
   const n = N(id), c = costUp(n), cur = upCur(n);
@@ -2058,6 +2129,7 @@ function draw(time) {
 // ---------- input ----------
 let selected = null, hovered = null, selectedRoot = null, hoveredRoot = null, armPrune = false;
 let drag = null, activePointer = null;
+let channelTimer = null, channelActive = false;
 const pointers = new Map();
 let pinch = null;
 function pickRoot(mx, my) {
@@ -2100,6 +2172,11 @@ cv.addEventListener('pointerdown', e => {
     downHit = downHitRoot ?? pickCore(e.clientX, e.clientY) ?? pickBranch(e.clientX, e.clientY);
     // Defer applying the selection until pointerup, so dragging from empty
     // space (or from a node) doesn't clobber the existing selection.
+    // Press-and-hold on a leaf begins a Verdant Touch channel.
+    if (downHit != null && N(downHit) && N(downHit).type === 'leaf' && touchOwned()) {
+      const leafId = downHit;
+      channelTimer = setTimeout(() => { channelTimer = null; beginChannel(leafId); }, 180);
+    }
   }
   activePointer = { id: e.pointerId, x: e.clientX, y: e.clientY, ox: cam.ox, oy: cam.oy, moved: false,
     target: isFirstPointer ? (downHitRoot || downHit) : null,
@@ -2136,7 +2213,12 @@ cv.addEventListener('pointermove', e => {
   }
   if (activePointer && activePointer.id === e.pointerId) {
     const dx = e.clientX - activePointer.x, dy = e.clientY - activePointer.y;
-    if (Math.hypot(dx, dy) > 8) activePointer.moved = true;
+    if (Math.hypot(dx, dy) > 8) {
+      activePointer.moved = true;
+      // Dragging cancels a pending or active channel.
+      if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
+      if (channelActive) endChannel();
+    }
     if (activePointer.moved && !pinch) {
       drag = activePointer;
       cam.manual = true;
@@ -2169,6 +2251,9 @@ cv.addEventListener('pointerup', e => {
     const apHitRoot = activePointer.hitRoot;
     const apHit = activePointer.hit;
     activePointer = null;
+    if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
+    const wasChannel = channelActive;
+    if (channelActive) endChannel();
     if (wasDragged) {
       drag = null;
       return;
@@ -2195,13 +2280,15 @@ cv.addEventListener('pointerup', e => {
     if (targetId && N(targetId)) {
       scareCritters(targetId);
       if (targetId === S.rootId) centerOnWorld(0, 0);
-      if (N(targetId).type === 'leaf') harvestLeaf(targetId);
+      if (N(targetId).type === 'leaf' && !wasChannel) harvestLeaf(targetId);
     }
   }
   if (pointers.size < 2) pinch = null;
 });
 cv.addEventListener('pointercancel', e => {
   pointers.delete(e.pointerId);
+  if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
+  if (channelActive) endChannel();
   if (activePointer && activePointer.id === e.pointerId) {
     activePointer = null;
     drag = null;
@@ -2481,6 +2568,17 @@ function refreshHud() {
       bb.style.color = lead.color;
     } else if (bb.style.display !== 'none') { bb.style.display = 'none'; }
   }
+  const tb = document.getElementById('touchbadge');
+  if (tb) {
+    if (touchOwned()) {
+      const cap = touchBoostDur(), c = (S.touch && S.touch.charge) || 0;
+      const pct = Math.round(c / cap * 100);
+      tb.style.display = '';
+      if (S.channeling) { tb.textContent = `🫳 Channel · ${c.toFixed(1)}s`; tb.style.borderColor = '#9fe0b0'; }
+      else if (pct >= 100) { tb.textContent = '🫳 Channel ready'; tb.style.borderColor = '#9fe0b0'; }
+      else { tb.textContent = `🫳 Charging ${pct}%`; tb.style.borderColor = '#34543c'; }
+    } else if (tb.style.display !== 'none') { tb.style.display = 'none'; }
+  }
   elSap.textContent = fmt(S.sap) + ' sap';
   elSapRate.textContent = '+' + fmt(S.ema.s) + '/s';
   elSapDetail.textContent = `Leaves ${fmt(leafOut)}/s · leaking ${fmt(S.wasteSap)}/s sap`;
@@ -2493,6 +2591,7 @@ function refreshHud() {
   elAmberDetail.textContent = `Branches remember ${fmt(S.maxLife)} lifetime flow`;
   refreshPesticide();
   refreshAcorns();
+  refreshMiniDock();
   // Resource / scale milestones — cheap checks, idempotent grants.
   if (S.sap >= 10000) grantAchievement('sap10k');
   if (S.sap >= 1000000) grantAchievement('sap1m');
@@ -2551,7 +2650,8 @@ function load() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0, ...d.roots },
     graftsBought: d.graftsBought || 0, ms: d.ms || {},
-    incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0 };
+    incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0,
+    touch: { charge: 0 }, channeling: false, channelNode: null };
   for (const m of d.nodes) {
     S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, amberEarned: 0, life: 0, buf: { s: 0, r: 0 }, discharging: false,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
@@ -2623,7 +2723,9 @@ function treeValue() {
   for (const id in S.nodes) life += N(id).life || 0;
   return life;  // fresh saplings are worth ~nothing, so cut→replant can't farm rings
 }
-const ringGain = () => Math.floor(Math.sqrt(treeValue() / RING_K) * ringMult());
+// Exponent < 0.5 slows ring scaling: the first rings stay early (treeValue≈RING_K
+// → 1) but big trees yield proportionally fewer rings than a sqrt curve.
+const ringGain = () => Math.floor(Math.pow(treeValue() / RING_K, 0.40) * ringMult());
 function replantIfPristine() {
   // while the sapling is untouched, keep re-applying live grove/species choices to it
   if (S && S.pristine) { newGame(); computeFlow(0); buildPanel(); save(); }
@@ -3297,6 +3399,20 @@ function openPantheon() {
   renderPantheon();
 }
 function closePantheon() { pantheon.classList.remove('open'); }
+// ---------- minigame dock ----------
+const miniDock = document.getElementById('minidock');
+const pantheonBtn = document.getElementById('pantheonbtn');
+function refreshMiniDock() {
+  if (!miniDock) return;
+  const showPantheon = pantheonAvailable();
+  if (pantheonBtn) pantheonBtn.style.display = showPantheon ? '' : 'none';
+  // Dock is visible whenever it holds at least one available minigame.
+  miniDock.style.display = showPantheon ? '' : 'none';
+}
+pantheonBtn?.addEventListener('click', () => {
+  if (pantheonAvailable()) openPantheon();
+  else toast(`Bank ${PANTHEON_OPEN_COST} acorns to wake the Pantheon (${acornsBanked()}/${PANTHEON_OPEN_COST}).`);
+});
 pantheon?.addEventListener('click', e => {
   if (e.target === pantheon || e.target.id === 'panClose') { closePantheon(); return; }
   const slotEl = e.target.closest('.panslot');
@@ -3558,6 +3674,22 @@ function frame(now) {
     // hacker-mode refill below.
     if (S.incomeS > 0) META.lifetimeSap = (META.lifetimeSap || 0) + S.incomeS * dt;
     tickBlooms(dt);
+    // Verdant Touch: refill the charge meter, or drain it while channeling a leaf.
+    if (touchOwned()) {
+      if (!S.touch) S.touch = { charge: 0 };
+      const cap = touchBoostDur();
+      if (S.touch.charge > cap) S.touch.charge = cap;
+      if (S.channeling && S.touch.charge > 0) {
+        S.touch.charge = Math.max(0, S.touch.charge - dt);
+        applyBloom('channel', 0.4); // keep the surge alive while held
+        if (S.touch.charge <= 0) endChannel();
+      } else {
+        if (S.channeling) endChannel();
+        S.touch.charge = Math.min(cap, S.touch.charge + dt * cap / TOUCH_FILL);
+      }
+    } else if (S.channeling) {
+      endChannel();
+    }
     // Acorn ripening — driven by active-play wall-clock; offline time is
     // handled separately in load() at a 10% rate.
     if (META && META.canopy && acornsUnlocked()) tickAcorns(dt * 1000);
