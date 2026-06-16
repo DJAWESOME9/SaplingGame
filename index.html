@@ -93,7 +93,7 @@
   #statsbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#7fb0c4;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #statsbtn:hover, #statsbtn.open { border-color:#7fc4d9; color:#cfeaf0; }
-  #pestbtn, #freezebtn, #forcebtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
+  #pestbtn, #freezebtn, #forcebtn, #bpbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1;
     min-width:170px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
   #pestbtn:hover, #forcebtn:hover { border-color:#8fc299; color:#cfe3d1; }
@@ -103,7 +103,23 @@
   #forcebtn { color:#d98ab0; border-color:#5a3a48; }
   #forcebtn:hover { border-color:#e89cc0; color:#f4cfe0; }
   #forcebtn.on { background:#2c1620; border-color:#e89cc0; color:#f4cfe0; }
+  #bpbtn { color:#9fd0ff; border-color:#34506e; }
+  #bpbtn:hover { border-color:#7fb8ee; color:#d6ecff; }
+  #bpbtn.on { background:#13202c; border-color:#7fb8ee; color:#d6ecff; }
   #pestbtn.cantafford, #freezebtn.cantafford, #forcebtn.cantafford { opacity:.45; cursor:not-allowed; }
+  /* Blueprint action bar — fixed bottom-center, like the grove popover */
+  #bpbar { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom));
+    z-index:58; display:none; max-width:min(420px, calc(100vw - 16px)); background:rgba(14,21,15,.98);
+    border:1px solid #34506e; border-radius:12px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+    color:#cfe0ee; font-size:12.5px; text-align:center; }
+  #bpbar.open { display:block; }
+  #bpbar .bptext { margin-bottom:8px; line-height:1.4; }
+  #bpbar .bprow { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  #bpbar button { background:#15252c; border:1px solid #34506e; color:#cfe0ee; border-radius:8px;
+    padding:7px 12px; font-size:12.5px; cursor:pointer; }
+  #bpbar button:hover { border-color:#7fb8ee; color:#eaf4ff; }
+  #bpbar button.bpdanger { border-color:#6e2f3a; color:#f0a8b4; }
+  #bpbar button.bpdanger:hover { border-color:#a8455a; color:#ffd0d8; }
   #acornbtn { pointer-events:auto; background:none; border:1px solid #5a4a2a; color:#caa64f;
     border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1;
     min-width:168px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -567,9 +583,11 @@
     <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
     <button id="freezebtn" aria-label="Freeze" title="Freeze toggle" style="display:none">❄️</button>
     <button id="forcebtn" aria-label="Forced Bloom" title="Forced Bloom toggle" style="display:none">🌺</button>
+    <button id="bpbtn" aria-label="Blueprint" title="Blueprint — copy a branch and graft a paid clone elsewhere" style="display:none">📐</button>
     <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   </div>
 </div>
+<div id="bpbar"></div>
 <div id="boosttip"></div>
 <div id="settings">
   <div id="cheatbadges"></div>
@@ -1138,10 +1156,11 @@ const forcedMult  = () => forcedOn() ? 3 : 1;
 // A transient production buff is live: a bloom (incl. the held-leaf Channel surge)
 // or Forced Bloom. Used to decide whether the current income counts as "base".
 const buffActive  = () => forcedOn() || S.channeling || activeBlooms().length > 0;
-// Highest base (buff-free) resin/sec ever reached on the current tree. Costs that
-// charge "minutes of resin" price against this so a momentary bloom spike can't
-// inflate them. Falls back to live income on a fresh tree that hasn't sampled yet.
-const baseResinRate = () => Math.max((S && S.peakBaseR) || 0, buffActive() ? 0 : (S && S.incomeR) || 0);
+// Highest base (buff-free) resin/sec ever reached on the current tree. Every
+// "minutes of resin" cost (Freeze, Blueprint copy) is priced off this single
+// figure, so a momentary bloom/channel spike or the live rate can never inflate
+// them — only your best sustained base resin on this tree counts.
+const baseResinRate = () => (S && S.peakBaseR) || 0;
 // Blight mode: opt-in hard mode (chosen on first play or after a hard reset).
 // Critters swarm harder, leaf output is taxed, and cheat codes are disabled.
 const hardMode     = () => !!(META && META.hardMode);
@@ -1278,7 +1297,7 @@ const ROOTS = {
   vigor:       { name: 'Vigor',         x: -25,  y: 242, parent: 'grove',   max: 5,  cost: l => 6 * Math.pow(2, l),
                  desc: 'Each level: +2 max amplifier level' },
   blueprint:   { name: 'Blueprint',     x: 45,   y: 248, parent: 'grove',   max: 1,  cost: l => 14,
-                 desc: 'Unlocks blueprints — copy a branch for 10 min of resin, then paste it (full sap+resin price) anywhere it fits' },
+                 desc: 'Unlocks the 📐 Blueprint button — copy a branch (10 min of resin), then graft a paid clone (full sap+resin price) anywhere it fits' },
   canopy:      { name: 'Canopy',        x: 105,  y: 242, parent: 'crown',   max: 2,  cost: l => 10 * Math.pow(3, l),
                  desc: 'Each level: +1 branch slot on amplifiers, refineries and capacitors' },
   // tier 4
@@ -1793,9 +1812,9 @@ function bpCost() {
 }
 function bpCopy(id) {
   const n = N(id);
-  if (!n || n.type === 'core' || n.parent == null || rootLvl('blueprint') === 0) return;
+  if (!n || n.type === 'core' || n.parent == null || rootLvl('blueprint') === 0) return false;
   const cost = bpCopyCost();
-  if (S.resin < cost) return;
+  if (S.resin < cost) { toast(`Need ${fmt(cost)} resin to copy this branch.`); return false; }
   S.resin -= cost;
   const root = bpSerialize(id);
   S.blueprint = { root, type: n.type, count: bpNodeCount(root) };
@@ -1803,14 +1822,15 @@ function bpCopy(id) {
   sfx('buy');
   pulseNode(n, 0.7, 0.6);
   spawnBurst(n.x, n.y, '#9fd0ff', 14, 80, 0.7);
-  toast('📐 Branch stored as a blueprint');
+  toast(`📐 ${S.blueprint.count}-node branch stored as a blueprint`);
   buildPanel(); save();
+  return true;
 }
 function bpPaste(targetId) {
   const bp = S.blueprint, target = N(targetId);
-  if (!bp || !target || !bpCanPaste(target)) return;
+  if (!bp || !target || !bpCanPaste(target)) return false;
   const cost = bpCost();
-  if (S.sap < cost.sap || S.resin < cost.resin) return;
+  if (S.sap < cost.sap || S.resin < cost.resin) return false;
   S.sap -= cost.sap; S.resin -= cost.resin;
   S.pristine = false;
   let grafted = false;
@@ -1836,7 +1856,92 @@ function bpPaste(targetId) {
   layout();
   selected = rootNode.id;
   buildPanel(); save();
+  return true;
 }
+// ---- Blueprint topbar flow: arm a mode on the 📐 button, act by tapping nodes ----
+const bpOwned = () => rootLvl('blueprint') > 0;
+// The set of nodes a copy would capture (the candidate and everything above it),
+// used to highlight the branch while you're choosing.
+function bpSubtree(id, out = new Set()) {
+  const n = N(id);
+  if (!n) return out;
+  out.add(id);
+  for (const c of n.children) bpSubtree(c, out);
+  return out;
+}
+function setBpMode(mode) {
+  bpMode = mode;
+  if (mode !== 'copy') bpCandidate = null;
+  refreshBlueprint();
+  buildPanel(); // hide the node panel while armed, restore it when the flow ends
+}
+// The 📐 button: cancel an active mode, open the Paste/Discard menu when a blueprint
+// is stored, or start a fresh copy.
+function bpButtonClick() {
+  if (!bpOwned()) return;
+  if (bpMode) { setBpMode(null); return; }
+  setBpMode(S.blueprint ? 'menu' : 'copy');
+}
+// A world tap while a blueprint mode is armed. Returns true if it consumed the tap.
+function bpWorldClick(id) {
+  const n = N(id);
+  if (bpMode === 'copy') {
+    if (!n || n.type === 'core' || n.parent == null) { toast('📐 Pick a branch (not the trunk).'); return true; }
+    bpCandidate = id; refreshBlueprint();
+    return true;
+  }
+  if (bpMode === 'paste') {
+    if (!n || !bpCanPaste(n)) { toast('📐 Can’t graft here — needs a free slot and room under type caps.'); return true; }
+    const c = bpCost();
+    if (S.sap < c.sap || S.resin < c.resin) { toast(`Need ${fmt(c.sap)} sap + ${fmt(c.resin)} resin to graft this.`); return true; }
+    if (bpPaste(id)) setBpMode(null);
+    return true;
+  }
+  return false; // 'menu' or idle: let the tap select normally
+}
+// Render the 📐 button state and the contextual #bpbar. Called every frame, so the
+// bar only rebuilds when its state actually changes (avoids 60fps innerHTML churn).
+let bpBarSig = '';
+function refreshBlueprint() {
+  const btn = document.getElementById('bpbtn'), bar = document.getElementById('bpbar');
+  if (!btn || !bar) return;
+  if (!bpOwned()) { btn.style.display = 'none'; bar.classList.remove('open'); bpMode = null; return; }
+  btn.style.display = '';
+  btn.classList.toggle('on', !!bpMode);
+  btn.textContent = bpMode ? '📐 …' : (S.blueprint ? `📐 ${S.blueprint.count}` : '📐');
+  if (!bpMode) { bar.classList.remove('open'); bpBarSig = ''; return; }
+  const sig = `${bpMode}|${bpCandidate}|${S.blueprint ? S.blueprint.count : '-'}`;
+  if (sig === bpBarSig && bar.classList.contains('open')) return;
+  bpBarSig = sig;
+  let html = '';
+  if (bpMode === 'copy') {
+    if (bpCandidate != null && N(bpCandidate)) {
+      const root = bpSerialize(bpCandidate), cnt = bpNodeCount(root), cost = bpCopyCost();
+      html = `<div class="bptext">Copy this <b>${cnt}-node</b> branch (and everything above it) for <b>${fmt(cost)} resin</b>?</div>
+        <div class="bprow"><button data-bp="confirmcopy">📐 Copy</button><button data-bp="cancel">Cancel</button></div>`;
+    } else {
+      html = `<div class="bptext">📐 Tap a branch to copy — it stores that node and everything connected above it.</div>
+        <div class="bprow"><button data-bp="cancel">Cancel</button></div>`;
+    }
+  } else if (bpMode === 'menu') {
+    html = `<div class="bptext">📐 Blueprint stored: <b>${S.blueprint.count} nodes</b>.</div>
+      <div class="bprow"><button data-bp="paste">Paste</button><button data-bp="discard" class="bpdanger">Discard</button><button data-bp="cancel">Close</button></div>`;
+  } else if (bpMode === 'paste') {
+    html = `<div class="bptext">📐 Tap a node to graft the stored <b>${S.blueprint.count}-node</b> branch onto (full sap+resin price).</div>
+      <div class="bprow"><button data-bp="cancel">Cancel</button></div>`;
+  }
+  bar.innerHTML = html;
+  bar.classList.add('open');
+}
+document.getElementById('bpbtn')?.addEventListener('click', bpButtonClick);
+document.getElementById('bpbar')?.addEventListener('click', e => {
+  const b = e.target.closest('button[data-bp]'); if (!b) return;
+  const act = b.dataset.bp;
+  if (act === 'cancel') setBpMode(null);
+  else if (act === 'confirmcopy') { if (bpCandidate != null && bpCopy(bpCandidate)) setBpMode(null); }
+  else if (act === 'paste') setBpMode('paste');
+  else if (act === 'discard') { S.blueprint = null; toast('📐 Blueprint discarded'); sfx('plink'); setBpMode(null); save(); }
+});
 function polish(id) {
   const n = N(id);
   if (n.locked) return;
@@ -2768,6 +2873,9 @@ function draw(time) {
   const nodeOrder = Object.keys(S.nodes).sort((a, b) =>
     ((S.nodes[a].type === 'leaf' && S.nodes[a].giftGain) ? 1 : 0) -
     ((S.nodes[b].type === 'leaf' && S.nodes[b].giftGain) ? 1 : 0));
+  // Blueprint cues: in copy mode highlight the candidate branch; in paste mode ring
+  // every node the stored blueprint could legally graft onto.
+  const bpHi = (bpMode === 'copy' && bpCandidate != null && N(bpCandidate)) ? bpSubtree(bpCandidate) : null;
   for (const id of nodeOrder) {
     const n = N(id);
     const px = sx(n.x), py = sy(n.y), r = nodeRadius(n) * cam.scale;
@@ -2913,6 +3021,15 @@ function draw(time) {
       ctx.fillStyle = sg;
       ctx.beginPath(); ctx.arc(gx, gy, rr * 0.72, 0, TAU); ctx.fill();
     }
+    if (bpHi && bpHi.has(n.id)) {
+      ctx.beginPath(); ctx.arc(px, py, rr + 6 * cam.scale, 0, TAU);
+      ctx.setLineDash([4, 4]); ctx.lineDashOffset = -time * 22;
+      ctx.lineWidth = 2; ctx.strokeStyle = '#9fd0ff'; ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (bpMode === 'paste' && n.type !== 'core' && bpCanPaste(n)) {
+      ctx.beginPath(); ctx.arc(px, py, rr + 6 * cam.scale, 0, TAU);
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(159,208,255,0.6)'; ctx.stroke();
+    }
     if (selected === n.id) {
       ctx.beginPath(); ctx.arc(px, py, rr + 7 * cam.scale, 0, TAU);
       ctx.setLineDash([5, 5]); ctx.lineDashOffset = -time * 18;
@@ -2949,6 +3066,10 @@ function draw(time) {
 
 // ---------- input ----------
 let selected = null, hovered = null, selectedRoot = null, hoveredRoot = null, armPrune = false;
+// Blueprint flow: 'copy' (pick a branch to store), 'menu' (a blueprint is stored —
+// offer Paste/Discard), or 'paste' (pick a node to graft onto). bpCandidate is the
+// node tentatively chosen during copy.
+let bpMode = null, bpCandidate = null;
 let drag = null, activePointer = null;
 let channelTimer = null, channelActive = false;
 const pointers = new Map();
@@ -3106,6 +3227,8 @@ cv.addEventListener('pointerup', e => {
       }
     }
     if (hitCritter) return;
+    // Blueprint copy/paste mode intercepts a node tap before normal selection.
+    if (bpMode && apFirst && apHit != null && bpWorldClick(apHit)) return;
     // True click on the world (no critter): apply the deferred selection.
     if (apFirst) {
       selectedRoot = apHitRoot;
@@ -3185,6 +3308,9 @@ function burstBtnText(n) {
 }
 function buildPanel() {
   armPrune = false;
+  // While a blueprint mode is armed the #bpbar owns the bottom-center slot, so the
+  // node panel (same spot) stays hidden until the flow ends.
+  if (bpMode) { panel.style.display = 'none'; return; }
   if (selectedRoot) {
     const k = selectedRoot, r = ROOTS[k], lvl = rootLvl(k);
     const title = r.name + (r.max > 1 && lvl > 0 ? ` · lv ${lvl}` : '');
@@ -3242,14 +3368,7 @@ function buildPanel() {
   if (n.parent != null) {
     acts.push(actBtn('edge', 'Thicken branch', `cap ${fmt(edgeCap(n))}/s → ${fmt(edgeCap({ edgeLvl: n.edgeLvl + 1 }) )}/s`, costEdge(n), 'sap'));
   }
-  // Blueprint: copy this branch's shape, or graft a stored blueprint onto this node.
-  if (rootLvl('blueprint') > 0 && n.type !== 'core' && n.parent != null) {
-    acts.push(actBtn('bpcopy', 'Copy blueprint', `store this branch (${bpNodeCount(bpSerialize(n.id))} nodes) · 10 min of resin`, bpCopyCost(), 'resin'));
-  }
-  if (S.blueprint && bpCanPaste(n)) {
-    const c = bpCost();
-    acts.push(`<button data-act="bppaste" data-sap="${c.sap}" data-resin="${c.resin}">Paste blueprint — <span class="cost-sap">${fmt(c.sap)} sap</span> + <span class="cost-resin">${fmt(c.resin)} resin</span><small>graft the stored ${S.blueprint.count}-node branch here</small></button>`);
-  }
+  // Blueprint copy/paste now live on the 📐 topbar button + #bpbar flow, not here.
   // When locked, hide every action that spends resources or commits a change.
   // 'burst' (harvesting a gold leaf) stays available since it's a one-shot reward.
   const visibleActs = n.locked ? acts.filter(a => !SPEND_ACTS.has((a.match(/data-act="([^"]+)"/) || [])[1])) : acts;
@@ -3331,7 +3450,6 @@ function refreshPanel() {
   }
   panel.querySelectorAll('button[data-act]').forEach(b => {
     if (b.dataset.act === 'prune') return;
-    if (b.dataset.act === 'bppaste') { b.disabled = S.sap < parseFloat(b.dataset.sap) || S.resin < parseFloat(b.dataset.resin); return; }
     b.disabled = b.dataset.maxed === '1' || S[b.dataset.cur] < parseFloat(b.dataset.cost);
     // Live-refresh the calculator hint (% of bank · ETA) as bank and income drift.
     const ah = b.querySelector('.ahint');
@@ -3349,8 +3467,6 @@ panel.addEventListener('click', e => {
   else if (act === 'up') upgrade(selected);
   else if (act === 'edge') thicken(selected);
   else if (act === 'graft') graft(selected);
-  else if (act === 'bpcopy') bpCopy(selected);
-  else if (act === 'bppaste') bpPaste(selected);
   else if (act === 'polish') polish(selected);
   else if (act === 'burst') harvestLeaf(selected);
   else if (act === 'prune') {
@@ -3532,6 +3648,7 @@ function refreshHud() {
   refreshPesticide();
   refreshFreeze();
   refreshForced();
+  refreshBlueprint();
   refreshAcorns();
   // Collapse the second row unless one of its items is showing, so it never
   // adds an empty band on a fresh tree.
