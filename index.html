@@ -2467,28 +2467,16 @@ function draw(time) {
       ctx.strokeStyle = n.bufWaste > 0.01 ? '#e25a4a' : '#6fd3e0';
       ctx.stroke();
     }
-    // Polish shine: a glossy highlight that drifts across the node plus a twinkling
-    // sparkle for each polish stack, so polished nodes visibly gleam.
+    // Polish sheen: a soft glossy highlight toward the top-left that grows
+    // slightly brighter with each polish stack. No moving parts.
     if ((n.polish || 0) > 0 && n.type !== 'core') {
-      const pol = n.polish;
-      ctx.save();
-      const ga = time * 0.8 + n.id;
-      const gx = px + Math.cos(ga) * rr * 0.45, gy = py + Math.sin(ga) * rr * 0.45;
-      const sg = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 0.75);
-      sg.addColorStop(0, `rgba(255,255,255,${0.3 + 0.05 * Math.min(pol, 5)})`);
+      const intensity = Math.min(0.16 + 0.05 * n.polish, 0.5);
+      const hx = px - rr * 0.25, hy = py - rr * 0.25;
+      const sg = ctx.createRadialGradient(hx, hy, 0, hx, hy, rr * 0.72);
+      sg.addColorStop(0, `rgba(255,255,255,${intensity})`);
       sg.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = sg;
-      ctx.beginPath(); ctx.arc(gx, gy, rr * 0.75, 0, TAU); ctx.fill();
-      for (let i = 0; i < pol; i++) {
-        const a = (i / pol) * TAU + time * 1.3;
-        const tw = 0.5 + 0.5 * Math.sin(time * 3 + i * 1.7);
-        const spx = px + Math.cos(a) * (rr + 4 * cam.scale);
-        const spy = py + Math.sin(a) * (rr + 4 * cam.scale);
-        ctx.globalAlpha = 0.3 + 0.55 * tw;
-        ctx.fillStyle = '#fff7d6';
-        ctx.beginPath(); ctx.arc(spx, spy, (1 + 0.7 * tw) * cam.scale, 0, TAU); ctx.fill();
-      }
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(hx, hy, rr * 0.72, 0, TAU); ctx.fill();
     }
     if (selected === n.id) {
       ctx.beginPath(); ctx.arc(px, py, rr + 7 * cam.scale, 0, TAU);
