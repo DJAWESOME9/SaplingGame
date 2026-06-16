@@ -1304,25 +1304,29 @@ const branchLifeR = n => {
   for (const id of n.children) total += branchLifeR(N(id));
   return total;
 };
-// Lifetime that actually feeds prune amber: resin-carried flow is worth
-// pruneResinWeight× as much as sap-carried flow. life = sapLife + resinLife, so the
-// weighted total is life + (weight − 1)·resinLife.
-const branchAmberLife = n => {
-  const life = branchLife(n), resin = branchLifeR(n);
-  return life + (CFG.pruneResinWeight - 1) * resin;
-};
-// Amber for a cut depends only on that branch's OWN connected lifetime — its life
-// plus everything connected above it (branchLife sums the children). The curve Φ
-// has exponent < 1, so amber accrues more slowly the more lifetime a branch carries:
-// the diminishing returns come from the branch's own size, not the tree total. The
-// first amber lands at ~200 connected lifetime (Φ(pruneK)=1). Because a branch is
-// valued in isolation, pruning one branch never raises what another is worth.
+// Weighted lifetime of a SINGLE node: resin-carried flow is worth pruneResinWeight×
+// as much as sap-carried flow. life = sapLife + resinLife, so the weighted value is
+// life + (weight − 1)·resinLife.
+const nodeAmberLife = n => (n.life || 0) + (CFG.pruneResinWeight - 1) * (n.lifeR || 0);
+// The curve Φ has exponent < 1, so a single node's amber accrues with diminishing
+// returns as that node's own lifetime grows. The first amber lands at ~200 lifetime
+// (Φ(pruneK)=1).
 const lifeAmber = x => Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
-// Real-valued amber for cutting branch n (before integer flooring): the curve
-// evaluated at this branch's resin-weighted connected lifetime.
+// Real-valued amber for cutting branch n (before integer flooring). A cut removes n
+// AND every node connected above it, so the payout adds up each of those nodes
+// valued individually through Φ — a big branch pays the total of its parts rather
+// than one discounted lump on the aggregate lifetime.
 const pruneGainRaw = n => {
-  const branch = branchAmberLife(n);         // resin counts extra toward this
-  return lifeAmber(branch) * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
+  if (!n) return 0;
+  let total = 0;
+  const stack = [n];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (!cur) continue;
+    total += lifeAmber(nodeAmberLife(cur));
+    for (const id of cur.children) stack.push(N(id));
+  }
+  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
 };
 // Amber is integer but cuts are fractional — carry the remainder between cuts so
 // small branches don't round their sub-1 payouts away.
@@ -2403,14 +2407,20 @@ function drawGift(n, px, py, rr, time) {
   const p = clamp(n.giftAge / Math.max(n.giftLife, 0.001), 0, 1);
   const scale = Math.sin(Math.PI * p);
   const alpha = scale;
-  // Sway in the breeze: a slow primary wobble plus a faster shiver, a touch
-  // wider for big gold leaves, so they drift around the leaf as they grow/shrink.
+  // The leaf's stem stays pinned to the node edge; it sways like a pendulum
+  // about that anchor rather than drifting around the node. A slow primary
+  // swing plus a faster shiver, a touch wider for big gold leaves.
   const swayAmt = n.giftBig ? 1.4 : 1;
-  const sway = (Math.sin(time * 1.7 + n.id * 1.7) * 0.22 + Math.sin(time * 3.3 + n.id) * 0.07) * swayAmt;
-  const a = (n.giftA || 0) + sway;
-  const dist = rr * (1.2 + scale * 0.18 + Math.sin(time * 1.3 + n.id) * 0.06);
-  const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
-  const br = rr * (0.26 + 0.08 * scale);
+  const sway = (Math.sin(time * 1.7 + n.id * 1.7) * 0.18 + Math.sin(time * 3.3 + n.id) * 0.05) * swayAmt;
+  const a0 = n.giftA || 0;            // fixed attach angle on the node
+  const a = a0 + sway;               // pendulum swing about the anchor
+  const bigScale = n.giftBig ? 1.6 : 1;
+  const br = rr * (0.26 + 0.08 * scale) * bigScale;
+  // Anchor the stem just inside the node's rim so the leaf reads as attached.
+  const ax = px + Math.cos(a0) * rr * 0.92, ay = py + Math.sin(a0) * rr * 0.92;
+  const len = br * (2.4 + scale * 1.2);   // length from stem to tip
+  // Leaf body centre (for the glow + click target), out along the swing.
+  const bx = ax + Math.cos(a) * len * 0.55, by = ay + Math.sin(a) * len * 0.55;
   // Remember where this gold leaf is on screen so a click can target it directly,
   // independent of the leaf node underneath.
   n._giftHit = { x: bx, y: by, r: Math.max(br * 1.9, 14) };
@@ -2421,19 +2431,26 @@ function drawGift(n, px, py, rr, time) {
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(bx, by, br * 2.5, 0, TAU); ctx.fill();
   ctx.save();
-  ctx.translate(bx, by);
-  ctx.rotate(a + Math.PI / 5 + Math.sin(time * 2.4 + n.id) * 0.22 * swayAmt);
-  const bigScale = n.giftBig ? 1.6 : 1;
-  ctx.scale((0.55 + scale * 0.75) * bigScale, (0.55 + scale * 0.75) * bigScale);
+  // Origin at the anchored stem, +x pointing outward along the swing, so the
+  // stem stays put while the blade swings.
+  ctx.translate(ax, ay);
+  ctx.rotate(a);
+  const w = br * 1.15;
   ctx.beginPath();
-  ctx.moveTo(0, -br * 1.6);
-  ctx.quadraticCurveTo(br * 1.2, -br * 0.3, 0, br * 1.5);
-  ctx.quadraticCurveTo(-br * 1.2, -br * 0.3, 0, -br * 1.6);
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(len * 0.5, -w, len, 0);
+  ctx.quadraticCurveTo(len * 0.5, w, 0, 0);
   ctx.closePath();
   ctx.fillStyle = `rgba(${goldR},${goldG},${goldB},${0.5 + 0.35 * alpha})`;
   ctx.fill();
   ctx.lineWidth = 1 * cam.scale;
   ctx.strokeStyle = n.giftBig ? `rgba(255,210,140,${0.85 * alpha})` : `rgba(255,240,180,${0.7 * alpha})`;
+  ctx.stroke();
+  // Midrib hint from stem toward tip.
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(len * 0.92, 0);
+  ctx.strokeStyle = `rgba(255,240,190,${0.4 * alpha})`;
   ctx.stroke();
   ctx.restore();
 }
@@ -2565,8 +2582,12 @@ function draw(time) {
     }
   }
 
-  // nodes
-  for (const id in S.nodes) {
+  // nodes — draw leaves bearing a ripe gold leaf last so the whole node stays
+  // on top of its siblings and is never partially covered.
+  const nodeOrder = Object.keys(S.nodes).sort((a, b) =>
+    ((S.nodes[a].type === 'leaf' && S.nodes[a].giftGain) ? 1 : 0) -
+    ((S.nodes[b].type === 'leaf' && S.nodes[b].giftGain) ? 1 : 0));
+  for (const id of nodeOrder) {
     const n = N(id);
     const px = sx(n.x), py = sy(n.y), r = nodeRadius(n) * cam.scale;
     if (!visible(px, py, r + 40)) continue;
@@ -2989,14 +3010,14 @@ function buildPanel() {
     title = `Leaf · lv ${n.lvl}/${lvlMax(n)}`;
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Enrich leaf', `at max level ${lvlMax(n)} — grow Verdance`, costUp(n), 'sap', 'data-maxed="1"')
-      : actBtn('up', 'Enrich leaf', `${fmt(leafRate(n))}/s → ${fmt(leafRate({ lvl: n.lvl + 1 }))}/s`, costUp(n), 'sap'));
+      : actBtn('up', 'Enrich leaf', `${fmt(leafRate(n))}/s → ${fmt(leafRate({ ...n, lvl: n.lvl + 1 }))}/s`, costUp(n), 'sap'));
     if (canPolish(n)) acts.push(actBtn('polish', 'Polish leaf', `polish ${(n.polish || 0)} / ${polishCap()}` + (polishAtCap(n) ? ' — at cap, raise Lacquer' : ` · resin lacquer · +6% sap/s`), costPolish(n), 'resin', polishAtCap(n) ? 'data-maxed="1"' : ''));
     { const bt = burstBtnText(n); acts.push(actBtn('burst', bt.label, bt.sub, 0, 'sap')); }
   } else if (n.type === 'amp') {
     title = `Amplifier ×${ampMult(n).toFixed(1)} · lv ${n.lvl}/${lvlMax(n)}${n.polish ? ` · ✨${n.polish}` : ''}`;
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Strengthen', `at max level ${lvlMax(n)} — grow Vigor`, costUp(n), 'sap', 'data-maxed="1"')
-      : actBtn('up', 'Strengthen', `×${ampMult(n).toFixed(1)} → ×${ampMult({ lvl: n.lvl + 1 }).toFixed(1)}`, costUp(n), 'sap'));
+      : actBtn('up', 'Strengthen', `×${ampMult(n).toFixed(1)} → ×${ampMult({ ...n, lvl: n.lvl + 1 }).toFixed(1)}`, costUp(n), 'sap'));
     if (canPolish(n)) acts.push(actBtn('polish', 'Polish amplifier', `polish ${(n.polish || 0)} / ${polishCap()}` + (polishAtCap(n) ? ' — at cap, raise Lacquer' : ` · resin lacquer · +6% multiplier`), costPolish(n), 'resin', polishAtCap(n) ? 'data-maxed="1"' : ''));
   } else if (n.type === 'ref') {
     title = `Refinery · lv ${n.lvl}`;
@@ -3004,7 +3025,7 @@ function buildPanel() {
     title = `Capacitor ×${capBonus(n).toFixed(2)} · lv ${n.lvl}/${lvlMax(n)}${n.polish ? ` · ✨${n.polish}` : ''}`;
     acts.push(n.lvl >= lvlMax(n)
       ? actBtn('up', 'Deepen well', `at max level ${lvlMax(n)} — grow Surge`, costUp(n), 'resin', 'data-maxed="1"')
-      : actBtn('up', 'Deepen well', `stores ${fmt(capSize(n))} → ${fmt(capSize({ lvl: n.lvl + 1 }))}, ×${capBonus(n).toFixed(2)} → ×${capBonus({ lvl: n.lvl + 1 }).toFixed(2)}`, costUp(n), 'resin'));
+      : actBtn('up', 'Deepen well', `stores ${fmt(capSize(n))} → ${fmt(capSize({ ...n, lvl: n.lvl + 1 }))}, ×${capBonus(n).toFixed(2)} → ×${capBonus({ ...n, lvl: n.lvl + 1 }).toFixed(2)}`, costUp(n), 'resin'));
     if (canPolish(n)) acts.push(actBtn('polish', 'Polish capacitor', `polish ${(n.polish || 0)} / ${polishCap()}` + (polishAtCap(n) ? ' — at cap, raise Lacquer' : ` · resin lacquer · +6% storage & burst`), costPolish(n), 'resin', polishAtCap(n) ? 'data-maxed="1"' : ''));
   }
   const kidsLeft = maxKids(n) - n.children.length;
