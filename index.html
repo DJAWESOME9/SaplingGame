@@ -3676,7 +3676,7 @@ function groveLayout() {
   // descendant count, then recursively subdivides that wedge among its children —
   // so sibling subtrees never share angular space and nodes can't stack on top of
   // one another (the old per-parent fan let neighbouring branches overlap).
-  const R = [130, 260, 400, 540, 680, 820, 960];
+  const R = [156, 312, 480, 648, 816, 984, 1152];
   const kids = {};
   for (const k of Object.keys(GROVE)) {
     const p = GROVE[k].parent;
@@ -3691,9 +3691,15 @@ function groveLayout() {
     for (const c of ch) w += calcWeight(c);
     return (weight[k] = w);
   };
+  // Effective weight floors every node's share with a baseline slot (+1) so a
+  // low-weight leaf sitting next to a heavy branch still gets enough arc to not
+  // collide with its siblings — pure weight-proportional starved them and stacked
+  // nodes on top of each other on the inner rings.
+  const ew = k => weight[k] + 1;
+  const sumEw = list => list.reduce((s, c) => s + ew(c), 0);
   const roots = Object.keys(GROVE).filter(k => !GROVE[k].parent);
-  let totalW = 0;
-  for (const k of roots) totalW += calcWeight(k);
+  for (const k of roots) calcWeight(k);
+  const totalW = Math.max(sumEw(roots), 1);
   // Seat a node at the midpoint of its wedge, then split the wedge among children.
   const place = (k, a0, a1, depth) => {
     const a = (a0 + a1) / 2;
@@ -3702,9 +3708,11 @@ function groveLayout() {
     GROVE[k]._depth = depth;
     GROVE[k]._x = Math.cos(a) * r;
     GROVE[k]._y = Math.sin(a) * r;
+    const ch = kids[k] || [];
+    const sw = sumEw(ch);
     let cur = a0;
-    for (const c of (kids[k] || [])) {
-      const span = (a1 - a0) * (weight[c] / weight[k]);
+    for (const c of ch) {
+      const span = (a1 - a0) * (ew(c) / sw);
       place(c, cur, cur + span, depth + 1);
       cur += span;
     }
@@ -3712,7 +3720,7 @@ function groveLayout() {
   // Give each root its own slice of the full circle, starting straight up.
   let cur = -Math.PI / 2;
   for (const k of roots) {
-    const span = Math.PI * 2 * (weight[k] / Math.max(totalW, 1));
+    const span = Math.PI * 2 * (ew(k) / totalW);
     place(k, cur, cur + span, 0);
     cur += span;
   }
@@ -3721,7 +3729,7 @@ let grovePan = { x: 0, y: 0, scale: 1, dragging: false, sx: 0, sy: 0, ox: 0, oy:
 const grovePtrs = new Map();
 let grovePinch = null;
 const GROVE_ZOOM_MIN = 0.4, GROVE_ZOOM_MAX = 2.5;
-const GROVE_VIEW = 1800; // square viewBox edge length
+const GROVE_VIEW = 2500; // square viewBox edge length
 // Track which nodes have already animated in (reset each time the grove opens, so
 // every open replays the grow-in cascade) and the node just purchased (for a pop).
 let groveSeen = new Set();
@@ -3744,6 +3752,12 @@ function renderGroveTree() {
         // Owned edges get a brighter dashed "sap flow" line animating outward.
         if (ownedParent) edges += `<line class="flow" x1="${p._x}" y1="${p._y}" x2="${g._x}" y2="${g._y}" stroke="#a8e6b4" stroke-width="2" stroke-linecap="round"/>`;
       }
+    } else {
+      // Root nodes hang off the central trunk (the 🌳 core) — draw that link so the
+      // core isn't a lone, unattached node floating in the middle.
+      const owned = metaLvl(k) > 0;
+      edges += `<line x1="0" y1="0" x2="${g._x}" y2="${g._y}" stroke="${owned ? '#3f6a49' : '#2a3026'}" stroke-width="${owned ? 3 : 1.5}" stroke-linecap="round"/>`;
+      if (owned) edges += `<line class="flow" x1="0" y1="0" x2="${g._x}" y2="${g._y}" stroke="#a8e6b4" stroke-width="2" stroke-linecap="round"/>`;
     }
   }
   for (const k of Object.keys(GROVE)) {
