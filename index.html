@@ -1122,6 +1122,14 @@ const critterCap   = () => hardMode() ? 5 : 3;
 // The leaf flashes a warning for the final BUG_EAT_WARN seconds.
 const BUG_EAT_TIME = 16;
 const BUG_EAT_WARN = 6;
+// Blight mode only: a node you haven't clicked on for WITHER_GRACE seconds starts
+// to wither, then takes WITHER_TIME more seconds to rot away entirely (no payout).
+// Clicking the node — or just having it selected — keeps it fresh and heals any
+// wither already set in. While withering, its throughput sags up to WITHER_PENALTY.
+const WITHER_GRACE = 50;
+const WITHER_TIME = 40;
+const WITHER_PENALTY = 0.7;
+const witherMult = n => 1 - WITHER_PENALTY * (n.wither || 0);
 // Verdant Touch: a charge meter that fills over time, then drains while you hold a
 // leaf to pour a production surge (delivered through the bloom system as 'channel').
 const touchOwned    = () => metaLvl('verdanttouch') > 0;
@@ -1383,7 +1391,7 @@ function mkNode(type, parent) {
   const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: (parent != null ? metaLvl('birthright') : 0), extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
     life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
-    drops: [], dropT: 0, wasteT: 0, pulse: 0,
+    drops: [], dropT: 0, wasteT: 0, pulse: 0, idle: 0, wither: 0,
     giftT: type === 'leaf' ? leafGiftDelay({ lvl: lvl0 }) : 0,
     giftAge: 0, giftLife: 0, giftGain: 0, giftA: 0,
     fx: { pop: 0, flash: 0 } };
@@ -1540,6 +1548,7 @@ function computeFlow(dt) {
       }
     }
     if (n.type !== 'core') { const cm = critterSlowMult(n.id); s *= cm; r *= cm; }
+    if (n.type !== 'core' && n.wither) { const wm = witherMult(n); s *= wm; r *= wm; }
     if (n.type === 'leaf' || n.type === 'amp' || n.type === 'core') n.inFlow = s + r;
     n.through = s + r;
     if (n.parent == null) { n.out = s + r; n.outS = s; n.outR = r; n.waste = 0; n.wasteS = 0; n.wasteR = 0; return { s, r }; }
@@ -1593,6 +1602,7 @@ function harvestLeaf(id) {
   const n = N(id);
   if (!n || n.type !== 'leaf') return false;
   if (!n.giftGain) return false;
+  touchNode(id); // harvesting a gold leaf counts as attending the node (anti-wither)
   const gain = n.giftGain;
   const wasBig = !!n.giftBig;
   S.pristine = false;
@@ -1873,6 +1883,72 @@ function eatLeaf(id) {
   layout();
   buildPanel();
   save();
+}
+
+// Blight mode: a neglected node rots away — same pure-loss removal as eatLeaf, but
+// triggered by lack of attention rather than a bug. The core never withers.
+function witherAway(id) {
+  const n = N(id);
+  if (!n || n.parent == null) return;
+  const p = N(n.parent);
+  const stack = [id], doomed = [];
+  while (stack.length) {
+    const cur = N(stack.pop());
+    if (!cur) continue;
+    doomed.push(cur.id);
+    for (const k of cur.children) stack.push(k);
+  }
+  if (p) p.children = p.children.filter(k => k !== id);
+  const gone = new Set(doomed);
+  critters = critters.filter(c => !gone.has(c.nodeId));
+  for (const d of doomed) {
+    const nd = N(d);
+    if (nd && S.counts[nd.type] != null) S.counts[nd.type]--;
+    delete S.nodes[d];
+  }
+  S.pristine = false;
+  spawnFloaty(n.x, n.y, '🥀 withered', '#9a7b4a');
+  spawnBurst(n.x, n.y, '#6b5a32', 16, 90, 0.85);
+  sfx('squish');
+  if (selected === id) selected = null;
+  layout();
+  buildPanel();
+  save();
+}
+// True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
+// Back) — wither pauses then so you aren't penalized for time spent in a menu.
+function overlayBlocksTree() {
+  return ['grove', 'pantheon', 'intro', 'welcome'].some(id => {
+    const el = document.getElementById(id);
+    return el && el.classList.contains('open');
+  });
+}
+// Mark a node as freshly attended-to: clears its idle timer and heals any wither.
+function touchNode(id) {
+  const n = N(id);
+  if (!n) return;
+  n.idle = 0;
+  if (n.wither) n.wither = 0;
+}
+// Per-frame Blight wither pass. Nodes left un-clicked past the grace period rot;
+// the selected node counts as continuously attended. Paused while the player is
+// idle/away so stepping out doesn't quietly kill the tree.
+function updateWither(dt, idle) {
+  if (!hardMode() || idle || dt <= 0 || overlayBlocksTree()) return;
+  for (const id in S.nodes) {
+    const n = N(id);
+    if (!n || n.parent == null) continue; // core is immune
+    if (n.id === selected) { n.idle = 0; if (n.wither) n.wither = 0; continue; }
+    n.idle = (n.idle || 0) + dt;
+    if (n.idle < WITHER_GRACE) {
+      if (n.wither) n.wither = Math.max(0, n.wither - dt / WITHER_TIME);
+      continue;
+    }
+    const was = n.wither || 0;
+    n.wither = was + dt / WITHER_TIME;
+    if (was <= 0) spawnFloaty(n.x, n.y, '🥀 withering', '#b59a5a'); // warn on the turn
+    if (n.wither >= 1) witherAway(n.id);
+  }
 }
 
 // ---------- formatting ----------
@@ -2235,6 +2311,7 @@ function spawnCritter() {
   });
 }
 function scareCritters(nodeId) {
+  touchNode(nodeId); // swatting a critter off a node counts as attending it (anti-wither)
   const dmg = 1 + (metaLvl('swatpower') > 0 ? 1 : 0);
   for (const c of critters) {
     if (c.nodeId === nodeId && c.state === 'sitting') {
@@ -2735,6 +2812,20 @@ function draw(time) {
       ctx.strokeStyle = n.bufWaste > 0.01 ? '#e25a4a' : '#6fd3e0';
       ctx.stroke();
     }
+    // Blight wither: a brown rot wash deepening with wither, plus a 🥀 marker so a
+    // neglected node reads as dying well before it rots away entirely.
+    if (n.wither > 0.001 && n.type !== 'core') {
+      const w = Math.min(n.wither, 1);
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU);
+      ctx.fillStyle = `rgba(74,48,22,${0.62 * w})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, rr + 4 * cam.scale, UP, UP + TAU * w);
+      ctx.lineWidth = 2.5 * cam.scale; ctx.strokeStyle = '#9a7b4a'; ctx.stroke();
+      ctx.font = `${Math.round(13 * cam.scale)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = clamp(0.4 + w, 0, 1);
+      ctx.fillText('🥀', px, py - rr - 7 * cam.scale);
+      ctx.globalAlpha = 1;
+    }
     // Polish sheen: a glossy highlight that slowly rotates around the node and
     // grows slightly brighter with each polish stack. No orbiting sparkles.
     if ((n.polish || 0) > 0 && n.type !== 'core') {
@@ -2944,6 +3035,7 @@ cv.addEventListener('pointerup', e => {
     if (apFirst) {
       selectedRoot = apHitRoot;
       selected = apHitRoot ? null : apHit;
+      if (selected != null) touchNode(selected);
       buildPanel();
     }
     if (targetId && N(targetId)) {
@@ -4999,6 +5091,7 @@ function frame(now) {
     fitCamera(dt);
     updateDrops(dt);
     updateCritters(dt);
+    updateWither(dt, idle);
     if (cutAnim) {
       cutAnim.t += dt;
       if (!cutAnim.finalized && cutAnim.t >= cutAnim.resetAt) finalizeCut();

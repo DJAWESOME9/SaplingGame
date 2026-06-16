@@ -143,6 +143,7 @@ Birds and bugs occasionally land on producer nodes and **slow their throughput t
 An opt-in hard mode for veterans, chosen from a checkbox on the first-run intro (or after a hard reset). Once active:
 
 - **Critters swarm harder** and a bug left sitting on a leaf too long will **devour** it outright.
+- **Nodes wither from neglect** — a node you haven't clicked in a while starts to rot (🥀), its output sagging as it goes, and if left unattended it **withers away entirely** with no payout. Clicking it, harvesting its gold leaf, or swatting a bug off it keeps it fresh (the selected node never withers, and the central core is immune).
 - **Leaf output is taxed −15%** for the whole run.
 - **Every cheat code is disabled**, and the **Pesticide** / **Symbiosis** roots are locked out.
 - Its own **Blight** achievement category in the 🏆 panel: **Into the Blight**, **Thorn Forester**, **Bloom in Blight**, **Devoured**.
