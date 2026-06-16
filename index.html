@@ -953,8 +953,8 @@ const ACHIEVEMENTS = {
   cut500:     { name:'Deforester',       glyph:'🪚', desc:'Cut down 500 trees.' },
   funnel5:    { name:'Switchboard',      glyph:'🧰', desc:'Route flow through 5 funnels at once.' },
   // Reach the ceiling on a single thing.
-  maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its maximum level.' },
-  maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its maximum level.' },
+  maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its highest possible level (Verdance + Verdure maxed).' },
+  maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its highest possible level (Vigor maxed).' },
   ampX50:     { name:'Overdrive',        glyph:'🚀', cat:'challenge', desc:'Push an amplifier to ×50 or higher.' },
   maxRoot:    { name:'Taproot',          glyph:'🕸️', cat:'challenge', desc:'Max out any single root advancement.' },
 };
@@ -3098,12 +3098,16 @@ function refreshHud() {
   if (META.rings >= 1e5) grantAchievement('rings100k');
   if ((META.treesCut || 0) >= 500) grantAchievement('cut500');
   if ((S.counts.funnel || 0) >= 5) grantAchievement('funnel5');
-  // Reaching the ceiling on a single node — scan once.
-  { let maxedLeaf = false, maxedAmp = false, bigAmp = false;
+  // Reaching the ceiling on a single node — scan once. "Max" here means the
+  // absolute cap with the max-raising upgrades fully bought (Verdance + Verdure
+  // for leaves, Vigor for amps), not just whatever the current cap happens to be.
+  { const leafCap = 10 + 2 * ROOTS.verdance.max + GROVE.verdure.max;
+    const ampCap  = 3 + 2 * ROOTS.vigor.max;
+    let maxedLeaf = false, maxedAmp = false, bigAmp = false;
     for (const id in S.nodes) {
       const n = N(id);
-      if (n.type === 'leaf') { if (n.lvl >= lvlMax(n)) maxedLeaf = true; }
-      else if (n.type === 'amp') { if (n.lvl >= lvlMax(n)) maxedAmp = true; if (ampMult(n) >= 50) bigAmp = true; }
+      if (n.type === 'leaf') { if (n.lvl >= leafCap) maxedLeaf = true; }
+      else if (n.type === 'amp') { if (n.lvl >= ampCap) maxedAmp = true; if (ampMult(n) >= 50) bigAmp = true; }
     }
     if (maxedLeaf) grantAchievement('maxLeaf');
     if (maxedAmp) grantAchievement('maxAmp');
