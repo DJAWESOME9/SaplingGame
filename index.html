@@ -945,6 +945,18 @@ const ACHIEVEMENTS = {
   tree10b:    { name:'Eternal Tree',     glyph:'🪵', cat:'challenge', desc:'Produce 10B sap from a single tree.' },
   // Blight (hard) mode: bugs that linger devour leaves.
   leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'challenge', desc:'Let a Blight bug eat one of your leaves.' },
+  // Deep late-game scale — even bigger numbers.
+  sap1q:      { name:'Sap Cosmos',       glyph:'🌠', desc:'Bank 1 quadrillion sap at once.' },
+  life1q:     { name:'Lifetime Ocean',   glyph:'🏔️', desc:'Produce 1 quadrillion sap over your lifetime.' },
+  rate1b:     { name:'Sap Maelstrom',    glyph:'🌪️', desc:'Produce 1B sap/second.' },
+  rings100k:  { name:'Ring Empire',      glyph:'💠', desc:'Bank 100,000 rings.' },
+  cut500:     { name:'Deforester',       glyph:'🪚', desc:'Cut down 500 trees.' },
+  funnel5:    { name:'Switchboard',      glyph:'🧰', desc:'Route flow through 5 funnels at once.' },
+  // Reach the ceiling on a single thing.
+  maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its maximum level.' },
+  maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its maximum level.' },
+  ampX50:     { name:'Overdrive',        glyph:'🚀', cat:'challenge', desc:'Push an amplifier to ×50 or higher.' },
+  maxRoot:    { name:'Taproot',          glyph:'🕸️', cat:'challenge', desc:'Max out any single root advancement.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -1063,7 +1075,7 @@ const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish 
 const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'cap';
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
-const costPolish  = n => Math.ceil(35 * Math.pow(2.0, n.polish || 0));
+const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
 const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
@@ -2455,6 +2467,29 @@ function draw(time) {
       ctx.strokeStyle = n.bufWaste > 0.01 ? '#e25a4a' : '#6fd3e0';
       ctx.stroke();
     }
+    // Polish shine: a glossy highlight that drifts across the node plus a twinkling
+    // sparkle for each polish stack, so polished nodes visibly gleam.
+    if ((n.polish || 0) > 0 && n.type !== 'core') {
+      const pol = n.polish;
+      ctx.save();
+      const ga = time * 0.8 + n.id;
+      const gx = px + Math.cos(ga) * rr * 0.45, gy = py + Math.sin(ga) * rr * 0.45;
+      const sg = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 0.75);
+      sg.addColorStop(0, `rgba(255,255,255,${0.3 + 0.05 * Math.min(pol, 5)})`);
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(gx, gy, rr * 0.75, 0, TAU); ctx.fill();
+      for (let i = 0; i < pol; i++) {
+        const a = (i / pol) * TAU + time * 1.3;
+        const tw = 0.5 + 0.5 * Math.sin(time * 3 + i * 1.7);
+        const spx = px + Math.cos(a) * (rr + 4 * cam.scale);
+        const spy = py + Math.sin(a) * (rr + 4 * cam.scale);
+        ctx.globalAlpha = 0.3 + 0.55 * tw;
+        ctx.fillStyle = '#fff7d6';
+        ctx.beginPath(); ctx.arc(spx, spy, (1 + 0.7 * tw) * cam.scale, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
     if (selected === n.id) {
       ctx.beginPath(); ctx.arc(px, py, rr + 7 * cam.scale, 0, TAU);
       ctx.setLineDash([5, 5]); ctx.lineDashOffset = -time * 18;
@@ -3056,6 +3091,24 @@ function refreshHud() {
     if (ts >= 1e6) grantAchievement('tree1m');
     if (ts >= 1e8) grantAchievement('tree100m');
     if (ts >= 1e10) grantAchievement('tree10b'); }
+  // Deep late-game scale milestones.
+  if (S.sap >= 1e15) grantAchievement('sap1q');
+  if (((META && META.lifetimeSap) || 0) >= 1e15) grantAchievement('life1q');
+  if (((S.ema && S.ema.s) || 0) >= 1e9) grantAchievement('rate1b');
+  if (META.rings >= 1e5) grantAchievement('rings100k');
+  if ((META.treesCut || 0) >= 500) grantAchievement('cut500');
+  if ((S.counts.funnel || 0) >= 5) grantAchievement('funnel5');
+  // Reaching the ceiling on a single node — scan once.
+  { let maxedLeaf = false, maxedAmp = false, bigAmp = false;
+    for (const id in S.nodes) {
+      const n = N(id);
+      if (n.type === 'leaf') { if (n.lvl >= lvlMax(n)) maxedLeaf = true; }
+      else if (n.type === 'amp') { if (n.lvl >= lvlMax(n)) maxedAmp = true; if (ampMult(n) >= 50) bigAmp = true; }
+    }
+    if (maxedLeaf) grantAchievement('maxLeaf');
+    if (maxedAmp) grantAchievement('maxAmp');
+    if (bigAmp) grantAchievement('ampX50'); }
+  if (Object.keys(ROOTS).some(k => rootLvl(k) >= ROOTS[k].max)) grantAchievement('maxRoot');
   // Kaleidoscope: every distinct bloom variant rolled at least once.
   if (['bloomSurge','bloomReso','bloomVerd','bloomRefn','bloomOver'].every(k => META.achievements[k]))
     grantAchievement('allBlooms');
