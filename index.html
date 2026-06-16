@@ -89,12 +89,17 @@
   #trophy { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#caa64f;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #trophy:hover, #trophy.open { border-color:#d9b864; color:#f0d9a0; }
-  #pestbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
+  #pestbtn, #freezebtn, #forcebtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1;
     min-width:170px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  #pestbtn:hover { border-color:#8fc299; color:#cfe3d1; }
-  #pestbtn.on { background:#1d2c20; border-color:#8fc299; color:#cfe3d1; }
-  #pestbtn.cantafford { opacity:.45; cursor:not-allowed; }
+  #pestbtn:hover, #forcebtn:hover { border-color:#8fc299; color:#cfe3d1; }
+  #pestbtn.on, #forcebtn.on { background:#1d2c20; border-color:#8fc299; color:#cfe3d1; }
+  #freezebtn:hover { border-color:#7fc4d9; color:#cfeaf0; }
+  #freezebtn.on { background:#15252c; border-color:#7fc4d9; color:#cfeaf0; }
+  #forcebtn { color:#d98ab0; border-color:#5a3a48; }
+  #forcebtn:hover { border-color:#e89cc0; color:#f4cfe0; }
+  #forcebtn.on { background:#2c1620; border-color:#e89cc0; color:#f4cfe0; }
+  #pestbtn.cantafford, #freezebtn.cantafford, #forcebtn.cantafford { opacity:.45; cursor:not-allowed; }
   #acornbtn { pointer-events:auto; background:none; border:1px solid #5a4a2a; color:#caa64f;
     border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; line-height:1;
     min-width:168px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -535,6 +540,8 @@
     <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
+    <button id="freezebtn" aria-label="Freeze" title="Freeze toggle" style="display:none">❄️</button>
+    <button id="forcebtn" aria-label="Forced Bloom" title="Forced Bloom toggle" style="display:none">🌺</button>
     <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   </div>
 </div>
@@ -645,6 +652,7 @@ const GROVE = {
   slumber:   { name:'Slumber',         glyph:'😴', tier:2, parent:'endurance', max:4,  cost:l=>2+l,    desc:'+5% offline production rate per level' },
   sunray:    { name:'Sunray',          glyph:'🌞', tier:2, parent:'vitality',  max:5,  cost:l=>3+l,   desc:'Gold leaves ripen 10% sooner per level' },
   omen:      { name:'Omen',            glyph:'👁️', tier:2, parent:'vitality',  max:1,  cost:_=>4,     desc:'Reveals the timer until each leaf produces its next gold leaf' },
+  stasis:    { name:'Stasis',          glyph:'❄️', tier:2, parent:'vitality',  max:1,  cost:_=>6,     desc:'Unlocks the Freeze toggle: pay ~10min of resin to halt all buff timers — blooms, surges, the Channel charge and gold-leaf ripening all hold in place until you thaw' },
   patience:  { name:'Patience',        glyph:'🧘', tier:3, parent:'windfall',  max:4,  cost:l=>3+l*2, desc:'+10% offline production rate per level' },
   // Tier-3 deepenings
   bramble:   { name:'Bramble',         glyph:'🌵', tier:3, parent:'nest',      max:4,  cost:l=>4+l*2, desc:'Critters appear 25% less often per level' },
@@ -685,6 +693,8 @@ const GROVE = {
   borncharged:{ name:'Born Charged',   glyph:'🔋', tier:3, parent:'resonant',  max:4, cost:l=>4+l*2,  desc:'New capacitors begin +1 level higher per level' },
   // Other eternal boons.
   goldenbough:{ name:'Golden Bough',   glyph:'🍯', tier:3, parent:'sunray',    max:4, cost:l=>5+l*3,  desc:'Gold leaves pay +25% more sap per level' },
+  forcedbloom:{ name:'Forced Bloom',   glyph:'🌺', tier:4, parent:'goldenbough', max:1, cost:_=>30,   desc:'Unlocks the Forced Bloom toggle: pay 1h of sap to arm, then all production ×3 — but no gold leaves appear while it burns' },
+  frugalbloom:{ name:'Frugal Bloom',   glyph:'🌷', tier:5, parent:'forcedbloom', max:1, cost:_=>120,  desc:'Forced Bloom costs only 30min of sap to arm instead of 1h' },
   amberheart:{ name:'Amber Heart',     glyph:'🧡', tier:4, parent:'crescent',  max:4, cost:l=>8+l*4,  desc:'Pruning yields +25% more amber per level' },
   // Achievement payoffs — each non-secret achievement (normal + challenge) feeds these.
   accolades: { name:'Accolades',       glyph:'🏅', tier:5, parent:'ascendance', max:1, cost:_=>40, desc:'Each non-secret achievement earned grants +1% to all production' },
@@ -904,6 +914,8 @@ const ACHIEVEMENTS = {
   scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
   scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
   pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
+  frozen:     { name:'Cold Snap',        glyph:'❄️', desc:'Froze the tree to bank your buffs.' },
+  forced:     { name:'Forced Bloom',     glyph:'🌺', desc:'Armed Forced Bloom for ×3 production.' },
   // Polish depth
   polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
   // Offline
@@ -977,7 +989,7 @@ const achBonusCount = () => Object.keys((META && META.achievements) || {})
   .filter(k => ACHIEVEMENTS[k] && ACHIEVEMENTS[k].cat !== 'secret').length;
 const accoladesMult = () => metaLvl('accolades') > 0 ? 1 + 0.01 * achBonusCount() : 1;
 const laurelsMult   = () => metaLvl('laurels')   > 0 ? 1 + 0.01 * achBonusCount() : 1;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (metaLvl('primordial') > 0 ? 3 : 1) * accoladesMult() * SP().leaf;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf;
 const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * laurelsMult() * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
@@ -1030,6 +1042,20 @@ const pesticideOwned = () => metaLvl('pesticide') > 0;
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
 const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
 const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.85) : 1;
+// Stasis: a toggle that freezes every buff timer in place. While on, blooms and
+// surges stop decaying, the Channel charge holds, and gold leaves neither ripen
+// nor wilt — letting you bank a lucky bloom combo. Armed for ~10min of resin.
+const freezeOwned = () => metaLvl('stasis') > 0;
+const freezeCost  = () => Math.ceil(600 * Math.max(S.ema && S.ema.r ? S.ema.r : 0, 1));
+const frozenOn    = () => !!S.frozen && freezeOwned();
+// Forced Bloom: a toggle that pours ×3 into all production at the cost of every
+// gold leaf — they stop appearing while it burns. Armed for 1h of sap (30min
+// once Frugal Bloom is owned).
+const forcedOwned = () => metaLvl('forcedbloom') > 0;
+const forcedCostSec = () => metaLvl('frugalbloom') > 0 ? 1800 : 3600;
+const forcedCost  = () => Math.ceil(forcedCostSec() * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
+const forcedOn    = () => !!S.forced && forcedOwned();
+const forcedMult  = () => forcedOn() ? 3 : 1;
 // Blight mode: opt-in hard mode (chosen on first play or after a hard reset).
 // Critters swarm harder, leaf output is taxed, and cheat codes are disabled.
 const hardMode     = () => !!(META && META.hardMode);
@@ -1233,23 +1259,21 @@ const branchLife = n => {
   for (const id of n.children) total += branchLife(N(id));
   return total;
 };
-// Amber is limited purely by connected lifetime, with diminishing returns as the
-// whole tree's lifetime flow grows (exponent < 0.5). Payout for a cut is MARGINAL:
-// the drop in the curve Φ caused by removing that branch's life from the connected
-// total. This telescopes — cutting A+B as two cuts, in either order, or as one
-// parent cut, all sum to Φ(total) − Φ(total − A − B). So parts always add up to the
-// whole, instead of each small cut re-climbing the steep part of the curve.
+// Amber for a cut depends only on that branch's OWN connected lifetime — its life
+// plus everything connected above it (branchLife sums the children). The curve Φ
+// has exponent < 1, so amber accrues more slowly the more lifetime a branch carries:
+// the diminishing returns come from the branch's own size, not the tree total. The
+// first amber lands at ~200 connected lifetime (Φ(pruneK)=1). Because a branch is
+// valued in isolation, pruning one branch never raises what another is worth.
 const lifeAmber = x => Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
-// Real-valued marginal amber for cutting branch n (before integer flooring): the
-// drop in the curve from removing this branch's life from the connected total.
+// Real-valued amber for cutting branch n (before integer flooring): the curve
+// evaluated at this branch's connected lifetime.
 const pruneGainRaw = n => {
-  const total = treeValue();                 // current connected lifetime flow
-  const branch = branchLife(n);              // what this cut removes
-  const marginal = lifeAmber(total) - lifeAmber(total - branch);
-  return marginal * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
+  const branch = branchLife(n);              // this branch's connected lifetime
+  return lifeAmber(branch) * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
 };
-// Amber is integer, but marginal cuts are fractional — carry the remainder so a
-// branch-by-branch dismantle banks the same total as one trunk cut (parts = whole).
+// Amber is integer but cuts are fractional — carry the remainder between cuts so
+// small branches don't round their sub-1 payouts away.
 const pruneGain = n => Math.floor(pruneGainRaw(n) + (S.amberCarry || 0));
 
 // ---------- state ----------
@@ -1292,7 +1316,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, amberCarry: 0, blooms: [], pesticideOn: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, amberCarry: 0, blooms: [], pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -1365,7 +1389,7 @@ function computeFlow(dt) {
     let s = 0, r = 0;
     if (n.type === 'leaf') {
       s = leafRate(n);
-      if (dt > 0 && !n.giftGain && SP().gold > 0) {
+      if (dt > 0 && !n.giftGain && SP().gold > 0 && !frozenOn() && !forcedOn()) {
         n.giftT -= dt;
         if (n.giftT <= 0) {
           n.giftAge = 0;
@@ -1690,10 +1714,12 @@ function sfx(kind) {
   } else if (kind === 'burst') {
     if (now - (AU.last.burst || 0) < 400) return;
     AU.last.burst = now;
-    // Capacitor discharge: a crisp electric zap with a quick bright tail.
-    tone(1200, 0.05, 'square', 0.05);
-    tone(620, 0.14, 'sawtooth', 0.06, 0.03);
-    tone(1560, 0.2, 'sine', 0.05, 0.07);
+    // Capacitor full: a deep charged thump that blooms into a bright ringing
+    // triad — reads as "topped off and releasing" rather than a flat zap.
+    tone(180, 0.1, 'sine', 0.09);
+    tone(523, 0.16, 'triangle', 0.07, 0.05);
+    tone(784, 0.22, 'sine', 0.06, 0.1);
+    tone(1175, 0.3, 'sine', 0.05, 0.16);
   } else if (kind === 'prune') {
     tone(140, 0.15, 'square', 0.1);
     tone(980, 0.3, 'sine', 0.1, 0.12);
@@ -1892,7 +1918,7 @@ function updateDrops(dt) {
     // updateCritters re-asserts it every frame while a bug is actively gnawing.
     n.fx.chew = Math.max(0, (n.fx.chew || 0) - dt * 5);
     if (n.type === 'leaf') {
-      if (n.giftGain) {
+      if (n.giftGain && !frozenOn()) {
         n.giftAge += dt;
         if (n.giftAge >= n.giftLife) {
           n.giftGain = 0;
@@ -2467,16 +2493,17 @@ function draw(time) {
       ctx.strokeStyle = n.bufWaste > 0.01 ? '#e25a4a' : '#6fd3e0';
       ctx.stroke();
     }
-    // Polish sheen: a soft glossy highlight toward the top-left that grows
-    // slightly brighter with each polish stack. No moving parts.
+    // Polish sheen: a glossy highlight that slowly rotates around the node and
+    // grows slightly brighter with each polish stack. No orbiting sparkles.
     if ((n.polish || 0) > 0 && n.type !== 'core') {
       const intensity = Math.min(0.16 + 0.05 * n.polish, 0.5);
-      const hx = px - rr * 0.25, hy = py - rr * 0.25;
-      const sg = ctx.createRadialGradient(hx, hy, 0, hx, hy, rr * 0.72);
+      const ga = time * 0.8 + n.id;
+      const gx = px + Math.cos(ga) * rr * 0.45, gy = py + Math.sin(ga) * rr * 0.45;
+      const sg = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 0.72);
       sg.addColorStop(0, `rgba(255,255,255,${intensity})`);
       sg.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = sg;
-      ctx.beginPath(); ctx.arc(hx, hy, rr * 0.72, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(gx, gy, rr * 0.72, 0, TAU); ctx.fill();
     }
     if (selected === n.id) {
       ctx.beginPath(); ctx.arc(px, py, rr + 7 * cam.scale, 0, TAU);
@@ -3028,6 +3055,8 @@ function refreshHud() {
   elAmberRate.textContent = 'from pruning';
   elAmberDetail.textContent = `Branches remember ${fmt(treeValue())} lifetime flow`;
   refreshPesticide();
+  refreshFreeze();
+  refreshForced();
   refreshAcorns();
   // Collapse the second row unless one of its items is showing, so it never
   // adds an empty band on a fresh tree.
@@ -3129,7 +3158,7 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, dismissedHints: S.dismissedHints || [],
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, amberCarry: S.amberCarry || 0, nodes }));
 }
 // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85% (100% with Eternity).
@@ -3188,7 +3217,7 @@ function load() {
   S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, blooms: Array.isArray(d.blooms)
     ? d.blooms.filter(x => x && BLOOMS[x.kind]).map(x => ({ kind: x.kind, t: x.t || 0 }))
     : (d.bloomT > 0 ? [{ kind: d.bloomKind || 'bloom3', t: d.bloomT }] : []),
-    pesticideOn: !!d.pesticideOn, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
+    pesticideOn: !!d.pesticideOn, frozen: !!d.frozen, forced: !!d.forced, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -4249,6 +4278,81 @@ pestBtn?.addEventListener('click', () => {
   save();
 });
 
+// ---------- freeze (Stasis) toggle ----------
+const freezeBtn = document.getElementById('freezebtn');
+function refreshFreeze() {
+  if (!freezeBtn) return;
+  if (!freezeOwned()) { freezeBtn.style.display = 'none'; return; }
+  freezeBtn.style.display = '';
+  const on = frozenOn();
+  freezeBtn.classList.toggle('on', on);
+  if (on) {
+    freezeBtn.textContent = '❄️ FROZEN';
+    freezeBtn.title = 'Tree frozen — all buff timers held in place. Click to thaw.';
+    freezeBtn.classList.remove('cantafford');
+  } else {
+    const cost = freezeCost();
+    freezeBtn.textContent = `❄️ OFF · ${fmt(cost)} resin`;
+    freezeBtn.title = `Freeze the tree for ${fmt(cost)} resin (≈10min of current resin). Holds all blooms, the Channel charge and gold-leaf timers in place until you thaw.`;
+    freezeBtn.classList.toggle('cantafford', S.resin < cost);
+  }
+}
+freezeBtn?.addEventListener('click', () => {
+  if (!freezeOwned()) return;
+  if (frozenOn()) {
+    S.frozen = false;
+    toast('❄️ Thawed — buff timers resume');
+  } else {
+    const cost = freezeCost();
+    if (S.resin < cost) { toast(`Need ${fmt(cost)} resin to freeze the tree.`); return; }
+    S.resin -= cost;
+    S.frozen = true;
+    grantAchievement('frozen');
+    toast(`❄️ Frozen — ${fmt(cost)} resin spent, buffs held in place`);
+    sfx('plink');
+  }
+  refreshFreeze();
+  save();
+});
+
+// ---------- Forced Bloom toggle ----------
+const forceBtn = document.getElementById('forcebtn');
+function refreshForced() {
+  if (!forceBtn) return;
+  if (!forcedOwned()) { forceBtn.style.display = 'none'; return; }
+  forceBtn.style.display = '';
+  const on = forcedOn();
+  forceBtn.classList.toggle('on', on);
+  if (on) {
+    forceBtn.textContent = '🌺 ON · ×3 · no gold';
+    forceBtn.title = 'Forced Bloom active — all production ×3, but no gold leaves appear. Click to turn off.';
+    forceBtn.classList.remove('cantafford');
+  } else {
+    const cost = forcedCost();
+    const mins = forcedCostSec() / 60;
+    forceBtn.textContent = `🌺 OFF · ${fmt(cost)} sap to arm`;
+    forceBtn.title = `Arm Forced Bloom for ${fmt(cost)} sap (≈${mins}min of current production). All production ×3 while on, but gold leaves stop appearing.`;
+    forceBtn.classList.toggle('cantafford', S.sap < cost);
+  }
+}
+forceBtn?.addEventListener('click', () => {
+  if (!forcedOwned()) return;
+  if (forcedOn()) {
+    S.forced = false;
+    toast('🌺 Forced Bloom off');
+  } else {
+    const cost = forcedCost();
+    if (S.sap < cost) { toast(`Need ${fmt(cost)} sap to arm Forced Bloom.`); return; }
+    S.sap -= cost;
+    S.forced = true;
+    grantAchievement('forced');
+    toast(`🌺 Forced Bloom armed — ${fmt(cost)} sap spent, production ×3`);
+    sfx('bloom');
+  }
+  refreshForced();
+  save();
+});
+
 // ---------- achievements panel ----------
 const trophy = document.getElementById('trophy');
 const achPanel = document.getElementById('achievements');
@@ -4415,9 +4519,11 @@ function frame(now) {
     if (META && !META.acornsOnce && ((META.lifetimeSap || 0) >= ACORN_UNLOCK_SAP || S.sap >= ACORN_UNLOCK_SAP)) {
       META.acornsOnce = true; saveMeta();
     }
-    tickBlooms(dt);
+    // Stasis holds every buff timer in place — blooms don't decay and the
+    // Channel charge neither refills nor drains while the tree is frozen.
+    if (!frozenOn()) tickBlooms(dt);
     // Verdant Touch: refill the charge meter, or drain it while channeling a leaf.
-    if (touchOwned()) {
+    if (touchOwned() && !frozenOn()) {
       if (!S.touch) S.touch = { charge: 0 };
       const cap = touchBoostDur();
       if (S.touch.charge > cap) S.touch.charge = cap;
