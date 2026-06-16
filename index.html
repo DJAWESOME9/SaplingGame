@@ -637,6 +637,10 @@ const CFG = {
   offlineCapSec: 4 * 3600,
   pruneK: 200,                           // connected lifetime flow for the first amber (lifeAmber(pruneK)=1)
   pruneResinWeight: 3,                    // resin-carrying lifetime counts this many × sap toward prune amber
+  // Gentle soft cap on a single node's amber: below the knee (in amber units) the
+  // ^0.40 curve is untouched; above it, growth rolls over into slow log accrual so
+  // very high-lifetime branches keep paying more, just with shrinking returns.
+  amberSoftKnee: 6, amberSoftScale: 18,
 };
 // ---------- the grove: prestige meta-progression (persists across cut-downs) ----------
 // Each species is a set of multipliers folded into the live formulas (1 = no effect).
@@ -857,6 +861,8 @@ function loadMeta() {
   if (typeof META.peakBaseS !== 'number') META.peakBaseS = 0;
   if (typeof META.peakBaseR !== 'number') META.peakBaseR = 0;
   if (typeof META.goldClicked !== 'number') META.goldClicked = 0;
+  if (typeof META.playMs !== 'number') META.playMs = 0;
+  if (typeof META.offlineMs !== 'number') META.offlineMs = 0;
   if (!META.canopy || typeof META.canopy !== 'object') META.canopy = { ripe: 0, growMs: ACORN_INTERVAL_MS };
   if (typeof META.canopy.growMs !== 'number') META.canopy.growMs = ACORN_INTERVAL_MS;
   if (typeof META.canopy.ripe !== 'number') META.canopy.ripe = 0;
@@ -1310,8 +1316,14 @@ const branchLifeR = n => {
 const nodeAmberLife = n => (n.life || 0) + (CFG.pruneResinWeight - 1) * (n.lifeR || 0);
 // The curve Φ has exponent < 1, so a single node's amber accrues with diminishing
 // returns as that node's own lifetime grows. The first amber lands at ~200 lifetime
-// (Φ(pruneK)=1).
-const lifeAmber = x => Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
+// (Φ(pruneK)=1). Past the soft knee the diminishing returns steepen further into a
+// log roll-off, so very long-lived branches keep gaining amber ever more slowly.
+const lifeAmber = x => {
+  const u = Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
+  const C = CFG.amberSoftKnee, k = CFG.amberSoftScale;
+  // Smooth (C¹-continuous) knee: identity below C, log roll-off above it.
+  return u <= C ? u : C + k * Math.log(1 + (u - C) / k);
+};
 // Real-valued amber for cutting branch n (before integer flooring). A cut removes n
 // AND every node connected above it, so the payout adds up each of those nodes
 // valued individually through Φ — a big branch pays the total of its parts rather
@@ -1372,7 +1384,7 @@ function newGame() {
              vigor: 0, verdance: 0, canopy: 0, surge: 0, blueprint: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0, blueprint: null,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, treeResin: 0, peakBaseS: 0, peakBaseR: 0, goldClicked: 0, amberCarry: 0, blooms: [], pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, treeResin: 0, peakBaseS: 0, peakBaseR: 0, goldClicked: 0, amberCarry: 0, treePlayMs: 0, treeOfflineMs: 0, blooms: [], pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -3438,7 +3450,7 @@ function save() {
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
-    roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, nodes }));
+    roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, nodes }));
 }
 // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85% (100% with Eternity).
 const offlineRateNow = () => metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
@@ -3450,6 +3462,8 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 function creditOffline(awaySecRaw) {
   const away = clamp(awaySecRaw, 0, offlineCapSecNow());
   if (away <= 30) return;
+  S.treeOfflineMs = (S.treeOfflineMs || 0) + away * 1000;
+  if (META) META.offlineMs = (META.offlineMs || 0) + away * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
@@ -3511,6 +3525,8 @@ function load() {
     peakBaseR: (typeof d.peakBaseR === 'number') ? d.peakBaseR : 0,
     goldClicked: (typeof d.goldClicked === 'number') ? d.goldClicked : 0,
     amberCarry: (typeof d.amberCarry === 'number') ? d.amberCarry : 0,
+    treePlayMs: (typeof d.treePlayMs === 'number') ? d.treePlayMs : 0,
+    treeOfflineMs: (typeof d.treeOfflineMs === 'number') ? d.treeOfflineMs : 0,
     touch: { charge: 0 }, channeling: false, channelNode: null,
     // Old saves predate the run timer; treat them as long-running so reloading an
     // established tree can't trivially hand out the speed-run achievements.
@@ -4704,6 +4720,16 @@ function renderStats() {
     { k: 'Total resin', v: pair(fmt(S.treeResin || 0), fmt(META.lifetimeResin || 0)) },
     { sec: 'Harvest' },
     { k: 'Gold leaves clicked', v: pair(fmt(S.goldClicked || 0), fmt(META.goldClicked || 0)) },
+    { sec: 'Time' },
+    { k: 'Play time', v: pair(fmtAcornTimer(S.treePlayMs || 0), fmtAcornTimer(META.playMs || 0)) },
+    { k: 'Offline time', v: pair(fmtAcornTimer(S.treeOfflineMs || 0), fmtAcornTimer(META.offlineMs || 0)) },
+    { sec: 'Buildings (owned / max)' },
+    ...['leaf', 'amp', 'ref', 'cap', 'funnel'].map(t => {
+      const max = typeMax(t), have = S.counts[t] || 0;
+      const name = GROW[t].label.replace(/^Grow /, '');
+      return { k: name.charAt(0).toUpperCase() + name.slice(1), v:
+        `<span class="sttree">${fmt(have)}${Number.isFinite(max) ? ` / ${fmt(max)}` : ''}</span>` };
+    }),
     { sec: 'Tree' },
     { k: 'Trees felled', v: `<span class="stlife">${fmt(META.treesCut || 0)}</span>` },
     { k: 'Rings banked', v: `<span class="stlife">${fmt(META.totalRings || 0)}</span>` },
@@ -4824,6 +4850,10 @@ function frame(now) {
     if (wallGap > 30) creditOffline(wallGap);
     const dt = clamp((now - last) / 1000, 0, 0.1);
     last = now;
+    // Active play time: real foreground seconds the loop runs (dt is clamped, so a
+    // sleep/suspend gap can't inflate it — that time is counted offline instead).
+    S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
+    META.playMs = (META.playMs || 0) + dt * 1000;
     const time = now / 1000;
     computeFlow(dt);
     // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
