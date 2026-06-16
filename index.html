@@ -1120,12 +1120,12 @@ const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
 const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so without a brake the tree-wide
-// rate would climb with every leaf. Stretch each leaf's timer faster than
-// linearly with the leaf count (L^1.4): the aggregate appearance rate is then
-// ~L / L^1.4 = L^-0.4, so the more leaves you have the markedly fewer gold leaves
-// you see overall, while a small sapling is left untouched (floor of 1).
-const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.4);
-const leafGiftDelay = n => clamp(80 / Math.max(leafRate(n), 0.75), 65, 210) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
+// rate would climb with every leaf. Stretch each leaf's timer steeply with the
+// leaf count (L^1.9): the aggregate appearance rate is then ~L / L^1.9 = L^-0.9,
+// so the tree-wide gold-leaf rate actually FALLS as the canopy fills out, while a
+// small sapling is left untouched (floor of 1).
+const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.9);
+const leafGiftDelay = n => clamp(100 / Math.max(leafRate(n), 0.75), 80, 240) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
@@ -2954,7 +2954,17 @@ function affordHint(cost, cur) {
 function actBtn(act, label, sub, cost, cur, extra) {
   const hint = (extra && extra.indexOf('data-maxed') !== -1) ? '' : affordHint(cost, cur);
   return `<button data-act="${act}" ${extra || ''} data-cost="${cost}" data-cur="${cur}">
-    ${label} — <span class="cost-${cur}">${fmt(cost)} ${cur}</span><small>${sub}${hint}</small></button>`;
+    ${label} — <span class="cost-${cur}">${fmt(cost)} ${cur}</span><small>${sub}<span class="ahint">${hint}</span></small></button>`;
+}
+// Label + sub for a leaf's gold-leaf button — shared by buildPanel and the
+// per-frame refresh so the ripening countdown ticks live.
+function burstBtnText(n) {
+  return {
+    label: n.giftGain ? 'Harvest gold leaf' : 'Waiting',
+    sub: n.giftGain
+      ? `grab ${fmt(n.giftGain)} sap before it fades`
+      : (metaLvl('omen') > 0 ? `next gold leaf in ${fmt(Math.max(0, n.giftT || 0))}s` : 'a gold leaf is brewing somewhere')
+  };
 }
 function buildPanel() {
   armPrune = false;
@@ -2981,9 +2991,7 @@ function buildPanel() {
       ? actBtn('up', 'Enrich leaf', `at max level ${lvlMax(n)} — grow Verdance`, costUp(n), 'sap', 'data-maxed="1"')
       : actBtn('up', 'Enrich leaf', `${fmt(leafRate(n))}/s → ${fmt(leafRate({ lvl: n.lvl + 1 }))}/s`, costUp(n), 'sap'));
     if (canPolish(n)) acts.push(actBtn('polish', 'Polish leaf', `polish ${(n.polish || 0)} / ${polishCap()}` + (polishAtCap(n) ? ' — at cap, raise Lacquer' : ` · resin lacquer · +6% sap/s`), costPolish(n), 'resin', polishAtCap(n) ? 'data-maxed="1"' : ''));
-    acts.push(actBtn('burst', n.giftGain ? 'Harvest gold leaf' : 'Waiting', n.giftGain
-      ? `grab ${fmt(n.giftGain)} sap before it fades`
-      : (metaLvl('omen') > 0 ? `next gold leaf in ${fmt(Math.max(0, n.giftT || 0))}s` : 'a gold leaf is brewing somewhere'), 0, 'sap'));
+    { const bt = burstBtnText(n); acts.push(actBtn('burst', bt.label, bt.sub, 0, 'sap')); }
   } else if (n.type === 'amp') {
     title = `Amplifier ×${ampMult(n).toFixed(1)} · lv ${n.lvl}/${lvlMax(n)}${n.polish ? ` · ✨${n.polish}` : ''}`;
     acts.push(n.lvl >= lvlMax(n)
@@ -3042,6 +3050,8 @@ function refreshPanel() {
   if (selectedRoot) {
     panel.querySelectorAll('button[data-act]').forEach(b => {
       b.disabled = S.amber < parseFloat(b.dataset.cost);
+      const ah = b.querySelector('.ahint');
+      if (ah) ah.innerHTML = affordHint(parseFloat(b.dataset.cost), b.dataset.cur);
     });
     return;
   }
@@ -3094,10 +3104,21 @@ function refreshPanel() {
       s += ' <span class="warn">· critter slowing output — click to scare it!</span>';
     st.innerHTML = s;
   }
+  // Live-refresh the gold-leaf button so its ripening countdown ticks each frame.
+  if (n.type === 'leaf') {
+    const bb = panel.querySelector('button[data-act="burst"]');
+    if (bb) {
+      const bt = burstBtnText(n);
+      bb.innerHTML = `${bt.label} — <span class="cost-sap">${fmt(0)} sap</span><small>${bt.sub}<span class="ahint"></span></small>`;
+    }
+  }
   panel.querySelectorAll('button[data-act]').forEach(b => {
     if (b.dataset.act === 'prune') return;
     if (b.dataset.act === 'bppaste') { b.disabled = S.sap < parseFloat(b.dataset.sap) || S.resin < parseFloat(b.dataset.resin); return; }
     b.disabled = b.dataset.maxed === '1' || S[b.dataset.cur] < parseFloat(b.dataset.cost);
+    // Live-refresh the calculator hint (% of bank · ETA) as bank and income drift.
+    const ah = b.querySelector('.ahint');
+    if (ah) ah.innerHTML = b.dataset.maxed === '1' ? '' : affordHint(parseFloat(b.dataset.cost), b.dataset.cur);
   });
 }
 panel.addEventListener('click', e => {
