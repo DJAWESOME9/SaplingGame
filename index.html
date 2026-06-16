@@ -699,7 +699,8 @@ const GROVE = {
   mythos:    { name:'Mythos',         glyph:'📜', tier:4, parent:'lacquer',    max:5, cost:l=>12+l*5, desc:'New branches start with +1 polish per level' },
   empyrean:  { name:'Empyrean',       glyph:'☀️', tier:4, parent:'verdure',    max:1, cost:_=>50,    desc:'Polish is free' },
   dreams:    { name:'Lucid Dreams',    glyph:'💭', tier:4, parent:'eternalSap', max:4, cost:l=>8+l*3, desc:'+5% offline production rate per level (toward the 85% cap)' },
-  pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%' },
+  pesticide: { name:'Pesticide',      glyph:'🧴', tier:4, parent:'bramble',    max:1, cost:_=>40,    desc:'Unlocks the Pesticide toggle: while on, critters never spawn, but leaf production is −15%',
+    blightName:'Tending Hand', blightGlyph:'🤲', blightDesc:'Blight: hover the cursor over a node to tend it — while held under the cursor it never withers and any rot already set in heals away.' },
   funnels:   { name:'Funnels',        glyph:'🪣', tier:4, parent:'eternalSap', max:4, cost:l=>30+l*15, desc:'Unlocks the Funnel — a routing node. Branch into it carries ×10 flow. +1 max funnel per level' },
   expandedRoots: { name:'Expanded Roots', glyph:'🌿', tier:4, parent:'birthright', max:1, cost:_=>80, desc:'Unlocks three hidden Roots: Marrow, Nimbus, and Bastion' },
   // Extra mid-tier — fill out the tree
@@ -711,7 +712,10 @@ const GROVE = {
   eternity:  { name:'Eternity',        glyph:'⏳', tier:5, parent:'dreams',     max:1, cost:_=>500,        desc:'Offline rate jumps to 100% (no cap)' },
   apotheosis:{ name:'Apotheosis',      glyph:'👑', tier:5, parent:'mythos',     max:1, cost:_=>600,        desc:'New branches start at the type\'s max level' },
   polishMastery: { name:'Polish Mastery', glyph:'🪞', tier:5, parent:'empyrean', max:3, cost:l=>200+l*120, desc:'Each polish stack is ×2 effective per level (stacks multiplicatively)' },
-  symbiosis: { name:'Symbiosis',       glyph:'🤝', tier:5, parent:'pesticide',  max:1, cost:_=>400,        desc:'Pesticide no longer costs −15% production' },
+  symbiosis: { name:'Symbiosis',       glyph:'🤝', tier:5, parent:'pesticide',  max:1, cost:_=>400,        desc:'Pesticide no longer costs −15% production',
+    blightName:'Ironbark', blightGlyph:'🛡️', blightDesc:'Blight: nodes wither far more slowly — both the grace period and the rot itself stretch out by 60%.' },
+  lastgleam: { name:'Last Gleam',      glyph:'✨', tier:5, parent:'symbiosis',  max:3, cost:l=>25+l*20,    blightOnly:true,
+    desc:'Blight: when a node would wither away, it instead burns one ✨ polish to cling on for +10s more per level (max +30s). No polish left, no reprieve.' },
   godseed:   { name:'Godseed',         glyph:'🌟', tier:5, parent:'worldtree',  max:1, cost:_=>1000,       desc:'Resin and capacitor flow both ×3' },
   canopycharm:{ name:'Canopy Charm',   glyph:'🍂', tier:5, parent:'worldtree',  max:3, cost:l=>150+l*100, desc:'Acorns ripen 20% faster per level, +1 max ripe slot per level' },
   // Active ability — charges over time, then hold a leaf to channel a production surge.
@@ -748,10 +752,16 @@ const speciesUnlocked = sp => {
   for (const k in GROVE) if (GROVE[k].unlocks === sp && metaLvl(k) > 0) return true;
   return false;
 };
+// blightOnly grove nodes only exist in Blight runs; hidden (and unplaced) otherwise.
+const groveVisible = k => !GROVE[k].blightOnly || hardMode();
 const groveAvailable = k => {
   const g = GROVE[k];
-  return !g.parent || metaLvl(g.parent) > 0;
+  return groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0);
 };
+// Some grove nodes are repurposed in Blight mode and show different name/glyph/text.
+const groveName  = k => (hardMode() && GROVE[k].blightName)  || GROVE[k].name;
+const groveDesc  = k => (hardMode() && GROVE[k].blightDesc)  || GROVE[k].desc;
+const groveGlyph = k => (hardMode() && GROVE[k].blightGlyph) || GROVE[k].glyph;
 let META;
 const MKEY = 'sapling-meta-v1';
 const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false });
@@ -1087,11 +1097,17 @@ const bloomLeafMult  = () => activeBlooms().reduce((m, x) => m * (x.kind !== 'ch
 const channelMult    = n => (S.channeling && n && n.id != null && (metaLvl('verdanttide') > 0 || n.id === S.channelNode)) ? touchMult() : 1;
 const bloomRefMult   = () => bloomProductOf('refMult');
 const bloomCapMult   = () => bloomProductOf('capMult');
-// Pesticide: toggle that blocks critters at a constant production penalty.
-const pesticideOwned = () => metaLvl('pesticide') > 0;
+// Pesticide: toggle that blocks critters at a constant production penalty. In
+// Blight mode the Pesticide / Symbiosis grove nodes are repurposed (see below), so
+// the critter toggle only exists outside Blight.
+const pesticideOwned = () => metaLvl('pesticide') > 0 && !hardMode();
 const pesticideCost  = () => Math.ceil(30 * Math.max(S.ema && S.ema.s ? S.ema.s : 0, 1));
 const pesticideOn    = () => !!S.pesticideOn && pesticideOwned();
 const pesticideMult  = () => pesticideOn() ? (metaLvl('symbiosis') > 0 ? 1 : 0.85) : 1;
+// Blight repurpose: Pesticide grove node → hovering a node tends it (stops/heals
+// wither); Symbiosis grove node → nodes wither far more slowly.
+const hoverGuardOwned = () => hardMode() && metaLvl('pesticide') > 0;
+const witherSlowOwned = () => hardMode() && metaLvl('symbiosis') > 0;
 // Stasis: a toggle that freezes every buff timer in place. While on, blooms and
 // surges stop decaying, the Channel charge holds, and gold leaves neither ripen
 // nor wilt — letting you bank a lucky bloom combo. Armed for ~10min of resin.
@@ -1126,10 +1142,16 @@ const BUG_EAT_WARN = 6;
 // to wither, then takes WITHER_TIME more seconds to rot away entirely (no payout).
 // Clicking the node — or just having it selected — keeps it fresh and heals any
 // wither already set in. While withering, its throughput sags up to WITHER_PENALTY.
-const WITHER_GRACE = 50;
-const WITHER_TIME = 40;
+const WITHER_GRACE = 70;
+const WITHER_TIME = 60;
 const WITHER_PENALTY = 0.7;
+const WITHER_PER_NODE = 1.5;   // both windows stretch a little per node you own —
+                               // a bigger tree gives you more runway to tend it
+const WITHER_SLOW_MULT = 1.6;  // Blight 'Resilience' (ex-Symbiosis) stretches both
 const witherMult = n => 1 - WITHER_PENALTY * (n.wither || 0);
+// Per-window timings, scaled by node count and the Blight slow-down upgrade.
+const witherGrace = () => (WITHER_GRACE + WITHER_PER_NODE * totalNodes()) * (witherSlowOwned() ? WITHER_SLOW_MULT : 1);
+const witherTime  = () => (WITHER_TIME  + WITHER_PER_NODE * totalNodes()) * (witherSlowOwned() ? WITHER_SLOW_MULT : 1);
 // Verdant Touch: a charge meter that fills over time, then drains while you hold a
 // leaf to pour a production surge (delivered through the bloom system as 'channel').
 const touchOwned    = () => metaLvl('verdanttouch') > 0;
@@ -1931,23 +1953,39 @@ function touchNode(id) {
   if (n.wither) n.wither = 0;
 }
 // Per-frame Blight wither pass. Nodes left un-clicked past the grace period rot;
-// the selected node counts as continuously attended. Paused while the player is
-// idle/away so stepping out doesn't quietly kill the tree.
+// the selected node (and, with the Green Thumb upgrade, the hovered node) count as
+// continuously attended. Paused while the player is idle/away so stepping out
+// doesn't quietly kill the tree.
 function updateWither(dt, idle) {
   if (!hardMode() || idle || dt <= 0 || overlayBlocksTree()) return;
+  const grace = witherGrace(), wtime = witherTime(), guardHover = hoverGuardOwned();
   for (const id in S.nodes) {
     const n = N(id);
     if (!n || n.parent == null) continue; // core is immune
-    if (n.id === selected) { n.idle = 0; if (n.wither) n.wither = 0; continue; }
+    if (n.id === selected || (guardHover && n.id === hovered)) { n.idle = 0; if (n.wither) n.wither = 0; continue; }
     n.idle = (n.idle || 0) + dt;
-    if (n.idle < WITHER_GRACE) {
-      if (n.wither) n.wither = Math.max(0, n.wither - dt / WITHER_TIME);
+    if (n.idle < grace) {
+      if (n.wither) n.wither = Math.max(0, n.wither - dt / wtime);
       continue;
     }
     const was = n.wither || 0;
-    n.wither = was + dt / WITHER_TIME;
+    n.wither = was + dt / wtime;
     if (was <= 0) spawnFloaty(n.x, n.y, '🥀 withering', '#b59a5a'); // warn on the turn
-    if (n.wither >= 1) witherAway(n.id);
+    if (n.wither >= 1) {
+      // Last Gleam: a fully-withered node burns one polish to buy +10s per level
+      // (capped at the upgrade's 3 levels) instead of dying outright.
+      const reprieve = 10 * metaLvl('lastgleam');
+      if (reprieve > 0 && (n.polish || 0) > 0) {
+        n.polish -= 1;
+        n.wither = Math.max(0, 1 - reprieve / wtime);
+        spawnFloaty(n.x, n.y, `✨ −1 · +${reprieve}s`, '#f0e0a0');
+        spawnBurst(n.x, n.y, '#f0e0a0', 10, 70, 0.6);
+        sfx('plink');
+        if (selected === n.id) buildPanel();
+      } else {
+        witherAway(n.id);
+      }
+    }
   }
 }
 
@@ -3751,7 +3789,7 @@ function buyGrove(k, n) {
   if (bought > 0) {
     groveJustBought = k;
     sfx('buy'); saveMeta(); replantIfPristine();
-    toast(`${g.glyph} ${g.name} ${metaLvl(k) >= g.max ? 'fully grown' : 'lv ' + metaLvl(k)} — ${bought > 1 ? `bought ${bought} levels` : 'bought'}`);
+    toast(`${groveGlyph(k)} ${groveName(k)} ${metaLvl(k) >= g.max ? 'fully grown' : 'lv ' + metaLvl(k)} — ${bought > 1 ? `bought ${bought} levels` : 'bought'}`);
     renderGrove();
     showGrovePopover(k);
   } else {
@@ -3771,6 +3809,7 @@ function groveLayout() {
   const R = [156, 312, 480, 648, 816, 984, 1152];
   const kids = {};
   for (const k of Object.keys(GROVE)) {
+    if (!groveVisible(k)) { GROVE[k]._x = null; continue; } // blightOnly nodes sit out
     const p = GROVE[k].parent;
     if (p) (kids[p] = kids[p] || []).push(k);
   }
@@ -3873,7 +3912,7 @@ function renderGroveTree() {
     circles += `<g class="${cls.join(' ')}" data-up="${k}" transform="translate(${g._x},${g._y})">
       <g class="gn-fx" style="${delay ? `animation-delay:${delay}s` : ''}">
         <circle r="36"/>
-        <text class="gn-glyph" y="4" text-anchor="middle">${g.glyph}</text>
+        <text class="gn-glyph" y="4" text-anchor="middle">${groveGlyph(k)}</text>
         ${g.max > 1 ? `<text class="gn-lvl" y="56" text-anchor="middle">${lvl}/${g.max}</text>` : (maxed ? `<text class="gn-lvl" y="56" text-anchor="middle">✓</text>` : '')}
       </g>
     </g>`;
@@ -4007,7 +4046,7 @@ function showGrovePopover(k) {
   if (!avail) {
     body = `<div class="gdesc">Locked — requires <b>${GROVE[g.parent]?.name || g.parent}</b> first.</div>`;
   } else if (maxed) {
-    body = `<div class="gdesc">${g.desc}</div><button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>`;
+    body = `<div class="gdesc">${groveDesc(k)}</div><button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>`;
   } else {
     const p1 = groveBuyPreview(k, 1), p10 = groveBuyPreview(k, 10), pMax = groveBuyPreview(k, Infinity);
     // Buttons stay clickable even when unaffordable so a tap always gives feedback
@@ -4020,9 +4059,9 @@ function showGrovePopover(k) {
       const dim = (label === '1' ? META.rings < costGrove(k) : prev.count === 0) ? ' style="opacity:.5"' : '';
       return `<button class="gbuy" data-up="${k}" data-amt="${label}"${dim}>${head}<br>${sub}</button>`;
     };
-    body = `<div class="gdesc">${g.desc}</div><div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
+    body = `<div class="gdesc">${groveDesc(k)}</div><div class="gbuyrow">${mk('1', p1)}${mk('10', p10)}${mk('max', pMax)}</div>`;
   }
-  pop.innerHTML = `<div class="gtitle"><span class="gglyph">${avail ? g.glyph : '🔒'}</span>${avail ? g.name : '???'}${g.max > 1 && avail ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>${body}`;
+  pop.innerHTML = `<div class="gtitle"><span class="gglyph">${avail ? groveGlyph(k) : '🔒'}</span>${avail ? groveName(k) : '???'}${g.max > 1 && avail ? `<span class="glvl">${lvl}/${g.max}</span>` : ''}</div>${body}`;
   pop.classList.add('open');
   positionGrovePopover(k);
 }

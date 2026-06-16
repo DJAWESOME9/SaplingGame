@@ -143,9 +143,13 @@ Birds and bugs occasionally land on producer nodes and **slow their throughput t
 An opt-in hard mode for veterans, chosen from a checkbox on the first-run intro (or after a hard reset). Once active:
 
 - **Critters swarm harder** and a bug left sitting on a leaf too long will **devour** it outright.
-- **Nodes wither from neglect** — a node you haven't clicked in a while starts to rot (🥀), its output sagging as it goes, and if left unattended it **withers away entirely** with no payout. Clicking it, harvesting its gold leaf, or swatting a bug off it keeps it fresh (the selected node never withers, and the central core is immune).
+- **Nodes wither from neglect** — a node you haven't clicked in a while starts to rot (🥀), its output sagging as it goes, and if left unattended it **withers away entirely** with no payout. Clicking it, harvesting its gold leaf, or swatting a bug off it keeps it fresh (the selected node never withers, and the central core is immune). The wither windows stretch a little for every node you own, so a bigger tree gives you more runway.
+- **Three Grove upgrades are repurposed for the wither fight** (the critter-toggle versions don't apply in Blight):
+  - 🤲 **Tending Hand** (ex-Pesticide) — hover the cursor over a node to tend it; held under the cursor it never withers and any rot heals away.
+  - 🛡️ **Ironbark** (ex-Symbiosis) — nodes wither ~60% more slowly (both the grace window and the rot).
+  - ✨ **Last Gleam** (Blight-only, 3 levels) — a node that would wither away instead burns one polish (✨ shine) to cling on for +10s per level (max +30s); no polish, no reprieve.
 - **Leaf output is taxed −15%** for the whole run.
-- **Every cheat code is disabled**, and the **Pesticide** / **Symbiosis** roots are locked out.
+- **Every cheat code is disabled.**
 - Its own **Blight** achievement category in the 🏆 panel: **Into the Blight**, **Thorn Forester**, **Bloom in Blight**, **Devoured**.
 
 It's a **one-way door**: you can leave via **Exit Blight mode** in the gear menu, but only after your first cut — and once you leave, you can't re-enter.
