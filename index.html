@@ -615,6 +615,7 @@ const CFG = {
   startSap: 12,
   offlineCapSec: 4 * 3600,
   pruneK: 200,                           // connected lifetime flow for the first amber (lifeAmber(pruneK)=1)
+  pruneResinWeight: 3,                    // resin-carrying lifetime counts this many × sap toward prune amber
 };
 // ---------- the grove: prestige meta-progression (persists across cut-downs) ----------
 // Each species is a set of multipliers folded into the live formulas (1 = no effect).
@@ -1259,6 +1260,20 @@ const branchLife = n => {
   for (const id of n.children) total += branchLife(N(id));
   return total;
 };
+// Same connected-lifetime sum, but counting only the resin-carried portion.
+const branchLifeR = n => {
+  if (!n) return 0;
+  let total = n.lifeR || 0;
+  for (const id of n.children) total += branchLifeR(N(id));
+  return total;
+};
+// Lifetime that actually feeds prune amber: resin-carried flow is worth
+// pruneResinWeight× as much as sap-carried flow. life = sapLife + resinLife, so the
+// weighted total is life + (weight − 1)·resinLife.
+const branchAmberLife = n => {
+  const life = branchLife(n), resin = branchLifeR(n);
+  return life + (CFG.pruneResinWeight - 1) * resin;
+};
 // Amber for a cut depends only on that branch's OWN connected lifetime — its life
 // plus everything connected above it (branchLife sums the children). The curve Φ
 // has exponent < 1, so amber accrues more slowly the more lifetime a branch carries:
@@ -1267,9 +1282,9 @@ const branchLife = n => {
 // valued in isolation, pruning one branch never raises what another is worth.
 const lifeAmber = x => Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
 // Real-valued amber for cutting branch n (before integer flooring): the curve
-// evaluated at this branch's connected lifetime.
+// evaluated at this branch's resin-weighted connected lifetime.
 const pruneGainRaw = n => {
-  const branch = branchLife(n);              // this branch's connected lifetime
+  const branch = branchAmberLife(n);         // resin counts extra toward this
   return lifeAmber(branch) * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
 };
 // Amber is integer but cuts are fractional — carry the remainder between cuts so
@@ -1296,7 +1311,7 @@ function startLvl(type) {
 function mkNode(type, parent) {
   const lvl0 = startLvl(type);
   const n = { id: S.nextId++, type, parent, children: [], lvl: lvl0, edgeLvl: (parent != null ? metaLvl('birthright') : 0), extraKids: 0, polish: (canPolish({type}) ? metaLvl('mythos') : 0), locked: false,
-    life: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
+    life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0,
     giftT: type === 'leaf' ? leafGiftDelay({ lvl: lvl0 }) : 0,
@@ -1457,7 +1472,7 @@ function computeFlow(dt) {
     S.waste += n.waste;
     S.wasteSap += n.wasteS;
     S.wasteResin += n.wasteR;
-    if (dt > 0) n.life += n.out * dt;
+    if (dt > 0) { n.life += n.out * dt; n.lifeR += n.outR * dt; }
     S.maxLife = Math.max(S.maxLife, n.life);
     return { s: s * k, r: r * k };
   };
@@ -2855,6 +2870,8 @@ function refreshPanel() {
       }
       if (n.type === 'amp' && !n.children.length) s += ` <span class="warn">· nothing feeds this yet</span>`;
       s += `<br>connected lifetime: ${fmt(branchLife(n))}`;
+      const resin = branchLifeR(n);
+      if (resin > 0.005) s += ` <span class="warn">· ${fmt(resin)} resin-carried (×${CFG.pruneResinWeight} amber)</span>`;
     }
     if (critters.some(c => c.nodeId === n.id && c.state === 'sitting'))
       s += ' <span class="warn">· critter slowing output — click to scare it!</span>';
@@ -3154,7 +3171,7 @@ function save() {
   }
   const nodes = Object.values(S.nodes).map(n => ({
     id: n.id, type: n.type, parent: n.parent, children: n.children, lvl: n.lvl, edgeLvl: n.edgeLvl,
-    extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, life: n.life, buf: n.buf, discharging: n.discharging,
+    extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, life: n.life, lifeR: n.lifeR || 0, buf: n.buf, discharging: n.discharging,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
@@ -3233,7 +3250,7 @@ function load() {
     // established tree can't trivially hand out the speed-run achievements.
     runStart: (typeof d.runStart === 'number') ? d.runStart : (Date.now() - 24 * 3600 * 1000) };
   for (const m of d.nodes) {
-    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, buf: { s: 0, r: 0 }, discharging: false,
+    S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
       giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
