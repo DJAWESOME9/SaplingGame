@@ -1029,6 +1029,19 @@ const ACHIEVEMENTS = {
   gold100:    { name:'Gold Rush',        glyph:'🪙', desc:'Harvest 100 gold leaves.' },
   gold1000:   { name:'Midas Touch',      glyph:'💰', desc:'Harvest 1,000 gold leaves.' },
   playtime10h:{ name:'Dedicated Gardener',glyph:'⏳', desc:'Play for 10 hours in total.' },
+  // Even deeper scale
+  nodes200:   { name:'Colossus',         glyph:'🗿', desc:'Reach 200 nodes on a tree.' },
+  cut250:     { name:'Woodcutter’s Guild',glyph:'🪓', desc:'Cut down 250 trees.' },
+  rate1t:     { name:'Sap Tsunami',      glyph:'🌊', desc:'Produce 1 trillion sap/second.' },
+  amber50k:   { name:'Amber Dynasty',    glyph:'👑', desc:'Collect 50,000 amber.' },
+  acorn100:   { name:'Acorn Empire',     glyph:'🌰', desc:'Bank 100 acorns at once.' },
+  playtime50h:{ name:'Rooted In',        glyph:'⌛', desc:'Play for 50 hours in total.' },
+  tree1q:     { name:'Cosmic Tree',      glyph:'🌌', cat:'challenge', desc:'Produce 1 quadrillion sap from a single tree.' },
+  // Blight (hard) mode — the wither fight
+  withered:   { name:'Left to Rot',      glyph:'🥀', cat:'blight', desc:'Let a node wither away from neglect.' },
+  lastgleam:  { name:'Last Gleam',       glyph:'✨', cat:'blight', desc:'Burn a node’s polish to save it from withering.' },
+  tended:     { name:'Green-Fingered',   glyph:'🤲', cat:'blight', desc:'Hold a withering node alive with the Tending Hand.' },
+  blightSap1b:{ name:'Garden of Thorns', glyph:'🌹', cat:'blight', desc:'Bank 1B sap during a Blight-mode run.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -1931,7 +1944,8 @@ function witherAway(id) {
   S.pristine = false;
   spawnFloaty(n.x, n.y, '🥀 withered', '#9a7b4a');
   spawnBurst(n.x, n.y, '#6b5a32', 16, 90, 0.85);
-  sfx('squish');
+  sfx('wither');
+  grantAchievement('withered');
   if (selected === id) selected = null;
   layout();
   buildPanel();
@@ -1953,7 +1967,7 @@ function touchNode(id) {
   if (n.wither) n.wither = 0;
 }
 // Per-frame Blight wither pass. Nodes left un-clicked past the grace period rot;
-// the selected node (and, with the Green Thumb upgrade, the hovered node) count as
+// the selected node (and, with the Tending Hand upgrade, the hovered node) count as
 // continuously attended. Paused while the player is idle/away so stepping out
 // doesn't quietly kill the tree.
 function updateWither(dt, idle) {
@@ -1962,7 +1976,11 @@ function updateWither(dt, idle) {
   for (const id in S.nodes) {
     const n = N(id);
     if (!n || n.parent == null) continue; // core is immune
-    if (n.id === selected || (guardHover && n.id === hovered)) { n.idle = 0; if (n.wither) n.wither = 0; continue; }
+    if (n.id === selected || (guardHover && n.id === hovered)) {
+      // Tending Hand reviving a node that had actually begun to rot.
+      if (guardHover && n.id === hovered && n.id !== selected && (n.wither || 0) > 0.05) grantAchievement('tended');
+      n.idle = 0; if (n.wither) n.wither = 0; continue;
+    }
     n.idle = (n.idle || 0) + dt;
     if (n.idle < grace) {
       if (n.wither) n.wither = Math.max(0, n.wither - dt / wtime);
@@ -1981,6 +1999,7 @@ function updateWither(dt, idle) {
         spawnFloaty(n.x, n.y, `✨ −1 · +${reprieve}s`, '#f0e0a0');
         spawnBurst(n.x, n.y, '#f0e0a0', 10, 70, 0.6);
         sfx('plink');
+        grantAchievement('lastgleam');
         if (selected === n.id) buildPanel();
       } else {
         witherAway(n.id);
@@ -2086,6 +2105,24 @@ function sfx(kind) {
     tone(260, 0.06, 'square', 0.08);
     tone(120, 0.18, 'sawtooth', 0.09, 0.03);
     tone(70, 0.22, 'sine', 0.06, 0.08);
+  } else if (kind === 'blightStart') {
+    // Ominous low swell as the Blight takes hold.
+    tone(196, 0.5, 'sawtooth', 0.07);
+    tone(147, 0.7, 'sine', 0.09, 0.08);
+    tone(98, 1.0, 'sine', 0.08, 0.2);
+  } else if (kind === 'blightEnd') {
+    // The blight recedes — a relieved rising major arpeggio.
+    tone(392, 0.16, 'triangle', 0.08);
+    tone(523, 0.18, 'triangle', 0.08, 0.1);
+    tone(659, 0.26, 'sine', 0.08, 0.22);
+    tone(784, 0.34, 'sine', 0.07, 0.34);
+  } else if (kind === 'wither') {
+    // A node rots away from neglect: a dry, sagging creak that drops off.
+    if (now - (AU.last.wither || 0) < 80) return;
+    AU.last.wither = now;
+    tone(300, 0.14, 'sawtooth', 0.06);
+    tone(150, 0.32, 'triangle', 0.08, 0.07);
+    tone(75, 0.5, 'sine', 0.07, 0.18);
   }
 }
 
@@ -3516,11 +3553,13 @@ function refreshHud() {
     if (S.sap >= 10000000 && rm <= 20) grantAchievement('speedSap3'); }
   if (acornsBanked() >= 10) grantAchievement('acorn10');
   if (acornsBanked() >= 50) grantAchievement('acorn50');
+  if (acornsBanked() >= 100) grantAchievement('acorn100');
   if (S.resin >= 1000) grantAchievement('resin1k');
   if (S.resin >= 1e5) grantAchievement('resin100k');
   if (S.amber >= 50) grantAchievement('amber50');
   if (S.amber >= 500) grantAchievement('amber500');
   if (S.amber >= 5000) grantAchievement('amber5000');
+  if (S.amber >= 50000) grantAchievement('amber50k');
   if (S.counts.leaf >= 10) grantAchievement('leafCount10');
   if (S.counts.leaf >= 25) grantAchievement('leafCount25');
   if (S.counts.amp >= 5) grantAchievement('ampCount5');
@@ -3531,17 +3570,20 @@ function refreshHud() {
   if (_totalNodes >= 60) grantAchievement('nodes60');
   if (_totalNodes >= 100) grantAchievement('nodes100');
   if (_totalNodes >= 150) grantAchievement('nodes150');
+  if (_totalNodes >= 200) grantAchievement('nodes200');
   if (META.rings >= 100) grantAchievement('rings100');
   if (META.rings >= 1000) grantAchievement('rings1000');
   if (META.rings >= 10000) grantAchievement('rings10000');
   if (S.sap >= 1e12) grantAchievement('sap1t');
   if (hardMode() && S.sap >= 1e6) grantAchievement('blightSap');
+  if (hardMode() && S.sap >= 1e9) grantAchievement('blightSap1b');
   // Sap-per-second milestones — from the smoothed income rate.
   { const rate = (S.ema && S.ema.s) || 0;
     if (rate >= 1000) grantAchievement('rate1k');
     if (rate >= 100000) grantAchievement('rate100k');
     if (rate >= 1e7) grantAchievement('rate10m');
-    if (rate >= 1e8) grantAchievement('rate100m'); }
+    if (rate >= 1e8) grantAchievement('rate100m');
+    if (rate >= 1e12) grantAchievement('rate1t'); }
   // Lifetime sap milestones — total ever produced across every tree.
   { const life = (META && META.lifetimeSap) || 0;
     if (life >= 1e6) grantAchievement('life1m');
@@ -3552,18 +3594,21 @@ function refreshHud() {
     if (ts >= 1e6) grantAchievement('tree1m');
     if (ts >= 1e8) grantAchievement('tree100m');
     if (ts >= 1e10) grantAchievement('tree10b');
-    if (ts >= 1e12) grantAchievement('tree1t'); }
+    if (ts >= 1e12) grantAchievement('tree1t');
+    if (ts >= 1e15) grantAchievement('tree1q'); }
   // Deep late-game scale milestones.
   if (S.sap >= 1e15) grantAchievement('sap1q');
   if (((META && META.lifetimeSap) || 0) >= 1e15) grantAchievement('life1q');
   if (((S.ema && S.ema.s) || 0) >= 1e9) grantAchievement('rate1b');
   if (META.rings >= 1e5) grantAchievement('rings100k');
+  if ((META.treesCut || 0) >= 250) grantAchievement('cut250');
   if ((META.treesCut || 0) >= 500) grantAchievement('cut500');
   if ((META.treesCut || 0) >= 1000) grantAchievement('cut1000');
   if ((S.counts.funnel || 0) >= 5) grantAchievement('funnel5');
   if (((META && META.goldClicked) || 0) >= 100) grantAchievement('gold100');
   if (((META && META.goldClicked) || 0) >= 1000) grantAchievement('gold1000');
   if (((META && META.playMs) || 0) >= 10 * 3600 * 1000) grantAchievement('playtime10h');
+  if (((META && META.playMs) || 0) >= 50 * 3600 * 1000) grantAchievement('playtime50h');
   // Reaching the ceiling on a single node — scan once. "Max" here means the
   // absolute cap with the max-raising upgrades fully bought (Verdance + Verdure
   // for leaves, Vigor for amps), not just whatever the current cap happens to be.
@@ -4947,7 +4992,7 @@ document.getElementById('exitblight')?.addEventListener('click', () => {
   buildPanel();        // re-enable the Pesticide/Symbiosis roots in the tree panel
   refreshPesticide();  // surface the toggle if Pesticide later becomes owned
   toast('🥀 You left Blight mode. The blight recedes — there is no going back.');
-  sfx('buy');
+  sfx('blightEnd');
 });
 document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Hard reset: erase your tree, all rings, every upgrade, and every backup. There is no undo. Continue?')) return;
@@ -5178,7 +5223,7 @@ document.getElementById('introBegin')?.addEventListener('click', () => {
   // later, so a once-exited Blight run can't be re-entered.
   if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
     META.hardMode = true;
-    grantAchievement('blightStart');
+    grantAchievement('blightStart'); sfx('blightStart');
     refreshCheatBadges();
   }
   META.seenIntro = true; saveMeta();
@@ -5189,7 +5234,7 @@ document.getElementById('intro')?.addEventListener('click', e => {
   if (e.target.id === 'intro') {
     if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
       META.hardMode = true;
-      grantAchievement('blightStart');
+      grantAchievement('blightStart'); sfx('blightStart');
       refreshCheatBadges();
     }
     META.seenIntro = true; saveMeta();
