@@ -83,6 +83,7 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Seasoned Leaves, Nest Egg, Windfall | T2 | Leaf start level, starting sap, +ring % |
 | Sunray, Omen | T2 / Vitality | Faster gold-leaf cadence / reveals next-gold timer on leaves |
 | Strong Swat | T2 / Endurance | Critter clicks deal **2** damage instead of 1 |
+| Blueprint | T2 / Heartgirth | Unlocks the 📐 topbar button — copy a branch, then graft a paid clone elsewhere |
 | Stasis | T2 / Vitality | Unlocks the ❄️ Freeze toggle (halt all buff timers for resin) |
 | Abacus | T2 / Endurance | Calculator: each purchase shows what % of your bank it costs and ~how long until affordable |
 | Bramble, Patience | T3 | Critters appear less often / offline production % |

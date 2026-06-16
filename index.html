@@ -692,6 +692,7 @@ const GROVE = {
   // Tier 2 — branches from each tier-1 node.
   seasoned:  { name:'Seasoned Leaves', glyph:'🍃', tier:2, parent:'vitality',  max:4,  cost:l=>2+l*2, desc:'New leaves begin +1 level higher per level' },
   nest:      { name:'Nest Egg',        glyph:'🥚', tier:2, parent:'girth',     max:6,  cost:l=>2+l,   desc:'New trees start with more sap and a little amber' },
+  blueprint: { name:'Blueprint',       glyph:'📐', tier:2, parent:'girth',     max:1,  cost:_=>10,    desc:'Unlocks the 📐 Blueprint button — copy a branch (10 min of resin), then graft a paid clone (full sap+resin price) anywhere it fits' },
   windfall:  { name:'Windfall',        glyph:'💰', tier:2, parent:'endurance', max:10, cost:l=>2+l,   desc:'+20% rings earned when you cut down, per level' },
   swatpower: { name:'Strong Swat',     glyph:'👊', tier:2, parent:'endurance', max:1,  cost:_=>5,     desc:'Clicking a critter deals 2 damage instead of 1' },
   // Tier 3 — deeper.
@@ -1296,8 +1297,6 @@ const ROOTS = {
                  desc: 'Each level: +1 max refineries' },
   vigor:       { name: 'Vigor',         x: -25,  y: 242, parent: 'grove',   max: 5,  cost: l => 6 * Math.pow(2, l),
                  desc: 'Each level: +2 max amplifier level' },
-  blueprint:   { name: 'Blueprint',     x: 45,   y: 248, parent: 'grove',   max: 1,  cost: l => 14,
-                 desc: 'Unlocks the 📐 Blueprint button — copy a branch (10 min of resin), then graft a paid clone (full sap+resin price) anywhere it fits' },
   canopy:      { name: 'Canopy',        x: 105,  y: 242, parent: 'crown',   max: 2,  cost: l => 10 * Math.pow(3, l),
                  desc: 'Each level: +1 branch slot on amplifiers, refineries and capacitors' },
   // tier 4
@@ -1460,7 +1459,7 @@ function newGame() {
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, funnel: 0 },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
              grove: 0, stills: 0, wells: 0, crown: 0, thrift: 0, distill: 0, fineness: 0, purity: 0,
-             vigor: 0, verdance: 0, canopy: 0, surge: 0, blueprint: 0,
+             vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0, blueprint: null,
     ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, treeResin: 0, peakBaseS: 0, peakBaseR: 0, goldClicked: 0, amberCarry: 0, treePlayMs: 0, treeOfflineMs: 0, blooms: [], pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
@@ -1812,7 +1811,7 @@ function bpCost() {
 }
 function bpCopy(id) {
   const n = N(id);
-  if (!n || n.type === 'core' || n.parent == null || rootLvl('blueprint') === 0) return false;
+  if (!n || n.type === 'core' || n.parent == null || metaLvl('blueprint') === 0) return false;
   const cost = bpCopyCost();
   if (S.resin < cost) { toast(`Need ${fmt(cost)} resin to copy this branch.`); return false; }
   S.resin -= cost;
@@ -1859,7 +1858,7 @@ function bpPaste(targetId) {
   return true;
 }
 // ---- Blueprint topbar flow: arm a mode on the 📐 button, act by tapping nodes ----
-const bpOwned = () => rootLvl('blueprint') > 0;
+const bpOwned = () => metaLvl('blueprint') > 0;
 // The set of nodes a copy would capture (the candidate and everything above it),
 // used to highlight the branch while you're choosing.
 function bpSubtree(id, out = new Set()) {
@@ -3835,7 +3834,7 @@ function load() {
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
              grove: 0, stills: 0, wells: 0, crown: 0, thrift: 0, distill: 0, fineness: 0, purity: 0,
-             vigor: 0, verdance: 0, canopy: 0, surge: 0, blueprint: 0,
+             vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0, ...d.roots },
     graftsBought: d.graftsBought || 0, blueprint: d.blueprint || null, ms: d.ms || {},
     incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0,
