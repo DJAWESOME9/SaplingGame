@@ -14,8 +14,11 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 - **Click a bug or bird** sitting on a node to scare it off (it deals one damage per click)
 - **🪓 Cut** button in the topbar → fells the tree and opens the Grove (prestige)
 - **🧴 Pesticide** (after Grove unlock) → arms a sap-cost toggle that stops critters; −15% leaf production while on (removed by **Symbiosis**)
+- **❄️ Freeze** (after **Stasis** Grove unlock) → pay ~10min of resin to halt every buff timer (blooms, Channel charge, gold-leaf ripening) until you thaw
+- **🌺 Forced Bloom** (after **Forced Bloom** Grove unlock) → pay sap to arm a ×3 production buff that runs until you turn it off, but no gold leaves appear while it burns
 - **🌰 Acorns** (after 1M lifetime sap) → ripen on the canopy in real time; tap to bank, long-press or right-click for the Pantheon
 - **🏆 Achievements** → progress tracker in the topbar
+- **📊 Stats** → drawer of run + lifetime figures: peak production, total sap/resin, gold leaves, play time, offline time, and buildings owned
 - **⚙ Settings** → volume, restore backup, save code, intro, hard reset, cheat codes
 - **Click the hint banner** to dismiss tutorial nudges for the current tree
 
@@ -29,7 +32,7 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 | **Rings** 🍃 | Cutting down a grown tree | Eternal Grove upgrades and species unlocks (across all trees) |
 | **Acorns** 🌰 | Ripen on the canopy (~1 per 2h of active play; offline counts at 10% rate) | Pantheon gods and eternal acorn-tempo upgrades |
 
-Acorns unlock after **1M lifetime sap** produced. A hint appears at 50% progress. Bank ripe acorns with the topbar 🌰 button; bank **3** to wake the **Pantheon**.
+Acorns unlock after **1M lifetime sap** produced. A hint appears at 50% progress. Bank ripe acorns with the topbar 🌰 button; bank **1** to wake the **Pantheon**.
 
 ## Node types
 
@@ -50,7 +53,7 @@ Every node panel has a small lock toggle. Locking a node hides every spend butto
 
 Every connection between nodes is a **branch** with throughput capacity. Flow that exceeds capacity leaks (red drips) — thicken the edge to widen capacity, or it's wasted.
 
-**Pruning** a branch sacrifices it and everything below it for **amber**, based on the branch's lifetime flow. Amber buys advancement in the Roots tree under the core. Payout has **diminishing returns** as the whole tree's connected lifetime flow grows, so a sprawling tree pays less per cut than a young one. The amber for a cut is *marginal* — the drop it causes in that curve — so dismantling a tree branch-by-branch banks exactly the same total as one trunk cut (the parts always sum to the whole). Fractional amber carries over between cuts so nothing is lost to rounding.
+**Pruning** a branch sacrifices it and everything below it for **amber**, based on lifetime flow. Amber buys advancement in the Roots tree under the core. Each node in the cut is valued **individually** through a diminishing-returns curve on its own connected lifetime, and the payout sums those parts — so a big branch pays the total of its pieces rather than one discounted lump, and dismantling a tree branch-by-branch banks the same as one trunk cut (the parts always sum to the whole). Each node's own value also has a **gentle soft cap**: past a high lifetime threshold its amber keeps rising but rolls into slow logarithmic growth, so a single ancient branch can't run away. Fractional amber carries over between cuts so nothing is lost to rounding.
 
 ## Roots tree
 
@@ -80,6 +83,8 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Seasoned Leaves, Nest Egg, Windfall | T2 | Leaf start level, starting sap, +ring % |
 | Sunray, Omen | T2 / Vitality | Faster gold-leaf cadence / reveals next-gold timer on leaves |
 | Strong Swat | T2 / Endurance | Critter clicks deal **2** damage instead of 1 |
+| Stasis | T2 / Vitality | Unlocks the ❄️ Freeze toggle (halt all buff timers for resin) |
+| Abacus | T2 / Endurance | Calculator: each purchase shows what % of your bank it costs and ~how long until affordable |
 | Bramble, Patience | T3 | Critters appear less often / offline production % |
 | Resin Glaze, Lacquer | T3 / Seasoned | Polish gives extra %, +1 max polish per node |
 | Born Resonant, Verdure | T3 / Resonant | Amp start level / max leaf level |
@@ -92,6 +97,8 @@ Organized into a small tree of their own, gated by tiers. Higher tiers cost more
 | Symbiosis | T5 / Pesticide | Pesticide no longer costs −15% production |
 | Born Refined, Born Charged | T3 | New refineries / capacitors begin +1 level higher per level |
 | Golden Bough | T3 / Sunray | Gold leaves pay +25% more sap per level |
+| Forced Bloom | T4 / Golden Bough | Unlocks the 🌺 Forced Bloom toggle (×3 production, no gold leaves while on) |
+| Frugal Bloom | T5 / Forced Bloom | Forced Bloom costs 30min of sap to arm instead of 1h |
 | Amber Heart | T4 / Crescent | Pruning yields +25% more amber per level |
 | Verdant Touch | T4 / Sunray | Unlocks the **Channel** active ability |
 | Everbloom | T5 / Verdant Touch | Channel surges last +3s and hit +50% harder per level |
@@ -107,14 +114,21 @@ Grove upgrade cards offer **×1**, **×10**, and **Max** bulk-buy buttons showin
 
 Once you've banked 3 acorns, long-press or right-click the 🌰 button to open the Pantheon. Slot up to **3 tree-gods** on pedestals — each has a blessing and a curse that apply globally:
 
-| God | Blessing | Curse |
-|---|---|---|
-| ☀️ Helios | +60% leaf production | Gold leaves ripen 50% slower |
-| 🌙 Selene | Gold leaves pay ×2 sap | Leaf production −15% |
-| 🌬️ Boreas | Amplifier multiplier ×1.5 | Branch capacity −25% |
-| 🌾 Demeter | Refineries yield +75% | Capacitor storage −30% |
-| 🪨 Atlas | Branch capacity ×1.5 | Amplifier multiplier −15% |
-| ⚰️ Charon | Pruning gives ×2 amber | Sap production −15% |
+| God | Cost | Blessing | Curse |
+|---|---|---|---|
+| ☀️ Helios | 2 | +60% leaf production | Gold leaves ripen 50% slower |
+| 🌙 Selene | 2 | Gold leaves pay ×2 sap | Leaf production −15% |
+| 🌬️ Boreas | 2 | Amplifier multiplier ×1.5 | Branch capacity −25% |
+| 🌾 Demeter | 2 | Refineries yield +75% | Capacitor storage −30% |
+| 🪨 Atlas | 2 | Branch capacity ×1.5 | Amplifier multiplier −15% |
+| ⚰️ Charon | 3 | Pruning gives ×2 amber | Sap production −15% |
+| 🍃 Zephyr | 2 | +30% leaf production | Branch capacity −15% |
+| 🔨 Hephaestus | 2 | Refineries yield +60% | Amplifier multiplier −15% |
+| 🌊 Poseidon | 2 | Capacitor storage ×1.4 | Refineries yield −15% |
+| 🪽 Hermes | 2 | Pruning gives ×1.5 amber | Capacitor storage −20% |
+| 🌑 Nyx | 3 | Gold leaves pay ×2.5 sap | Leaf production −20% |
+| ⚔️ Ares | 3 | Amplifier multiplier ×1.7 | Branch capacity −20% |
+| 🌍 Gaia | 3 | +25% leaf production & ×1.25 amber | Gold leaves ripen 30% slower |
 
 Gods cost 2–3 acorns to first unlock, then can be swapped freely. Effects stack multiplicatively across slots.
 
@@ -131,7 +145,7 @@ An opt-in hard mode for veterans, chosen from a checkbox on the first-run intro 
 - **Critters swarm harder** and a bug left sitting on a leaf too long will **devour** it outright.
 - **Leaf output is taxed −15%** for the whole run.
 - **Every cheat code is disabled**, and the **Pesticide** / **Symbiosis** roots are locked out.
-- Its own challenge achievements: **Into the Blight**, **Thorn Forester**, **Bloom in Blight**, **Devoured**.
+- Its own **Blight** achievement category in the 🏆 panel: **Into the Blight**, **Thorn Forester**, **Bloom in Blight**, **Devoured**.
 
 It's a **one-way door**: you can leave via **Exit Blight mode** in the gear menu, but only after your first cut — and once you leave, you can't re-enter.
 

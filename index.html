@@ -166,6 +166,10 @@
   .puppy-label { position:absolute; bottom:-8%; left:50%; transform:translateX(-50%); font-size:24px; color:#ffe6b0;
     font-weight:700; letter-spacing:.2em; text-shadow:0 2px 12px rgba(0,0,0,.5); white-space:nowrap; }
   @keyframes puppyBounce { 0%,100% { transform:translateY(0) rotate(-3deg); } 50% { transform:translateY(-6%) rotate(3deg); } }
+  /* Blight (hard mode) vignette — subtle purple darkening at the screen edges */
+  #blightvignette { position:fixed; inset:0; pointer-events:none; z-index:5; opacity:0; transition:opacity .6s;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(60,18,70,.22) 80%, rgba(38,8,52,.42) 100%); }
+  #blightvignette.on { opacity:1; }
   .saverow { display:flex; gap:6px; margin-top:6px; }
   .saverow button { flex:1 1 0; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:8px; padding:7px 8px; font-size:12px; cursor:pointer; }
@@ -497,6 +501,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
+<div id="blightvignette"></div>
 <div id="intro" role="dialog" aria-labelledby="introTitle">
   <div class="introbox">
     <h2 id="introTitle">🌱 Welcome to Sapling</h2>
@@ -967,9 +972,9 @@ const ACHIEVEMENTS = {
   hint25:     { name:'Curious',          glyph:'🧐', desc:'Dismiss 25 hints.' },
   hint50:     { name:'Knows the Ropes',  glyph:'📖', desc:'Dismiss 50 hints.' },
   // Blight (hard) mode
-  blightStart:{ name:'Into the Blight',  glyph:'🥀', cat:'challenge', desc:'Begin a run in Blight mode.' },
-  blightCut:  { name:'Thorn Forester',   glyph:'🪓', cat:'challenge', desc:'Fell a tree in Blight mode.' },
-  blightSap:  { name:'Bloom in Blight',  glyph:'🌹', cat:'challenge', desc:'Bank 1M sap during a Blight-mode run.' },
+  blightStart:{ name:'Into the Blight',  glyph:'🥀', cat:'blight', desc:'Begin a run in Blight mode.' },
+  blightCut:  { name:'Thorn Forester',   glyph:'🪓', cat:'blight', desc:'Fell a tree in Blight mode.' },
+  blightSap:  { name:'Bloom in Blight',  glyph:'🌹', cat:'blight', desc:'Bank 1M sap during a Blight-mode run.' },
   // Extra scale / prestige
   nodes100:   { name:'Elder Tree',       glyph:'🎄', desc:'Reach 100 nodes on a tree.' },
   cut100:     { name:'Clearcutter',      glyph:'🪵', desc:'Cut down 100 trees.' },
@@ -989,7 +994,7 @@ const ACHIEVEMENTS = {
   tree100m:   { name:'Sole Survivor',    glyph:'🌴', cat:'challenge', desc:'Produce 100M sap from a single tree.' },
   tree10b:    { name:'Eternal Tree',     glyph:'🪵', cat:'challenge', desc:'Produce 10B sap from a single tree.' },
   // Blight (hard) mode: bugs that linger devour leaves.
-  leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'challenge', desc:'Let a Blight bug eat one of your leaves.' },
+  leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'blight', desc:'Let a Blight bug eat one of your leaves.' },
   // Deep late-game scale — even bigger numbers.
   sap1q:      { name:'Sap Cosmos',       glyph:'🌠', desc:'Bank 1 quadrillion sap at once.' },
   life1q:     { name:'Lifetime Ocean',   glyph:'🏔️', desc:'Produce 1 quadrillion sap over your lifetime.' },
@@ -1002,6 +1007,18 @@ const ACHIEVEMENTS = {
   maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its highest possible level (Vigor maxed).' },
   ampX50:     { name:'Overdrive',        glyph:'🚀', cat:'challenge', desc:'Push an amplifier to ×50 or higher.' },
   maxRoot:    { name:'Taproot',          glyph:'🕸️', cat:'challenge', desc:'Max out any single root advancement.' },
+  // More milestones
+  resin100k:  { name:'Resin Reserve',    glyph:'🛢️', desc:'Bank 100k resin at once.' },
+  amber5000:  { name:'Amber Vault',      glyph:'🏛️', desc:'Collect 5,000 amber.' },
+  acorn50:    { name:'Hoarder Squirrel', glyph:'🐿️', desc:'Bank 50 acorns at once.' },
+  leafCount25:{ name:'Full Canopy',      glyph:'🌳', desc:'Own 25 leaves at once.' },
+  nodes150:   { name:'Ancient Giant',    glyph:'🌲', desc:'Reach 150 nodes on a tree.' },
+  rate100m:   { name:'Sap Cataract',     glyph:'💦', desc:'Produce 100M sap/second.' },
+  cut1000:    { name:'Timber Baron',     glyph:'🏭', desc:'Cut down 1,000 trees.' },
+  tree1t:     { name:'World Tree',       glyph:'🌍', cat:'challenge', desc:'Produce 1 trillion sap from a single tree.' },
+  gold100:    { name:'Gold Rush',        glyph:'🪙', desc:'Harvest 100 gold leaves.' },
+  gold1000:   { name:'Midas Touch',      glyph:'💰', desc:'Harvest 1,000 gold leaves.' },
+  playtime10h:{ name:'Dedicated Gardener',glyph:'⏳', desc:'Play for 10 hours in total.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -3368,10 +3385,14 @@ function refreshHud() {
     if (S.sap >= 100000 && rm <= 10) grantAchievement('speedSap2');
     if (S.sap >= 10000000 && rm <= 20) grantAchievement('speedSap3'); }
   if (acornsBanked() >= 10) grantAchievement('acorn10');
+  if (acornsBanked() >= 50) grantAchievement('acorn50');
   if (S.resin >= 1000) grantAchievement('resin1k');
+  if (S.resin >= 1e5) grantAchievement('resin100k');
   if (S.amber >= 50) grantAchievement('amber50');
   if (S.amber >= 500) grantAchievement('amber500');
+  if (S.amber >= 5000) grantAchievement('amber5000');
   if (S.counts.leaf >= 10) grantAchievement('leafCount10');
+  if (S.counts.leaf >= 25) grantAchievement('leafCount25');
   if (S.counts.amp >= 5) grantAchievement('ampCount5');
   if (S.counts.ref >= 4) grantAchievement('refCount4');
   if (S.counts.cap >= 4) grantAchievement('capCount4');
@@ -3379,6 +3400,7 @@ function refreshHud() {
   if (_totalNodes >= 30) grantAchievement('nodes30');
   if (_totalNodes >= 60) grantAchievement('nodes60');
   if (_totalNodes >= 100) grantAchievement('nodes100');
+  if (_totalNodes >= 150) grantAchievement('nodes150');
   if (META.rings >= 100) grantAchievement('rings100');
   if (META.rings >= 1000) grantAchievement('rings1000');
   if (META.rings >= 10000) grantAchievement('rings10000');
@@ -3388,7 +3410,8 @@ function refreshHud() {
   { const rate = (S.ema && S.ema.s) || 0;
     if (rate >= 1000) grantAchievement('rate1k');
     if (rate >= 100000) grantAchievement('rate100k');
-    if (rate >= 1e7) grantAchievement('rate10m'); }
+    if (rate >= 1e7) grantAchievement('rate10m');
+    if (rate >= 1e8) grantAchievement('rate100m'); }
   // Lifetime sap milestones — total ever produced across every tree.
   { const life = (META && META.lifetimeSap) || 0;
     if (life >= 1e6) grantAchievement('life1m');
@@ -3398,14 +3421,19 @@ function refreshHud() {
   { const ts = (S && S.treeSap) || 0;
     if (ts >= 1e6) grantAchievement('tree1m');
     if (ts >= 1e8) grantAchievement('tree100m');
-    if (ts >= 1e10) grantAchievement('tree10b'); }
+    if (ts >= 1e10) grantAchievement('tree10b');
+    if (ts >= 1e12) grantAchievement('tree1t'); }
   // Deep late-game scale milestones.
   if (S.sap >= 1e15) grantAchievement('sap1q');
   if (((META && META.lifetimeSap) || 0) >= 1e15) grantAchievement('life1q');
   if (((S.ema && S.ema.s) || 0) >= 1e9) grantAchievement('rate1b');
   if (META.rings >= 1e5) grantAchievement('rings100k');
   if ((META.treesCut || 0) >= 500) grantAchievement('cut500');
+  if ((META.treesCut || 0) >= 1000) grantAchievement('cut1000');
   if ((S.counts.funnel || 0) >= 5) grantAchievement('funnel5');
+  if (((META && META.goldClicked) || 0) >= 100) grantAchievement('gold100');
+  if (((META && META.goldClicked) || 0) >= 1000) grantAchievement('gold1000');
+  if (((META && META.playMs) || 0) >= 10 * 3600 * 1000) grantAchievement('playtime10h');
   // Reaching the ceiling on a single node — scan once. "Max" here means the
   // absolute cap with the max-raising upgrades fully bought (Verdance + Verdure
   // for leaves, Vigor for amps), not just whatever the current cap happens to be.
@@ -4174,6 +4202,8 @@ function refreshCheatBadges() {
   if (META && META.codesUsed) html += '<span class="cbadge codes" title="You have entered at least one cheat code on this save.">Used Codes</span>';
   if (META && META.hacks) html += '<span class="cbadge hacks" title="HACKER MODE is active on this save.">Hacks</span>';
   el.innerHTML = html;
+  // Purple vignette only while Blight mode is actively running.
+  document.getElementById('blightvignette')?.classList.toggle('on', !!(META && META.hardMode));
   // The exit option only appears while Blight mode is live and a tree has been felled.
   const exitBtn = document.getElementById('exitblight');
   if (exitBtn) exitBtn.style.display = (META && META.hardMode && (META.treesCut || 0) >= 1) ? '' : 'none';
@@ -4675,6 +4705,7 @@ function renderAchievements() {
   const sections = [
     { cat:'normal',    title:'Achievements', note:'+1% each' },
     { cat:'challenge', title:'Challenges',   note:'+1% each' },
+    { cat:'blight',    title:'Blight',       note:'+1% each' },
     { cat:'secret',    title:'Secrets',      note:'no bonus' },
   ];
   const bonusOn = metaLvl('accolades') > 0 || metaLvl('laurels') > 0;
