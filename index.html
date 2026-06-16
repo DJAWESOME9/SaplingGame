@@ -974,10 +974,10 @@ const soilMult   = () => Math.pow(1.25, S.roots.soil);
 const BLOOMS = {
   bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>3, descOf:()=>'×3 leaf production' },
   surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>5, descOf:()=>'×5 leaf production (short)' },
-  resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>1+0.2*S.counts.amp, descOf:()=>`each amp adds +20% leaf production (×${(1+0.2*S.counts.amp).toFixed(1)})` },
+  resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>1+0.2*S.counts.amp, relevant:()=>(S.counts.amp||0)>0, descOf:()=>`each amp adds +20% leaf production (×${(1+0.2*S.counts.amp).toFixed(1)})` },
   verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>1+0.08*S.counts.leaf, descOf:()=>`each leaf adds +8% production (×${(1+0.08*S.counts.leaf).toFixed(1)})` },
-  refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>2,  descOf:()=>'refineries ×2 yield' },
-  overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>1.6, descOf:()=>'capacitors burst ×1.6' },
+  refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>2,  relevant:()=>(S.counts.ref||0)>0, descOf:()=>'refineries ×2 yield' },
+  overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>1.6, relevant:()=>(S.counts.cap||0)>0, descOf:()=>'capacitors burst ×1.6' },
 };
 function pickBloom() {
   const keys = Object.keys(BLOOMS);
@@ -987,6 +987,9 @@ function pickBloom() {
   return keys[0];
 }
 const activeBlooms = () => (S.blooms || []).filter(x => x.t > 0 && BLOOMS[x.kind]);
+// A bloom is "shown" only if its effect applies to a node type you actually own —
+// don't surface e.g. a refinery/capacitor bloom in the HUD before you have any.
+const bloomShown = x => { const b = BLOOMS[x.kind]; return !b.relevant || b.relevant(); };
 function applyBloom(kind, dur) {
   const b = BLOOMS[kind];
   if (!b) return;
@@ -2914,6 +2917,7 @@ let boostTipOn = false, boostTipX = 0, boostTipY = 0;
 function boostTipHTML() {
   const rows = [];
   for (const x of activeBlooms()) {
+    if (!bloomShown(x)) continue;
     const b = BLOOMS[x.kind];
     rows.push(`<div class="bt-row"><span class="bt-ico">${b.icon}</span><span class="bt-name">${b.name}</span><span class="bt-time">${Math.ceil(x.t)}s</span><span class="bt-eff">${b.descOf()}</span></div>`);
   }
@@ -2964,7 +2968,7 @@ function refreshHud() {
   }
   const bb = document.getElementById('bloombadge');
   if (bb) {
-    const blooms = activeBlooms();
+    const blooms = activeBlooms().filter(bloomShown);
     if (blooms.length) {
       const minT = Math.ceil(Math.min(...blooms.map(x => x.t)));
       bb.style.display = '';
