@@ -1789,6 +1789,17 @@ function resize() {
   cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
 }
 window.addEventListener('resize', resize);
+// Safari (unlike Chrome) does NOT fire a resize event when devicePixelRatio changes
+// — e.g. retina settling after load, browser zoom, or dragging between displays — so
+// the canvas backing store can get stuck at the wrong resolution and render blurry.
+// Watch the current DPR with matchMedia and rebuild the backing store when it shifts.
+function watchDPR() {
+  const mq = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  const onChange = () => { resize(); watchDPR(); };
+  if (mq.addEventListener) mq.addEventListener('change', onChange, { once: true });
+  else mq.addListener(onChange);                 // older Safari
+}
+watchDPR();
 
 const cam = { scale: 1.3, ox: 0, oy: 0, init: false, manual: false, centering: false, tx: 0, ty: 0 };
 function zoomAt(screenX, screenY, nextScale) {
@@ -2237,6 +2248,9 @@ function drawGift(n, px, py, rr, time) {
   const dist = rr * (1.2 + scale * 0.18 + Math.sin(time * 1.3 + n.id) * 0.06);
   const bx = px + Math.cos(a) * dist, by = py + Math.sin(a) * dist;
   const br = rr * (0.26 + 0.08 * scale);
+  // Remember where this gold leaf is on screen so a click can target it directly,
+  // independent of the leaf node underneath.
+  n._giftHit = { x: bx, y: by, r: Math.max(br * 1.9, 14) };
   const glow = ctx.createRadialGradient(bx, by, br * 0.25, bx, by, br * 2.5);
   const goldR = n.giftBig ? 255 : 240, goldG = n.giftBig ? 150 : 211, goldB = n.giftBig ? 70 : 109;
   glow.addColorStop(0, `rgba(${goldR},${goldG},${goldB},${(n.giftBig ? 0.36 : 0.24) * alpha})`);
@@ -2686,6 +2700,20 @@ cv.addEventListener('pointerup', e => {
       drag = null;
       return;
     }
+    // Hit-test ripe gold leaves FIRST — they're drawn on top of everything, so a
+    // click on a gold leaf (or the leaf bearing one) harvests it and must NOT also
+    // select, center, or open the panel for the node underneath.
+    if (!wasChannel) {
+      let giftLeaf = null;
+      for (const id in S.nodes) {
+        const n = N(id);
+        if (n.type !== 'leaf' || !n.giftGain || !n._giftHit) continue;
+        if (Math.hypot(clickX - n._giftHit.x, clickY - n._giftHit.y) < n._giftHit.r) { giftLeaf = id; break; }
+      }
+      if (giftLeaf == null && targetId && N(targetId) && N(targetId).type === 'leaf' && N(targetId).giftGain)
+        giftLeaf = targetId;
+      if (giftLeaf != null) { harvestLeaf(giftLeaf); return; }
+    }
     // Hit-test critters FIRST. A critter sits above its node, so a click on
     // the bug/bird must not also count as a click on the underlying node:
     // no selection change, no centering, no leaf harvest.
@@ -2708,7 +2736,7 @@ cv.addEventListener('pointerup', e => {
     if (targetId && N(targetId)) {
       scareCritters(targetId);
       if (targetId === S.rootId) centerOnWorld(0, 0);
-      if (N(targetId).type === 'leaf' && !wasChannel) harvestLeaf(targetId);
+      // (Ripe gold leaves are harvested earlier and return before reaching here.)
     }
   }
   if (pointers.size < 2) pinch = null;
