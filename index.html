@@ -1212,6 +1212,17 @@ const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilM
 // drying up, while a small sapling is left untouched (floor of 1).
 const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.2);
 const leafGiftDelay = n => clamp(80 / Math.max(leafRate(n), 0.75), 65, 210) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
+// Never let the canopy flood with gold leaves (e.g. after returning from a long
+// time away, when many timers have ripened at once). Cap how many can sit
+// unharvested at the same time; any leaf that ripens past the cap simply holds at
+// the ready until one of the visible ones is picked or fades.
+const MAX_GOLD_ON_SCREEN = 6;
+const goldOnScreen = () => { let c = 0; for (const id in S.nodes) { const n = S.nodes[id]; if (n.type === 'leaf' && n.giftGain > 0) c++; } return c; };
+// A fresh gold-leaf timer: the base ripening delay nudged by a few seconds either
+// way, so leaves never ripen in perfect lockstep (and ripe-but-capped leaves don't
+// all release the instant a slot frees).
+const GOLD_JITTER = 4;
+const freshGiftT = n => Math.max(3, leafGiftDelay(n) + (Math.random() * 2 - 1) * GOLD_JITTER);
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
@@ -1450,7 +1461,7 @@ function mkNode(type, parent) {
     life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0, idle: 0, wither: 0,
-    giftT: type === 'leaf' ? leafGiftDelay({ lvl: lvl0 }) : 0,
+    giftT: type === 'leaf' ? freshGiftT({ lvl: lvl0 }) : 0,
     giftAge: 0, giftLife: 0, giftGain: 0, giftA: 0,
     fx: { pop: 0, flash: 0 } };
   S.nodes[n.id] = n;
@@ -1536,13 +1547,19 @@ function prepareEdgeCache() {
 // ---------- economy: typed flow {sap, resin} from leaves to core ----------
 function computeFlow(dt) {
   S.waste = 0; S.wasteSap = 0; S.wasteResin = 0; S.maxLife = 0;
+  // How many gold leaves are already showing — ripe leaves past the cap hold their
+  // timer at the ready instead of materialising, so the screen never floods.
+  let goldShown = (dt > 0) ? goldOnScreen() : 0;
   const rec = n => {
     let s = 0, r = 0;
     if (n.type === 'leaf') {
       s = leafRate(n);
       if (dt > 0 && !n.giftGain && SP().gold > 0 && !frozenOn() && !forcedOn()) {
         n.giftT -= dt;
-        if (n.giftT <= 0) {
+        if (n.giftT <= 0 && goldShown >= MAX_GOLD_ON_SCREEN) {
+          n.giftT = 0; // ripe but no room — wait here until a slot frees
+        } else if (n.giftT <= 0) {
+          goldShown++;
           n.giftAge = 0;
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
           n.giftBig = Math.random() < 0.09;
@@ -1673,7 +1690,7 @@ function harvestLeaf(id) {
   n.giftAge = 0;
   n.giftLife = 0;
   n.giftBig = false;
-  n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
+  n.giftT = freshGiftT(n);
   S.sap += gain;
   if (wasBig) {
     grantAchievement('bloomBasic');
@@ -2410,7 +2427,7 @@ function updateDrops(dt) {
           n.giftAge = 0;
           n.giftLife = 0;
           n.giftBig = false;
-          n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
+          n.giftT = freshGiftT(n);
         }
       }
     }
@@ -3870,7 +3887,7 @@ function load() {
   }
   for (const id in S.nodes) {
     const n = N(id);
-    if (n.type === 'leaf' && !n.giftGain && !(n.giftT > 0)) n.giftT = leafGiftDelay(n) * (0.8 + Math.random() * 0.6);
+    if (n.type === 'leaf' && !n.giftGain && !(n.giftT > 0)) n.giftT = freshGiftT(n);
   }
   if (!d.roots) { // pre-roots save: grandfather in whatever was already built or bought
     const a = d.amberUps || {};
