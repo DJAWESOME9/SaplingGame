@@ -1061,6 +1061,16 @@ const ACHIEVEMENTS = {
   lastgleam:  { name:'Last Gleam',       glyph:'✨', cat:'blight', desc:'Burn a node’s polish to save it from withering.' },
   tended:     { name:'Green-Fingered',   glyph:'🤲', cat:'blight', desc:'Hold a withering node alive with the Tending Hand.' },
   blightSap1b:{ name:'Garden of Thorns', glyph:'🌹', cat:'blight', desc:'Bank 1B sap during a Blight-mode run.' },
+  // Bigger per-building counts — pack a tree with one kind of building.
+  leafCount50:{ name:'Leaf Sea',         glyph:'🌿', desc:'Own 50 leaves at once.' },
+  ampCount15: { name:'Amp Wall',         glyph:'📊', desc:'Own 15 amplifiers at once.' },
+  refCount10: { name:'Refinery District',glyph:'🏭', desc:'Own 10 refineries at once.' },
+  capCount10: { name:'Capacitor Array',  glyph:'🪫', desc:'Own 10 capacitors at once.' },
+  funnel10:   { name:'Grand Junction',   glyph:'🛤️', desc:'Route flow through 10 funnels at once.' },
+  // Building variety and depth.
+  oneOfEach:  { name:'Diversified',      glyph:'🧩', desc:'Own a leaf, amp, refinery, capacitor and funnel at once.' },
+  graft10:    { name:'Master Grafter',   glyph:'🧵', desc:'Buy 10 graft slots in a single run.' },
+  polish5:    { name:'Showroom Shine',   glyph:'🪟', desc:'Keep 5 polished nodes at once.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -1541,15 +1551,16 @@ function layout() {
   relaxNodes();
 }
 // The radial fan gives crowded branch tips very narrow wedges, so sibling leaves
-// can land almost on top of one another. Nudge apart any pair of nodes closer than
-// their combined radii (a few gentle iterations); the core stays pinned and edges
-// just bend to follow. Runs on layout (grow/prune/load), never per frame.
+// can land almost on top of one another. Relax the whole tree: repeatedly push
+// apart any pair of nodes closer than their combined radii until nothing overlaps
+// (the loop is monotonic — pure separation — so it early-breaks once settled). The
+// core stays pinned and edges just bend to follow. Runs on layout, never per frame.
 function relaxNodes(iters) {
-  iters = iters || 6;
+  iters = iters || 80;
   const ns = [];
   for (const id in S.nodes) { const n = N(id); if (n.parent != null) ns.push(n); }
   if (ns.length < 2) return;
-  const PAD = 6;
+  const PAD = 8;
   for (let iter = 0; iter < iters; iter++) {
     let moved = false;
     for (let i = 0; i < ns.length; i++) {
@@ -3762,9 +3773,17 @@ function refreshHud() {
   if (S.amber >= 50000) grantAchievement('amber50k');
   if (S.counts.leaf >= 10) grantAchievement('leafCount10');
   if (S.counts.leaf >= 25) grantAchievement('leafCount25');
+  if (S.counts.leaf >= 50) grantAchievement('leafCount50');
   if (S.counts.amp >= 5) grantAchievement('ampCount5');
+  if (S.counts.amp >= 15) grantAchievement('ampCount15');
   if (S.counts.ref >= 4) grantAchievement('refCount4');
+  if (S.counts.ref >= 10) grantAchievement('refCount10');
   if (S.counts.cap >= 4) grantAchievement('capCount4');
+  if (S.counts.cap >= 10) grantAchievement('capCount10');
+  // Own at least one of every building type at once.
+  if ((S.counts.leaf||0) && (S.counts.amp||0) && (S.counts.ref||0) && (S.counts.cap||0) && (S.counts.funnel||0))
+    grantAchievement('oneOfEach');
+  if ((S.graftsBought || 0) >= 10) grantAchievement('graft10');
   const _totalNodes = Object.keys(S.nodes).length;
   if (_totalNodes >= 30) grantAchievement('nodes30');
   if (_totalNodes >= 60) grantAchievement('nodes60');
@@ -3955,7 +3974,7 @@ function load() {
     if (S.graftsBought > 0) { S.roots.amplify = 1; S.roots.refine = 1; S.roots.grafting = 1; }
   }
   layout();
-  relaxNodes(24); // thorough one-time declump so a crowded save loads fully spread
+  relaxNodes(400); // thorough one-time declump so a crowded save loads fully spread
   for (const id in S.nodes) { const n = N(id); n.x = n.tx; n.y = n.ty; }
   prepareEdgeCache();
   creditOffline((Date.now() - d.t) / 1000);
