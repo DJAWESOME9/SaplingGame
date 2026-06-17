@@ -1544,12 +1544,13 @@ function layout() {
 // can land almost on top of one another. Nudge apart any pair of nodes closer than
 // their combined radii (a few gentle iterations); the core stays pinned and edges
 // just bend to follow. Runs on layout (grow/prune/load), never per frame.
-function relaxNodes() {
+function relaxNodes(iters) {
+  iters = iters || 6;
   const ns = [];
   for (const id in S.nodes) { const n = N(id); if (n.parent != null) ns.push(n); }
   if (ns.length < 2) return;
   const PAD = 6;
-  for (let iter = 0; iter < 6; iter++) {
+  for (let iter = 0; iter < iters; iter++) {
     let moved = false;
     for (let i = 0; i < ns.length; i++) {
       for (let j = i + 1; j < ns.length; j++) {
@@ -3954,6 +3955,7 @@ function load() {
     if (S.graftsBought > 0) { S.roots.amplify = 1; S.roots.refine = 1; S.roots.grafting = 1; }
   }
   layout();
+  relaxNodes(24); // thorough one-time declump so a crowded save loads fully spread
   for (const id in S.nodes) { const n = N(id); n.x = n.tx; n.y = n.ty; }
   prepareEdgeCache();
   creditOffline((Date.now() - d.t) / 1000);
