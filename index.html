@@ -1206,12 +1206,12 @@ const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
 const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so without a brake the tree-wide
-// rate would climb with every leaf. Stretch each leaf's timer steeply with the
-// leaf count (L^1.9): the aggregate appearance rate is then ~L / L^1.9 = L^-0.9,
-// so the tree-wide gold-leaf rate actually FALLS as the canopy fills out, while a
-// small sapling is left untouched (floor of 1).
-const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.9);
-const leafGiftDelay = n => clamp(100 / Math.max(leafRate(n), 0.75), 80, 240) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
+// rate would climb with every leaf. Stretch each leaf's timer with the leaf
+// count (L^1.2): the aggregate appearance rate is then ~L / L^1.2 = L^-0.2, so the
+// tree-wide gold-leaf rate eases off gently as the canopy fills out without ever
+// drying up, while a small sapling is left untouched (floor of 1).
+const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.2);
+const leafGiftDelay = n => clamp(80 / Math.max(leafRate(n), 0.75), 65, 210) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
@@ -1249,6 +1249,11 @@ const GROW = {
   funnel: { cur: 'sap', cost: () => 240 * Math.pow(2.2, S.counts.funnel || 0) * thriftMult() * crowdMult(),
           label: 'Grow funnel', sub: 'passes flow · branch carries ×10' },
 };
+// Anti-softlock: prune away every leaf (or, in Blight, lose your last one to a
+// bug or to rot) and you'd have no sap income and no way to ever afford a new
+// leaf — a permanently stuck run. When you're down to zero leaves and can't pay
+// for one, the soil offers a free seedling so the tree can never die out.
+const leafRescue = () => (S.counts.leaf || 0) === 0 && S.sap < GROW.leaf.cost();
 const growUnlocked = t =>
   t === 'leaf' ||
   (t === 'amp' && rootLvl('amplify') > 0) ||
@@ -1630,8 +1635,11 @@ function grow(parentId, type) {
   if (type === 'ref' && p && p.type === 'ref') return; // refineries can't feed refineries
   if (S.counts[type] >= typeMax(type)) return;
   const cost = g.cost();
-  if (S[g.cur] < cost || p.children.length >= maxKids(p)) return;
-  S[g.cur] -= cost;
+  // A free rescue seedling when you'd otherwise be softlocked (see leafRescue).
+  const rescue = type === 'leaf' && (S.counts.leaf || 0) === 0 && S[g.cur] < cost;
+  if (p.children.length >= maxKids(p)) return;
+  if (!rescue && S[g.cur] < cost) return;
+  if (!rescue) S[g.cur] -= cost;
   S.pristine = false;
   const n = mkNode(type, parentId);
   n.x = p.x; n.y = p.y;
@@ -3357,6 +3365,9 @@ function buildPanel() {
       const g = GROW[t];
       if (S.counts[t] >= typeMax(t)) {
         acts.push(actBtn('grow', g.label, `at max ${typeMax(t)} — deepen your roots`, g.cost(), g.cur, `data-type="${t}" data-maxed="1"`));
+      } else if (t === 'leaf' && leafRescue()) {
+        // Softlock rescue: offer the first leaf back for free (see leafRescue).
+        acts.push(actBtn('grow', g.label, 'free seedling — the soil won’t let your tree die out', 0, g.cur, `data-type="${t}"`));
       } else {
         acts.push(actBtn('grow', g.label, g.sub, g.cost(), g.cur, `data-type="${t}"`));
       }
@@ -5333,29 +5344,26 @@ const introHardCheck = document.getElementById('introHardCheck');
 introHardCheck?.addEventListener('change', () => {
   introHard?.classList.toggle('on', introHardCheck.checked);
 });
-document.getElementById('introBegin')?.addEventListener('click', () => {
-  // The Blight-mode choice is only offered on a genuine first run (or after a
-  // hard reset, which clears seenIntro) — never when the intro is re-opened
-  // later, so a once-exited Blight run can't be re-entered.
+// Begin the run. The Blight-mode choice is only offered on a genuine first run
+// (or after a hard reset, which clears seenIntro) — never when the intro is
+// re-opened later, so a once-exited Blight run can't be re-entered. If Blight is
+// chosen we throw up one last warning of what it entails; returns false (leaving
+// the intro open) if the player backs out at that gate.
+function beginRun() {
   if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
+    if (!confirm('Begin in Blight mode? This is the hard mode: critters swarm harder, leaf output is taxed −15%, neglected nodes wither and rot away, and every cheat code is disabled. You may leave only after your first cut — and leaving is permanent, you can never re-enter Blight on this save. Embrace the Blight?')) return false;
     META.hardMode = true;
     grantAchievement('blightStart'); sfx('blightStart');
     refreshCheatBadges();
   }
   META.seenIntro = true; saveMeta();
   closeIntro();
-});
+  return true;
+}
+document.getElementById('introBegin')?.addEventListener('click', () => { beginRun(); });
 document.getElementById('intro')?.addEventListener('click', e => {
   // Click the dimmed backdrop to dismiss (counts as seen, since they've at least skimmed it)
-  if (e.target.id === 'intro') {
-    if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
-      META.hardMode = true;
-      grantAchievement('blightStart'); sfx('blightStart');
-      refreshCheatBadges();
-    }
-    META.seenIntro = true; saveMeta();
-    closeIntro();
-  }
+  if (e.target.id === 'intro') beginRun();
 });
 document.getElementById('showintro')?.addEventListener('click', () => {
   settings.classList.remove('open'); gear.classList.remove('open');
