@@ -1220,9 +1220,33 @@ const MAX_GOLD_ON_SCREEN = 6;
 const goldOnScreen = () => { let c = 0; for (const id in S.nodes) { const n = S.nodes[id]; if (n.type === 'leaf' && n.giftGain > 0) c++; } return c; };
 // A fresh gold-leaf timer: the base ripening delay nudged by a few seconds either
 // way, so leaves never ripen in perfect lockstep (and ripe-but-capped leaves don't
-// all release the instant a slot frees).
+// all release the instant a slot frees). Used when a timer cycles after a harvest.
 const GOLD_JITTER = 4;
 const freshGiftT = n => Math.max(3, leafGiftDelay(n) + (Math.random() * 2 - 1) * GOLD_JITTER);
+// A leaf's FIRST timer (when grown or first loaded): spread the phase randomly
+// across the whole ripening window. On a big canopy this staggers leaves into
+// different points of the cycle, so gold leaves arrive as a steady trickle — one
+// every little bit — instead of clumping (e.g. when several are grown at once),
+// each leaf's tree-wide period being ~delay/leafCount apart once spread.
+const initialGiftT = n => Math.max(3, leafGiftDelay(n) * (0.1 + Math.random() * 0.9));
+// Nudge apart any leaves whose pending gold-leaf timers sit almost on top of each
+// other (e.g. several grown in one burst, or a clumped old save), pushing the
+// close ones up to an even spacing across the ripening window so they ripen as a
+// trickle. Already-staggered timers are far enough apart that nothing moves.
+function declumpGiftTimers() {
+  const ls = [];
+  for (const id in S.nodes) { const n = S.nodes[id]; if (n.type === 'leaf' && !n.giftGain && n.giftT > 0) ls.push(n); }
+  if (ls.length < 2) return;
+  ls.sort((a, b) => a.giftT - b.giftT);
+  // Even spacing aims at delay/count (one ripening per slot); clamp so we never
+  // shove a timer a silly distance out, and only matters when leaves are closer.
+  const span = leafGiftDelay(ls[ls.length >> 1]); // representative ripening window
+  const gap = clamp(span / ls.length, GOLD_JITTER, span / 2);
+  for (let i = 1; i < ls.length; i++) {
+    const minT = ls[i - 1].giftT + gap;
+    if (ls[i].giftT < minT) ls[i].giftT = minT;
+  }
+}
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
@@ -1461,7 +1485,7 @@ function mkNode(type, parent) {
     life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0, idle: 0, wither: 0,
-    giftT: type === 'leaf' ? freshGiftT({ lvl: lvl0 }) : 0,
+    giftT: type === 'leaf' ? initialGiftT({ lvl: lvl0 }) : 0,
     giftAge: 0, giftLife: 0, giftGain: 0, giftA: 0,
     fx: { pop: 0, flash: 0 } };
   S.nodes[n.id] = n;
@@ -1514,6 +1538,35 @@ function layout() {
   const root = N(S.rootId);
   root.tx = 0; root.ty = 0;
   place(root, UP, 2.4, 0);
+  relaxNodes();
+}
+// The radial fan gives crowded branch tips very narrow wedges, so sibling leaves
+// can land almost on top of one another. Nudge apart any pair of nodes closer than
+// their combined radii (a few gentle iterations); the core stays pinned and edges
+// just bend to follow. Runs on layout (grow/prune/load), never per frame.
+function relaxNodes() {
+  const ns = [];
+  for (const id in S.nodes) { const n = N(id); if (n.parent != null) ns.push(n); }
+  if (ns.length < 2) return;
+  const PAD = 6;
+  for (let iter = 0; iter < 6; iter++) {
+    let moved = false;
+    for (let i = 0; i < ns.length; i++) {
+      for (let j = i + 1; j < ns.length; j++) {
+        const a = ns[i], b = ns[j];
+        let dx = b.tx - a.tx, dy = b.ty - a.ty;
+        let d = Math.hypot(dx, dy);
+        const min = nodeRadius(a) + nodeRadius(b) + PAD;
+        if (d >= min) continue;
+        if (d < 0.0001) { dx = jitter(a.id) || 1; dy = jitter(b.id); d = Math.hypot(dx, dy) || 1; }
+        const push = (min - d) / 2, ux = dx / d, uy = dy / d;
+        a.tx -= ux * push; a.ty -= uy * push;
+        b.tx += ux * push; b.ty += uy * push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
 }
 function place(n, dir, spread, depth) {
   const kids = n.children.map(N);
@@ -1661,6 +1714,7 @@ function grow(parentId, type) {
   const n = mkNode(type, parentId);
   n.x = p.x; n.y = p.y;
   S.counts[type]++;
+  if (type === 'leaf') declumpGiftTimers(); // slot the new leaf into an open phase
   if (_wasFirst) grantAchievement(({leaf:'firstLeaf',amp:'firstAmp',ref:'firstRef',cap:'firstCap',funnel:'firstFunnel'})[type]);
   sfx('buy');
   pulseNode(n, 1, 1);
@@ -1691,6 +1745,7 @@ function harvestLeaf(id) {
   n.giftLife = 0;
   n.giftBig = false;
   n.giftT = freshGiftT(n);
+  declumpGiftTimers(); // keep a freshly-recycled timer off any neighbour's phase
   S.sap += gain;
   if (wasBig) {
     grantAchievement('bloomBasic');
@@ -3887,8 +3942,9 @@ function load() {
   }
   for (const id in S.nodes) {
     const n = N(id);
-    if (n.type === 'leaf' && !n.giftGain && !(n.giftT > 0)) n.giftT = freshGiftT(n);
+    if (n.type === 'leaf' && !n.giftGain && !(n.giftT > 0)) n.giftT = initialGiftT(n);
   }
+  declumpGiftTimers(); // spread any leaves a clumped save left ripening together
   if (!d.roots) { // pre-roots save: grandfather in whatever was already built or bought
     const a = d.amberUps || {};
     S.roots.soil = a.soil || 0; S.roots.wood = a.wood || 0; S.roots.shears = a.shears || 0;
