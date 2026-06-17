@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git log *)",
+      "Skill(agent-browser)",
+      "Skill(agent-browser:*)",
+      "Bash(npm i *)"
     ]
   }
 }

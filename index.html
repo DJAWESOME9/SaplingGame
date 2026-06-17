@@ -980,6 +980,7 @@ const ACHIEVEMENTS = {
   // Critters
   scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
   scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
+  scare500:   { name:'Pestbane',         glyph:'🪲', desc:'Scare off 500 critters.' },
   pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
   frozen:     { name:'Cold Snap',        glyph:'❄️', desc:'Froze the tree to bank your buffs.' },
   forced:     { name:'Forced Bloom',     glyph:'🌺', desc:'Armed Forced Bloom for ×3 production.' },
@@ -1071,6 +1072,22 @@ const ACHIEVEMENTS = {
   oneOfEach:  { name:'Diversified',      glyph:'🧩', desc:'Own a leaf, amp, refinery, capacitor and funnel at once.' },
   graft10:    { name:'Master Grafter',   glyph:'🧵', desc:'Buy 10 graft slots in a single run.' },
   polish5:    { name:'Showroom Shine',   glyph:'🪟', desc:'Keep 5 polished nodes at once.' },
+  // Filling the gaps between existing milestone tiers.
+  sap100k:    { name:'Sap Reservoir',    glyph:'🪣', desc:'Bank 100k sap at once.' },
+  rate1m:     { name:'Sap Torrent',      glyph:'🌧️', desc:'Produce 1M sap/second.' },
+  life100m:   { name:'Lifetime River',   glyph:'🏞️', desc:'Produce 100M sap over your lifetime.' },
+  cut50:      { name:'Veteran Forester', glyph:'🪓', desc:'Cut down 50 trees.' },
+  rings1m:    { name:'Ring Galaxy',      glyph:'🌌', desc:'Bank 1,000,000 rings.' },
+  resin1m:    { name:'Resin Ocean',      glyph:'🛢️', desc:'Bank 1M resin at once.' },
+  amber500k:  { name:'Amber Cosmos',     glyph:'🟠', desc:'Collect 500,000 amber.' },
+  acorn250:   { name:'Acorn Dynasty',    glyph:'🌰', desc:'Bank 250 acorns at once.' },
+  gold10000:  { name:'King Midas',       glyph:'👑', desc:'Harvest 10,000 gold leaves.' },
+  playtime100h:{name:'Lifelong Gardener',glyph:'🕰️', desc:'Play for 100 hours in total.' },
+  nodes250:   { name:'Titan',            glyph:'🗿', desc:'Reach 250 nodes on a tree.' },
+  // Even bigger per-building counts.
+  leafCount100:{name:'Verdant Wall',     glyph:'🌳', desc:'Own 100 leaves at once.' },
+  ampCount30: { name:'Amp Fortress',     glyph:'📉', desc:'Own 30 amplifiers at once.' },
+  graft25:    { name:'Grandmaster Grafter',glyph:'🪢', cat:'challenge', desc:'Buy 25 graft slots in a single run.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -2595,6 +2612,7 @@ function scareCritters(nodeId) {
         META.crittersScared = (META.crittersScared || 0) + 1;
         if (META.crittersScared >= 10) grantAchievement('scare10');
         if (META.crittersScared >= 100) grantAchievement('scare100');
+        if (META.crittersScared >= 500) grantAchievement('scare500');
         sfx('squish');
       } else {
         sfx('bug');
@@ -3754,6 +3772,7 @@ function refreshHud() {
   refreshMiniDock();
   // Resource / scale milestones — cheap checks, idempotent grants.
   if (S.sap >= 10000) grantAchievement('sap10k');
+  if (S.sap >= 100000) grantAchievement('sap100k');
   if (S.sap >= 1000000) grantAchievement('sap1m');
   if (S.sap >= 1e9) grantAchievement('sap1b');
   // Speed-run milestones — sap reached within a time budget on a fresh tree.
@@ -3765,17 +3784,22 @@ function refreshHud() {
   if (acornsBanked() >= 10) grantAchievement('acorn10');
   if (acornsBanked() >= 50) grantAchievement('acorn50');
   if (acornsBanked() >= 100) grantAchievement('acorn100');
+  if (acornsBanked() >= 250) grantAchievement('acorn250');
   if (S.resin >= 1000) grantAchievement('resin1k');
   if (S.resin >= 1e5) grantAchievement('resin100k');
+  if (S.resin >= 1e6) grantAchievement('resin1m');
   if (S.amber >= 50) grantAchievement('amber50');
   if (S.amber >= 500) grantAchievement('amber500');
   if (S.amber >= 5000) grantAchievement('amber5000');
   if (S.amber >= 50000) grantAchievement('amber50k');
+  if (S.amber >= 500000) grantAchievement('amber500k');
   if (S.counts.leaf >= 10) grantAchievement('leafCount10');
   if (S.counts.leaf >= 25) grantAchievement('leafCount25');
   if (S.counts.leaf >= 50) grantAchievement('leafCount50');
+  if (S.counts.leaf >= 100) grantAchievement('leafCount100');
   if (S.counts.amp >= 5) grantAchievement('ampCount5');
   if (S.counts.amp >= 15) grantAchievement('ampCount15');
+  if (S.counts.amp >= 30) grantAchievement('ampCount30');
   if (S.counts.ref >= 4) grantAchievement('refCount4');
   if (S.counts.ref >= 10) grantAchievement('refCount10');
   if (S.counts.cap >= 4) grantAchievement('capCount4');
@@ -3784,15 +3808,18 @@ function refreshHud() {
   if ((S.counts.leaf||0) && (S.counts.amp||0) && (S.counts.ref||0) && (S.counts.cap||0) && (S.counts.funnel||0))
     grantAchievement('oneOfEach');
   if ((S.graftsBought || 0) >= 10) grantAchievement('graft10');
+  if ((S.graftsBought || 0) >= 25) grantAchievement('graft25');
   const _totalNodes = Object.keys(S.nodes).length;
   if (_totalNodes >= 30) grantAchievement('nodes30');
   if (_totalNodes >= 60) grantAchievement('nodes60');
   if (_totalNodes >= 100) grantAchievement('nodes100');
   if (_totalNodes >= 150) grantAchievement('nodes150');
   if (_totalNodes >= 200) grantAchievement('nodes200');
+  if (_totalNodes >= 250) grantAchievement('nodes250');
   if (META.rings >= 100) grantAchievement('rings100');
   if (META.rings >= 1000) grantAchievement('rings1000');
   if (META.rings >= 10000) grantAchievement('rings10000');
+  if (META.rings >= 1e6) grantAchievement('rings1m');
   if (S.sap >= 1e12) grantAchievement('sap1t');
   if (hardMode() && S.sap >= 1e6) grantAchievement('blightSap');
   if (hardMode() && S.sap >= 1e9) grantAchievement('blightSap1b');
@@ -3800,12 +3827,14 @@ function refreshHud() {
   { const rate = (S.ema && S.ema.s) || 0;
     if (rate >= 1000) grantAchievement('rate1k');
     if (rate >= 100000) grantAchievement('rate100k');
+    if (rate >= 1e6) grantAchievement('rate1m');
     if (rate >= 1e7) grantAchievement('rate10m');
     if (rate >= 1e8) grantAchievement('rate100m');
     if (rate >= 1e12) grantAchievement('rate1t'); }
   // Lifetime sap milestones — total ever produced across every tree.
   { const life = (META && META.lifetimeSap) || 0;
     if (life >= 1e6) grantAchievement('life1m');
+    if (life >= 1e8) grantAchievement('life100m');
     if (life >= 1e9) grantAchievement('life1b');
     if (life >= 1e12) grantAchievement('life1t'); }
   // One-tree milestones — sap produced by the current tree since it was planted.
@@ -3820,28 +3849,34 @@ function refreshHud() {
   if (((META && META.lifetimeSap) || 0) >= 1e15) grantAchievement('life1q');
   if (((S.ema && S.ema.s) || 0) >= 1e9) grantAchievement('rate1b');
   if (META.rings >= 1e5) grantAchievement('rings100k');
+  if ((META.treesCut || 0) >= 50) grantAchievement('cut50');
   if ((META.treesCut || 0) >= 250) grantAchievement('cut250');
   if ((META.treesCut || 0) >= 500) grantAchievement('cut500');
   if ((META.treesCut || 0) >= 1000) grantAchievement('cut1000');
   if ((S.counts.funnel || 0) >= 5) grantAchievement('funnel5');
+  if ((S.counts.funnel || 0) >= 10) grantAchievement('funnel10');
   if (((META && META.goldClicked) || 0) >= 100) grantAchievement('gold100');
   if (((META && META.goldClicked) || 0) >= 1000) grantAchievement('gold1000');
+  if (((META && META.goldClicked) || 0) >= 10000) grantAchievement('gold10000');
   if (((META && META.playMs) || 0) >= 10 * 3600 * 1000) grantAchievement('playtime10h');
   if (((META && META.playMs) || 0) >= 50 * 3600 * 1000) grantAchievement('playtime50h');
+  if (((META && META.playMs) || 0) >= 100 * 3600 * 1000) grantAchievement('playtime100h');
   // Reaching the ceiling on a single node — scan once. "Max" here means the
   // absolute cap with the max-raising upgrades fully bought (Verdance + Verdure
   // for leaves, Vigor for amps), not just whatever the current cap happens to be.
   { const leafCap = 10 + 2 * ROOTS.verdance.max + GROVE.verdure.max;
     const ampCap  = 3 + 2 * ROOTS.vigor.max;
-    let maxedLeaf = false, maxedAmp = false, bigAmp = false;
+    let maxedLeaf = false, maxedAmp = false, bigAmp = false, polished = 0;
     for (const id in S.nodes) {
       const n = N(id);
+      if ((n.polish || 0) > 0) polished++;
       if (n.type === 'leaf') { if (n.lvl >= leafCap) maxedLeaf = true; }
       else if (n.type === 'amp') { if (n.lvl >= ampCap) maxedAmp = true; if (ampMult(n) >= 50) bigAmp = true; }
     }
     if (maxedLeaf) grantAchievement('maxLeaf');
     if (maxedAmp) grantAchievement('maxAmp');
-    if (bigAmp) grantAchievement('ampX50'); }
+    if (bigAmp) grantAchievement('ampX50');
+    if (polished >= 5) grantAchievement('polish5'); }
   if (Object.keys(ROOTS).some(k => rootLvl(k) >= ROOTS[k].max)) grantAchievement('maxRoot');
   // Kaleidoscope: every distinct bloom variant rolled at least once.
   if (['bloomSurge','bloomReso','bloomVerd','bloomRefn','bloomOver'].every(k => META.achievements[k]))
