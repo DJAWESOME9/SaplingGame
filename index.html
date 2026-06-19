@@ -883,7 +883,20 @@ function acornTimerLabel() {
 }
 
 function loadMeta() {
-  try { META = JSON.parse(localStorage.getItem(MKEY)); } catch (e) { META = null; }
+  // META holds every lifetime stat and achievement. A single interrupted write
+  // (tab closed mid-save, browser killed, storage hiccup) can leave MKEY holding
+  // a truncated string; without a fallback that parse failure used to drop us
+  // straight to newMeta() and wipe everything. Try the primary slot, then the
+  // rolling backup, then the slow snapshot before giving up.
+  META = null;
+  for (const k of [MKEY, MKEY + '-bak', MKEY + '-snap']) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') { META = parsed; break; }
+    } catch (e) { /* try the next slot */ }
+  }
   if (!META || typeof META !== 'object') META = newMeta();
   META.up = META.up || {};
   META.achievements = META.achievements || {};
@@ -918,7 +931,24 @@ function loadMeta() {
   if (typeof META.totalRings !== 'number') META.totalRings = META.rings || 0;
   if (!SPECIES[META.species]) META.species = 'oak';
 }
-function saveMeta() { if (window.__SAPLING_WIPED) return; try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} }
+function saveMeta() {
+  if (window.__SAPLING_WIPED) return;
+  try {
+    // Roll the previous good value into backups before overwriting, mirroring the
+    // run-state save: -bak always holds the last stored value, -snap is an older
+    // copy refreshed at most once per 10 min so it survives a run of bad writes.
+    const prev = localStorage.getItem(MKEY);
+    if (prev) {
+      localStorage.setItem(MKEY + '-bak', prev);
+      const last = parseInt(localStorage.getItem(MKEY + '-snapT') || '0', 10) || 0;
+      if (Date.now() - last > 600000) {
+        localStorage.setItem(MKEY + '-snap', prev);
+        localStorage.setItem(MKEY + '-snapT', String(Date.now()));
+      }
+    }
+    localStorage.setItem(MKEY, JSON.stringify(META));
+  } catch (e) {}
+}
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
   // Discovery
@@ -4524,6 +4554,9 @@ function applySaveCode(code) {
   if (cur) localStorage.setItem(KEY + '-prereset', cur);
   if (blob.save) localStorage.setItem(KEY, blob.save); else localStorage.removeItem(KEY);
   if (blob.meta) localStorage.setItem(MKEY, blob.meta);
+  // Drop stale META backups so a later corrupt load can't fall back to the
+  // pre-import stats instead of the freshly imported ones.
+  for (const k of [MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(k);
   // Block autosave from clobbering the imported state during the reload.
   window.__SAPLING_WIPED = true;
   location.reload();
@@ -5255,7 +5288,8 @@ document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Really? This will wipe ALL Sapling progress. Type-equivalent of starting over from scratch.')) return;
   // Block autosave from re-writing in-memory state during the reload.
   window.__SAPLING_WIPED = true;
-  for (const k of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY]) {
+  for (const k of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset',
+                   MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) {
     localStorage.removeItem(k);
   }
   location.reload();
