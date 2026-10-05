@@ -430,8 +430,9 @@
   .gglyph { font-size:16px; }
   .glvl { margin-left:auto; font-size:12px; color:#9db89f; font-weight:400; }
   .gdesc { font-size:12px; color:#9db89f; line-height:1.4; flex:1; }
-  .gbuy { background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:9px;
-    padding:7px 9px; font-size:12.5px; cursor:pointer; text-align:center; }
+  .gbuy { display:block; width:100%; min-height:42px; margin-top:8px;
+    background:#1d2c20; border:1px solid #6f9a75; color:#dceade; border-radius:9px;
+    padding:8px 10px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; }
   .gbuy:hover:not(:disabled) { border-color:#6f9a75; background:#243827; }
   .gbuy:disabled { opacity:.4; cursor:default; }
   .speciesgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
@@ -4383,7 +4384,7 @@ function showGrovePopover(k) {
     body = `<div class="gdesc">${groveDesc(k)}</div><button class="gbuy" disabled>${g.unlocks ? 'Unlocked ✓' : 'Fully grown'}</button>`;
   } else {
     const cost = costGrove(k);
-    const head = lvl > 0 ? 'Deepen' : 'Unlock';
+    const head = lvl > 0 ? 'Buy 1 level' : 'Unlock';
     const dim = META.rings < cost ? ' style="opacity:.5"' : '';
     // Keep this clickable when unaffordable so buyGrove can explain the shortfall.
     body = `<div class="gdesc">${groveDesc(k)}</div><button class="gbuy" data-up="${k}"${dim}>${head}<br><small>${ringWord(cost)}</small></button>`;
