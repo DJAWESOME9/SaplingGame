@@ -43,6 +43,7 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 | Acorns/Pantheon/achievement/stat drawers | `tickAcorns`, `renderPantheon`, `renderAchievements`, `renderStats` |
 | Persistence/offline recovery | `save`, `load`, `creditOffline`, `loadMeta`, `saveMeta` |
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |
+| Optional online leaderboard | Settings panel and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
 | Main runtime and boot | `frame`, listeners near the end, final load/intro/bootstrap calls |
 
 ## Persistence and compatibility
@@ -56,6 +57,8 @@ The game stores two JSON records in browser `localStorage`:
 | `sapling-vol` | Audio volume preference | No parallel backup |
 
 `load()` accepts run save versions 1 and 2 and fills defaults for fields introduced after older saves. `loadMeta()` tries the primary meta value and backup slots before creating defaults. The game autosaves the run every six seconds, before unload, and when the document becomes hidden; meta is saved at relevant progression changes. Offline production is credited on reload and when returning from a hidden/suspended tab, with a calculated cap and rate.
+
+The optional leaderboard stores a random browser ID, display name, and personal bests for lifetime sap/resin, peak sap/resin production, and gold leaves clicked in Supabase. It is disabled until `window.SAPLING_LEADERBOARD` is configured; setup and trust limitations are in `docs/leaderboard.md`.
 
 When changing state fields, inspect both serialization and hydration, existing defaults, legacy version branches, save-code export/import, and reset/restore behavior. Do not assume a field is only transient because it is not visible in the save object: determine whether it should survive reload, cuts, or both.
 
