@@ -621,10 +621,10 @@
 <div id="settings">
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
-  <section id="adminTools" style="display:none" aria-label="Admin tools">
+  <section id="adminTools" aria-label="Admin tools">
     <h3>🛠 Admin controls</h3>
-    <p>Player support dashboard. This browser is registered as an administrator for this game.</p>
-    <a id="adminDashboardLink" href="admin.html">Open admin dashboard ↗</a>
+    <p>Administrator sign-in required. Manage player accounts and support actions.</p>
+    <a href="admin.html">Open admin dashboard ↗</a>
   </section>
   <section id="leaderboard" aria-label="Leaderboard">
     <h3>🌿 Grove leaderboards</h3>
@@ -690,6 +690,7 @@
   </div>
 </div>
 
+<script src="leaderboard-config.js"></script>
 <script>
 'use strict';
 const TAU = Math.PI * 2, UP = -Math.PI / 2;
@@ -814,6 +815,7 @@ const GROVE = {
   goldenage: { name:'Golden Age',      glyph:'🪙', tier:6, parent:'apotheosis', max:4, cost:l=>10000*Math.pow(2.15,l), desc:'Gold leaves pay +20% more sap per level' },
   longsummer:{ name:'Long Summer',     glyph:'🌞', tier:6, parent:'everbloom', max:5, cost:l=>8000*Math.pow(2,l), desc:'All blooms last +10% longer per level' },
   rootmemory:{ name:'Root Memory',     glyph:'🌀', tier:6, parent:'expandedRoots', max:3, cost:l=>11000*Math.pow(2.2,l), desc:'New trees begin with +1 extra root unlocked per level' },
+  rootstock: { name:'Rootstock',       glyph:'🪴', tier:6, parent:'expandedRoots', max:4, cost:l=>14000*Math.pow(2.15,l), desc:'Each level reveals another deep root: Artesian, Mycelium, Ironwood, then Raincatcher' },
   resinwell: { name:'Resinwell',       glyph:'🫙', tier:6, parent:'godseed', max:4, cost:l=>9500*Math.pow(2.1,l), desc:'Refinery resin yield +20% per level' },
   starfall:  { name:'Starfall',        glyph:'🌠', tier:6, parent:'worldtree', max:5, cost:l=>7500*Math.pow(2,l), desc:'+10% all production per level' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
@@ -1041,9 +1043,20 @@ const ACHIEVEMENTS = {
   speedSap2:  { name:'Sap Sprinter',     glyph:'🏃', cat:'challenge', desc:'Reach 100k sap within 10 minutes of a fresh tree.' },
   speedSap3:  { name:'Sapspeed',         glyph:'⚡', cat:'challenge', desc:'Reach 10M sap within 20 minutes of a fresh tree.' },
   speedSap4:  { name:'Speed Demon',      glyph:'😈', cat:'challenge', desc:'Reach 1M sap within 5 minutes of a fresh tree.' },
+  speedSap5:  { name:'Quick Roots',      glyph:'🌱', cat:'challenge', desc:'Reach 5k sap within 3 minutes of a fresh tree.' },
+  speedSap6:  { name:'Sap Streak',       glyph:'💧', cat:'challenge', desc:'Reach 25k sap within 4 minutes of a fresh tree.' },
+  speedSap7:  { name:'Rapid Growth',     glyph:'🌿', cat:'challenge', desc:'Reach 250k sap within 12 minutes of a fresh tree.' },
+  speedSap8:  { name:'Sap Cyclone',      glyph:'🌪️', cat:'challenge', desc:'Reach 5M sap within 10 minutes of a fresh tree.' },
+  speedSap9:  { name:'Mighty Surge',     glyph:'🌳', cat:'challenge', desc:'Reach 50M sap within 30 minutes of a fresh tree.' },
+  speedSap10: { name:'Forest in a Flash', glyph:'🌲', cat:'challenge', desc:'Reach 100M sap within 45 minutes of a fresh tree.' },
+  speedSap11: { name:'Sap Avalanche',    glyph:'🏔️', cat:'challenge', desc:'Reach 500M sap within 1 hour of a fresh tree.' },
+  speedSap12: { name:'Golden Hour',      glyph:'⏰', cat:'challenge', desc:'Reach 1B sap within 90 minutes of a fresh tree.' },
+  speedSap13: { name:'Living Legend',    glyph:'✨', cat:'challenge', desc:'Reach 10B sap within 2 hours of a fresh tree.' },
+  speedSap14: { name:'Ancient Sprint',   glyph:'🪵', cat:'challenge', desc:'Reach 100B sap within 4 hours of a fresh tree.' },
+  speedSap15: { name:'Worlds Apart',     glyph:'🌍', cat:'challenge', desc:'Reach 1T sap within 8 hours of a fresh tree.' },
   channeler:  { name:'Channeler',        glyph:'🫳', desc:'Channel a leaf with Verdant Touch.' },
   acorn10:    { name:'Acorn Hoard',      glyph:'🐿️', desc:'Bank 10 acorns at once.' },
-  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', cat:'challenge', desc:'Fill every Pantheon pedestal at once.' },
+  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', desc:'Fill every Pantheon pedestal at once.' },
   puppy:      { name:'Good Boy',         glyph:'🐶', cat:'secret', desc:'Summon the puppy.' },
   resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
   amber50:    { name:'Amber Eye',        glyph:'🟧', desc:'Collect 50 amber.' },
@@ -1060,7 +1073,7 @@ const ACHIEVEMENTS = {
   rootTier5:  { name:'Heart of the Tree',glyph:'❤️‍🔥', desc:'Unlock a tier-5 root node.' },
   // Grove / species
   species2:   { name:'Cultivar',         glyph:'🍎', desc:'Unlock a second tree species.' },
-  speciesAll: { name:'Botanist',         glyph:'🌷', cat:'challenge', desc:'Unlock every tree species.' },
+  speciesAll: { name:'Botanist',         glyph:'🌷', desc:'Unlock every tree species.' },
   groveT4:    { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 grove upgrade.' },
   // Bloom variants — each unlocks on its own kind
   bloomBasic: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
@@ -1088,7 +1101,7 @@ const ACHIEVEMENTS = {
   chocoholic: { name:'Chocoholic',       glyph:'🍩', cat:'secret', desc:'Trigger the Chocoholic blast.' },
   firstFunnel:{ name:'Routing Engineer', glyph:'🪣', desc:'Grow your first Funnel.' },
   startingRoots:{ name:'Three Pillars',  glyph:'🪨', desc:'Unlock Amplify, Rich soil, and Keen shears.' },
-  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', cat:'challenge', desc:'Unlock every single root advancement.' },
+  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', desc:'Unlock every single root advancement.' },
   silksong:   { name:'Silksong',         glyph:'🪡', cat:'secret', desc:'Trace the echoes of a long-awaited song.' },
   // Hints
   hint25:     { name:'Curious',          glyph:'🧐', desc:'Dismiss 25 hints.' },
@@ -1102,7 +1115,7 @@ const ACHIEVEMENTS = {
   cut100:     { name:'Clearcutter',      glyph:'🪵', desc:'Cut down 100 trees.' },
   sap1t:      { name:'Sap Eternal',      glyph:'♾️', desc:'Bank 1 trillion sap at once.' },
   rings10000: { name:'Ring Dynasty',     glyph:'💎', desc:'Bank 10,000 rings.' },
-  allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', cat:'challenge', desc:'Roll every bloom variant.' },
+  allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', desc:'Roll every bloom variant.' },
   // Sap-per-second challenges — sustained production rate.
   rate1k:     { name:'Steady Flow',      glyph:'🚰', desc:'Produce 1,000 sap/second.' },
   rate100k:   { name:'Gusher',           glyph:'⛲', desc:'Produce 100k sap/second.' },
@@ -1112,9 +1125,9 @@ const ACHIEVEMENTS = {
   life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', desc:'Produce 1B sap over your lifetime.' },
   life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', desc:'Produce 1 trillion sap over your lifetime.' },
   // One-tree challenges — sap produced by a single tree, no cutting allowed.
-  tree1m:     { name:'One and Done',     glyph:'🌳', cat:'challenge', desc:'Produce 1M sap from a single tree.' },
-  tree100m:   { name:'Sole Survivor',    glyph:'🌴', cat:'challenge', desc:'Produce 100M sap from a single tree.' },
-  tree10b:    { name:'Eternal Tree',     glyph:'🪵', cat:'challenge', desc:'Produce 10B sap from a single tree.' },
+  tree1m:     { name:'One and Done',     glyph:'🌳', desc:'Produce 1M sap from a single tree.' },
+  tree100m:   { name:'Sole Survivor',    glyph:'🌴', desc:'Produce 100M sap from a single tree.' },
+  tree10b:    { name:'Eternal Tree',     glyph:'🪵', desc:'Produce 10B sap from a single tree.' },
   // Blight (hard) mode: bugs that linger devour leaves.
   leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'blight', desc:'Let a Blight bug eat one of your leaves.' },
   // Deep late-game scale — even bigger numbers.
@@ -1127,8 +1140,8 @@ const ACHIEVEMENTS = {
   // Reach the ceiling on a single thing.
   maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its highest possible level (Verdance + Verdure maxed).' },
   maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its highest possible level (Vigor maxed).' },
-  ampX50:     { name:'Overdrive',        glyph:'🚀', cat:'challenge', desc:'Push an amplifier to ×50 or higher.' },
-  maxRoot:    { name:'Taproot',          glyph:'🕸️', cat:'challenge', desc:'Max out any single root advancement.' },
+  ampX50:     { name:'Overdrive',        glyph:'🚀', desc:'Push an amplifier to ×50 or higher.' },
+  maxRoot:    { name:'Taproot',          glyph:'🕸️', desc:'Max out any single root advancement.' },
   // More milestones
   resin100k:  { name:'Resin Reserve',    glyph:'🛢️', desc:'Bank 100k resin at once.' },
   amber5000:  { name:'Amber Vault',      glyph:'🏛️', desc:'Collect 5,000 amber.' },
@@ -1137,7 +1150,7 @@ const ACHIEVEMENTS = {
   nodes150:   { name:'Ancient Giant',    glyph:'🌲', desc:'Reach 150 nodes on a tree.' },
   rate100m:   { name:'Sap Cataract',     glyph:'💦', desc:'Produce 100M sap/second.' },
   cut1000:    { name:'Timber Baron',     glyph:'🏭', desc:'Cut down 1,000 trees.' },
-  tree1t:     { name:'World Tree',       glyph:'🌍', cat:'challenge', desc:'Produce 1 trillion sap from a single tree.' },
+  tree1t:     { name:'World Tree',       glyph:'🌍', desc:'Produce 1 trillion sap from a single tree.' },
   gold100:    { name:'Gold Rush',        glyph:'🪙', desc:'Harvest 100 gold leaves.' },
   gold1000:   { name:'Midas Touch',      glyph:'💰', desc:'Harvest 1,000 gold leaves.' },
   playtime10h:{ name:'Dedicated Gardener',glyph:'⏳', desc:'Play for 10 hours in total.' },
@@ -1148,7 +1161,7 @@ const ACHIEVEMENTS = {
   amber50k:   { name:'Amber Dynasty',    glyph:'👑', desc:'Collect 50,000 amber.' },
   acorn100:   { name:'Acorn Empire',     glyph:'🌰', desc:'Bank 100 acorns at once.' },
   playtime50h:{ name:'Rooted In',        glyph:'⌛', desc:'Play for 50 hours in total.' },
-  tree1q:     { name:'Cosmic Tree',      glyph:'🌌', cat:'challenge', desc:'Produce 1 quadrillion sap from a single tree.' },
+  tree1q:     { name:'Cosmic Tree',      glyph:'🌌', desc:'Produce 1 quadrillion sap from a single tree.' },
   // Blight (hard) mode — the wither fight
   withered:   { name:'Left to Rot',      glyph:'🥀', cat:'blight', desc:'Let a node wither away from neglect.' },
   lastgleam:  { name:'Last Gleam',       glyph:'✨', cat:'blight', desc:'Burn a node’s polish to save it from withering.' },
@@ -1179,9 +1192,9 @@ const ACHIEVEMENTS = {
   // Even bigger per-building counts.
   leafCount100:{name:'Verdant Wall',     glyph:'🌳', desc:'Own 100 leaves at once.' },
   ampCount30: { name:'Amp Fortress',     glyph:'📉', desc:'Own 30 amplifiers at once.' },
-  graft25:    { name:'Grandmaster Grafter',glyph:'🪢', cat:'challenge', desc:'Buy 25 graft slots in a single run.' },
+  graft25:    { name:'Grandmaster Grafter',glyph:'🪢', desc:'Buy 25 graft slots in a single run.' },
   // Long-run milestones for players who have cleared the current endgame tiers.
-  nodes500:   { name:'Canopy Colossus', glyph:'🌲', cat:'challenge', desc:'Reach 500 nodes on a tree.' },
+  nodes500:   { name:'Canopy Colossus', glyph:'🌲', desc:'Reach 500 nodes on a tree.' },
   leafCount250:{name:'Leaf Sea',       glyph:'🍃', desc:'Own 250 leaves at once.' },
   ampCount60: { name:'Thunderhead',    glyph:'🌩️', desc:'Own 60 amplifiers at once.' },
   sap10t:     { name:'Sap Eternity',   glyph:'♾️', desc:'Bank 10 quadrillion sap at once.' },
@@ -1331,7 +1344,8 @@ const shearsMult = () => Math.pow(1.25, S.roots.shears);
 const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
+const myceliumMult = () => Math.pow(1.2, rootLvl('mycelium'));
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * myceliumMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so without a brake the tree-wide
 // rate would climb with every leaf. Stretch each leaf's timer with the leaf
 // count (L^1.2): the aggregate appearance rate is then ~L / L^1.2 = L^-0.2, so the
@@ -1377,7 +1391,7 @@ function declumpGiftTimers() {
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
-const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * polishMult(n) * pantheonCapStorMult();
+const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * Math.pow(1.2, rootLvl('artesian')) * polishMult(n) * pantheonCapStorMult();
 const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult() * (metaLvl('godseed') > 0 ? 3 : 1);
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
 const POLISH_PCT  = 0.06;
@@ -1386,7 +1400,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -1494,6 +1508,14 @@ const ROOTS = {
                  desc: 'Each level: leaf production ×1.5', gated: 'expandedRoots' },
   bastion:     { name: 'Bastion',       x: 200,  y: 470, parent: 'artesian',  max: 4, cost: l => 18 * Math.pow(2, l),
                  desc: 'Each level: critters spawn 30% slower and have +1 HP', gated: 'expandedRoots' },
+  artesian:    { name: 'Artesian',      x: 270,  y: 535, parent: 'wells',     max: 4, cost: l => 18 * Math.pow(2, l),
+                 desc: 'Each level: capacitor storage ×1.2', gated: 'rootstock', gatedLevel: 1 },
+  mycelium:    { name: 'Mycelium',      x: 345,  y: 600, parent: 'artesian',  max: 5, cost: l => 20 * Math.pow(2, l),
+                 desc: 'Each level: leaf production ×1.2', gated: 'rootstock', gatedLevel: 2 },
+  ironwood:    { name: 'Ironwood',      x: 420,  y: 665, parent: 'mycelium',  max: 5, cost: l => 22 * Math.pow(2, l),
+                 desc: 'Each level: branch capacity ×1.2', gated: 'rootstock', gatedLevel: 3 },
+  raincatcher: { name: 'Raincatcher',   x: 495,  y: 730, parent: 'ironwood',  max: 5, cost: l => 24 * Math.pow(2, l),
+                 desc: 'Each level: refinery resin yield ×1.2', gated: 'rootstock', gatedLevel: 4 },
 };
 const thriftMult = () => Math.pow(0.88, rootLvl('thrift')) * SP().cost;
 const purityMult = () => 1 + 0.1 * rootLvl('purity');
@@ -1512,7 +1534,7 @@ const rootLvl       = k => S.roots[k] || 0;
 // Pesticide and its Symbiosis follow-up nullify critters entirely, which would
 // defuse the whole point of Blight mode — so they're unavailable while it's on.
 const BLIGHT_LOCKED_ROOTS = { pesticide: 1, symbiosis: 1 };
-const rootAvailable = k => !(hardMode() && BLIGHT_LOCKED_ROOTS[k]) && (!ROOTS[k].gated || metaLvl(ROOTS[k].gated) > 0) && (!ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0);
+const rootAvailable = k => !(hardMode() && BLIGHT_LOCKED_ROOTS[k]) && (!ROOTS[k].gated || metaLvl(ROOTS[k].gated) >= (ROOTS[k].gatedLevel || 1)) && (!ROOTS[k].parent || rootLvl(ROOTS[k].parent) > 0);
 // roots only appear while the core (or a root) is selected, and only once unlocked (prerequisite met)
 function showRoots() {
   if (selectedRoot) return true;
@@ -1525,7 +1547,7 @@ function buyRoot(k) {
   const r = ROOTS[k], c = costRoot(k);
   if (!rootAvailable(k) || rootLvl(k) >= r.max || S.amber < c) return;
   S.amber -= c;
-  S.roots[k]++;
+  S.roots[k] = (S.roots[k] || 0) + 1;
   grantAchievement('rootUnlock');
   const _depth = rootDepth(k);
   if (_depth >= 2) grantAchievement('rootTier3');
@@ -1764,7 +1786,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * Math.pow(1.2, rootLvl('raincatcher')) * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -3881,7 +3903,18 @@ function refreshHud() {
     if (S.sap >= 1000 && rm <= 2) grantAchievement('speedSap1');
     if (S.sap >= 1000000 && rm <= 5) grantAchievement('speedSap4');
     if (S.sap >= 100000 && rm <= 10) grantAchievement('speedSap2');
-    if (S.sap >= 10000000 && rm <= 20) grantAchievement('speedSap3'); }
+    if (S.sap >= 10000000 && rm <= 20) grantAchievement('speedSap3');
+    if (S.sap >= 5000 && rm <= 3) grantAchievement('speedSap5');
+    if (S.sap >= 25000 && rm <= 4) grantAchievement('speedSap6');
+    if (S.sap >= 250000 && rm <= 12) grantAchievement('speedSap7');
+    if (S.sap >= 5000000 && rm <= 10) grantAchievement('speedSap8');
+    if (S.sap >= 50000000 && rm <= 30) grantAchievement('speedSap9');
+    if (S.sap >= 100000000 && rm <= 45) grantAchievement('speedSap10');
+    if (S.sap >= 500000000 && rm <= 60) grantAchievement('speedSap11');
+    if (S.sap >= 1e9 && rm <= 90) grantAchievement('speedSap12');
+    if (S.sap >= 1e10 && rm <= 120) grantAchievement('speedSap13');
+    if (S.sap >= 1e11 && rm <= 240) grantAchievement('speedSap14');
+    if (S.sap >= 1e12 && rm <= 480) grantAchievement('speedSap15'); }
   if (acornsBanked() >= 10) grantAchievement('acorn10');
   if (acornsBanked() >= 50) grantAchievement('acorn50');
   if (acornsBanked() >= 100) grantAchievement('acorn100');
@@ -4205,6 +4238,70 @@ async function submitLeaderboardScore() {
     loadLeaderboard();
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
+const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
+function adminActionDone(id) {
+  try { return JSON.parse(localStorage.getItem(ADMIN_ACTIONS_KEY) || '[]').includes(id); } catch (e) { return false; }
+}
+function rememberAdminAction(id) {
+  try {
+    const ids = JSON.parse(localStorage.getItem(ADMIN_ACTIONS_KEY) || '[]');
+    ids.push(id);
+    localStorage.setItem(ADMIN_ACTIONS_KEY, JSON.stringify(ids.slice(-200)));
+  } catch (e) {}
+}
+async function processAdminActions() {
+  if (!lbConfigured || !lbPlayerId) return false;
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_pending_actions`, {
+      method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_player_id: lbPlayerId })
+    });
+    if (!res.ok) return false;
+    const actions = await res.json();
+    for (const action of actions || []) {
+      if (adminActionDone(action.id)) continue;
+      if (action.action_type === 'balance') {
+        if (Number.isFinite(action.sap_delta)) S.sap = Math.max(0, S.sap + action.sap_delta);
+        if (Number.isFinite(action.resin_delta)) S.resin = Math.max(0, S.resin + action.resin_delta);
+        save();
+      } else if (action.action_type === 'reset') {
+        window.__SAPLING_WIPED = true;
+        for (const key of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);
+      }
+      rememberAdminAction(action.id);
+      await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_ack_admin_action`, {
+        method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_action_id: action.id })
+      });
+      if (action.action_type === 'reset') { location.reload(); return true; }
+    }
+    if (actions && actions.length) { buildPanel(); computeFlow(0); }
+    return false;
+  } catch (e) { return false; /* Admin commands are best-effort while a player is online. */ }
+}
+async function submitPlayerSnapshot() {
+  if (!lbConfigured || !lbPlayerId) return;
+  try {
+    if (await processAdminActions()) return;
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_player_snapshot`, {
+      method: 'POST', headers: lbHeaders(),
+      body: JSON.stringify({
+        p_player_id: lbPlayerId,
+        p_display_name: (lbName.value.trim() || 'Sapling').slice(0, 20),
+        p_tree_sap: S.treeSap || 0, p_tree_resin: S.treeResin || 0,
+        p_lifetime_sap: META.lifetimeSap || 0, p_lifetime_resin: META.lifetimeResin || 0,
+        p_current_sap: S.sap || 0, p_current_resin: S.resin || 0,
+        p_peak_sap: META.peakBuffS || 0, p_peak_resin: META.peakBuffR || 0,
+        p_peak_base_sap: META.peakBaseS || 0, p_peak_base_resin: META.peakBaseR || 0,
+        p_gold_leaves: META.goldClicked || 0, p_play_ms: META.playMs || 0,
+        p_offline_ms: META.offlineMs || 0, p_trees_felled: META.treesCut || 0,
+        p_rings: META.totalRings || 0, p_species: META.species || 'oak',
+        p_node_count: Object.keys(S.nodes).length
+      })
+    });
+    if (res.ok) await processAdminActions();
+  } catch (e) { /* Online profile reporting is best-effort. */ }
+}
+setInterval(submitPlayerSnapshot, 60000);
+window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
 lbName.addEventListener('change', () => { try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value.trim().slice(0, 20)); } catch (e) {} });
 document.getElementById('lbRefresh').addEventListener('click', loadLeaderboard);
@@ -5657,6 +5754,7 @@ function frame(now) {
 resize();
 loadMeta();
 load();
+submitPlayerSnapshot();
 refreshCheatBadges();
 document.getElementById('wbClose')?.addEventListener('click', () => {
   document.getElementById('welcome').classList.remove('open');

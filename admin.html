@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sapling Admin</title>
+<style>
+  :root { color-scheme:dark; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:#0b110d; color:#e8e4d8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; }
+  main { max-width:1180px; margin:auto; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px; }
+  h1 { margin:0; font-size:22px; color:#cfe0cf; }
+  h2 { margin:0 0 12px; font-size:16px; color:#cfe0cf; }
+  .card { background:#101812; border:1px solid #2e3f31; border-radius:12px; padding:16px; margin-bottom:16px; }
+  .muted { color:#8fa891; font-size:13px; }
+  input,button { font:inherit; border:1px solid #3c5340; border-radius:8px; padding:9px 11px; color:#dceade; background:#0f1611; }
+  button { cursor:pointer; background:#1d2c20; }
+  button:hover { border-color:#8fc299; }
+  button.danger { background:#321919; border-color:#704040; color:#f0b2a8; }
+  form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:520px; }
+  form button { grid-column:1 / -1; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .toolbar input { flex:1; min-width:190px; }
+  .tablewrap { overflow:auto; max-height:48vh; }
+  table { width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap; }
+  th,td { text-align:left; padding:8px 9px; border-bottom:1px solid #25302e; }
+  th { position:sticky; top:0; background:#101812; color:#9db89f; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover, tbody tr.selected { background:#1d2c20; }
+  .detailgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
+  .metric { border:1px solid #25302e; border-radius:8px; padding:9px; }
+  .metric span { display:block; color:#8fa891; font-size:11px; }
+  .metric b { display:block; margin-top:3px; overflow-wrap:anywhere; font-size:14px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:14px; }
+  .actions input { width:150px; }
+  #message { min-height:20px; color:#f0d9a0; font-size:13px; }
+  @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>🌱 Sapling Admin</h1><a href="index.html" style="color:#9db89f">Back to game</a></header>
+  <section class="card" id="loginCard">
+    <h2>Administrator sign in</h2>
+    <p class="muted">Use the allowlisted administrator email. If you do not have a Supabase Auth account yet, create one with this email first.</p>
+    <form id="loginForm"><input id="email" type="email" autocomplete="username" placeholder="Admin email" value="djdavidfreeman@gmail.com" required><input id="password" type="password" autocomplete="current-password" placeholder="Password" required><button>Sign in</button><button id="createAccount" type="button">Create / resend account confirmation</button></form>
+  </section>
+  <section id="dashboard" hidden>
+    <div class="toolbar"><input id="search" placeholder="Filter players by name or ID"><button id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
+    <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">A player's profile appears after the game reports in. Playtime and profile stats refresh about once a minute while they are online.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last seen</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
+    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="resetPlayer" class="danger" type="button">Reset account</button></div><p class="muted">Balance changes and resets are queued for the player's game. They take effect the next time that browser checks in. A reset clears their local run and meta progress.</p></div>
+  </section>
+  <div id="message" role="status"></div>
+</main>
+<script src="leaderboard-config.js"></script>
+<script>
+const CONFIG = window.SAPLING_LEADERBOARD || { url:'', anonKey:'' };
+const base = (CONFIG.url || '').replace(/\/$/, '');
+const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONFIG.anonKey;
+const $ = id => document.getElementById(id);
+let token = '', players = [], selected = null;
+function say(text) { $('message').textContent = text; }
+function headers() { return { apikey:CONFIG.anonKey, Authorization:`Bearer ${token || CONFIG.anonKey}`, 'Content-Type':'application/json' }; }
+async function rpc(name, body = {}) {
+  const res = await fetch(`${base}/rest/v1/rpc/${name}`, { method:'POST', headers:headers(), body:JSON.stringify(body) });
+  if (!res.ok) throw new Error((await res.text()).slice(0,240) || `Request failed (${res.status})`);
+  return res.status === 204 ? null : res.json();
+}
+function n(value) { const x=Number(value)||0; return x.toLocaleString(undefined,{maximumFractionDigits:2}); }
+function duration(ms) { let s=Math.floor((Number(ms)||0)/1000); const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); return `${d}d ${h}h ${m}m`; }
+function render() {
+  const q=$('search').value.trim().toLowerCase();
+  const shown=players.filter(p => !q || `${p.display_name} ${p.player_id}`.toLowerCase().includes(q));
+  $('playerCount').textContent=`(${players.length})`;
+  $('players').innerHTML=shown.map(p=>`<tr data-id="${p.player_id}" class="${selected?.player_id===p.player_id?'selected':''}"><td>${escapeHtml(p.display_name)}</td><td>${new Date(p.updated_at).toLocaleString()}</td><td>${duration(p.play_ms)}</td><td>${n(p.current_sap)}</td><td>${n(p.current_resin)}</td><td>${n(p.lifetime_sap)}</td><td>${n(p.lifetime_resin)}</td><td>${n(p.gold_leaves)}</td><td>${n(p.trees_felled)}</td><td>${escapeHtml(p.species)}</td></tr>`).join('');
+  if (!selected) { $('selectedTitle').textContent='Select a player'; $('details').innerHTML=''; return; }
+  $('selectedTitle').textContent=`${selected.display_name} · ${selected.player_id}`;
+  const metrics=[['Playtime online',duration(selected.play_ms)],['Offline time',duration(selected.offline_ms)],['Current tree sap',n(selected.tree_sap)],['Current tree resin',n(selected.tree_resin)],['Peak sap / sec',n(selected.peak_sap)],['Peak resin / sec',n(selected.peak_resin)],['Highest sap base rate / sec',n(selected.peak_base_sap)],['Highest resin base rate / sec',n(selected.peak_base_resin)],['Lifetime sap',n(selected.lifetime_sap)],['Lifetime resin',n(selected.lifetime_resin)],['Current sap balance',n(selected.current_sap)],['Current resin balance',n(selected.current_resin)],['Gold leaves clicked',n(selected.gold_leaves)],['Trees felled',n(selected.trees_felled)],['Lifetime rings',n(selected.rings)],['Current tree nodes',n(selected.node_count)],['Species',selected.species],['Account last seen',new Date(selected.updated_at).toLocaleString()]];
+  $('details').innerHTML=metrics.map(([k,v])=>`<div class="metric"><span>${k}</span><b>${escapeHtml(v)}</b></div>`).join('');
+}
+async function refreshPlayers() {
+  say('Loading player profiles…');
+  try { players=await rpc('admin_list_players') || []; selected=players.find(p=>p.player_id===selected?.player_id)||null; render(); say(`Loaded ${players.length} player profiles.`); }
+  catch(e) { say(`Could not load players: ${e.message}`); }
+}
+async function act(type,sap=0,resin=0) {
+  if (!selected) { say('Select a player first.'); return; }
+  if (type==='reset' && !confirm(`Reset ${selected.display_name}'s Sapling account? This clears their current tree and persistent meta progress the next time they are online.`)) return;
+  try { await rpc('admin_apply_action',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin}); say(type==='reset'?'Account reset queued.':'Balance adjustment queued.'); }
+  catch(e) { say(`Action failed: ${e.message}`); }
+}
+function escapeHtml(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if (!validConfig) { say('Configure the Supabase project URL and public anon key in window.SAPLING_LEADERBOARD first.'); return; }
+  say('Signing in…');
+  try {
+    const res=await fetch(`${base}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:CONFIG.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
+    if(!res.ok) throw new Error((await res.text()).slice(0,200));
+    const session=await res.json(); token=session.access_token;
+    $('loginCard').hidden=true; $('dashboard').hidden=false; await refreshPlayers();
+  } catch(err) { say(`Sign in failed: ${err.message}`); }
+});
+$('createAccount').addEventListener('click',async()=>{
+  if(!validConfig){say('Configure Supabase first.');return;}
+  if(!$('email').value||$('password').value.length<8){say('Enter the allowlisted email and a password with at least 8 characters.');return;}
+  say('Creating administrator account…');
+  try {
+    const res=await fetch(`${base}/auth/v1/signup`,{method:'POST',headers:{apikey:CONFIG.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.msg||data.message||data.error_description||`Request failed (${res.status})`);
+    say(data.access_token?'Account created. You can sign in now.':'Check your email to confirm the account, then sign in.');
+  } catch(err) { say(`Account creation failed: ${err.message}. If sign-ups are disabled, create this user in Supabase Authentication first.`); }
+});
+$('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id]');if(!row)return;selected=players.find(p=>p.player_id===row.dataset.id)||null;render();});
+$('search').addEventListener('input',render);
+$('refresh').addEventListener('click',refreshPlayers);
+$('logout').addEventListener('click',()=>{token='';selected=null;players=[];$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
+$('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
+$('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
+$('takeResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,-v);});
+$('resetPlayer').addEventListener('click',()=>act('reset'));
+if(!validConfig) say('Supabase is not configured. See docs/leaderboard.md.');
+</script>
+</body>
+</html>
