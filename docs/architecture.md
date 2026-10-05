@@ -4,7 +4,7 @@ This is a code map for the intentionally single-file game. Exact formulas and UI
 
 ## Runtime shape
 
-`index.html` contains the game document, styles, and one inline strict-mode JavaScript script. `admin.html` is the separate Supabase-authenticated player support dashboard; `leaderboard-config.js` holds the browser-safe project URL/public key, and `supabase/leaderboard.sql` defines the online schema and RPCs. The game script initializes progression, loads local run/meta state, installs handlers, then starts `requestAnimationFrame(frame)`.
+`index.html` contains the game document, styles, and one inline strict-mode JavaScript script. `admin.html` is the separate Supabase-authenticated player support dashboard and live challenge publisher; `leaderboard-config.js` holds the browser-safe project URL/public key. `supabase/leaderboard.sql` defines leaderboard/admin storage and RPCs, while `supabase/live_challenges.sql` defines the challenge catalog, completion records, and challenge RPCs. The game script initializes progression, loads local run/meta state, installs handlers, then starts `requestAnimationFrame(frame)`.
 
 The main frame loop advances the simulation, updates production, time-based systems, and node positions, prepares branch geometry, updates critters/withering/particles, draws the canvas, and refreshes the HUD and selected-node panel. A frame-level catch logs errors and the loop schedules its next frame after the catch, so one exception should not permanently stop animation.
 
@@ -44,6 +44,7 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 | Persistence/offline recovery | `save`, `load`, `creditOffline`, `loadMeta`, `saveMeta` |
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |
 | Optional online leaderboard | Settings panel and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
+| Live challenges | Settings challenge panel, `loadLiveChallenges`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql` |
 | Main runtime and boot | `frame`, listeners near the end, final load/intro/bootstrap calls |
 
 ## Persistence and compatibility
@@ -58,7 +59,7 @@ The game stores two JSON records in browser `localStorage`:
 
 `load()` accepts run save versions 1 and 2 and fills defaults for fields introduced after older saves. `loadMeta()` tries the primary meta value and backup slots before creating defaults. The game autosaves the run every six seconds, before unload, and when the document becomes hidden; meta is saved at relevant progression changes. Offline production is credited on reload and when returning from a hidden/suspended tab, with a calculated cap and rate.
 
-The optional leaderboard and admin tools use Supabase when `leaderboard-config.js` is configured. Public rankings retain personal bests; private player profiles and the admin action queue power `admin.html`. Admins are authenticated and allowlisted in the database. A player ID identifies one browser profile, not a cloud account; setup and limitations are in `docs/leaderboard.md`.
+The optional leaderboard, admin tools, and live challenges use Supabase when `leaderboard-config.js` is configured. Public rankings retain personal bests; private player profiles and the admin action queue power `admin.html`. Admins are authenticated and allowlisted in the database. A player ID identifies one browser profile, not a cloud account. Challenge achievements are recorded in local meta state; the completion and first-finisher records are kept in Supabase. Challenge eligibility is reported by the browser, so the database orders claims but cannot verify gameplay. Setup and limitations are in `docs/leaderboard.md`.
 
 When changing state fields, inspect both serialization and hydration, existing defaults, legacy version branches, save-code export/import, and reset/restore behavior. Do not assume a field is only transient because it is not visible in the save object: determine whether it should survive reload, cuts, or both.
 

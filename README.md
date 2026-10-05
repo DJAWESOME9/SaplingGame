@@ -19,7 +19,7 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 - **🌰 Acorns** (after 1M lifetime sap) → ripen on the canopy in real time; tap to bank, long-press or right-click for the Pantheon
 - **🏆 Achievements** → progress tracker in the topbar
 - **📊 Stats** → drawer of run + lifetime figures: peak production, total sap/resin, gold leaves, play time, offline time, and buildings owned
-- **⚙ Settings** → volume, restore backup, save code, intro, hard reset, cheat codes
+- **⚙ Settings** → volume, restore backup, save code, intro, hard reset, cheat codes, leaderboards, and live challenges
 - **Click the hint banner** to dismiss tutorial nudges for the current tree
 
 ## Resources
@@ -180,6 +180,12 @@ Saves live in `localStorage`:
 - Gold leaves fade after a few seconds. Big gold leaves (rarer, larger, orange) trigger a 30-second ×3 **Bloom** on all leaf production.
 - Tutorial hints appear under the topbar — **click to dismiss**; they return when the game advances to a new hint. Cutting the tree resets dismissals.
 - Offline progress is capped at 4 hours, extended by Heartwood (Roots) and Endurance (Grove). Offline time counts toward acorn ripening at 10% rate (~20h offline ≈ 1 acorn).
+
+## Online leaderboards and live challenges
+
+The optional Supabase integration provides public leaderboards and timed community challenges. Players can view active challenges in **Settings → Live Challenges**; reaching the sap target submits completion automatically. Every completion grants a Challenge achievement and the configured in-game reward. The first database-recorded finisher also receives the larger first-finisher bonus.
+
+Allowlisted admins publish and end challenges from [`admin.html`](admin.html). Setup, rewards, and the limits of client-reported completion are documented in [`docs/leaderboard.md`](docs/leaderboard.md). The game works without Supabase, but online features are unavailable.
 
 ## Building from source
 

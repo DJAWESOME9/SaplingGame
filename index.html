@@ -41,7 +41,10 @@
     backdrop-filter:blur(6px); }
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
-  #leaderboard { margin:0 0 10px; padding:10px; border:1px solid #2e3f31; border-radius:10px; background:rgba(20,28,22,.7); }
+  #leaderboard { position:fixed; z-index:55; top:52px; right:16px; width:300px; max-height:64vh; overflow-y:auto;
+    display:none; margin:0; padding:12px 14px; border:1px solid #2e3f31; border-radius:12px;
+    background:rgba(16,24,18,.96); backdrop-filter:blur(6px); }
+  #leaderboard.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
   #leaderboard h3 { margin:0 0 5px; color:#cfe0cf; font-size:13px; }
   #leaderboard .lb-note { margin:0 0 8px; color:#8fa891; font-size:11px; line-height:1.4; }
   #leaderboard input { box-sizing:border-box; width:100%; margin-top:6px; background:#0f1611; border:1px solid #3c5340; color:#dceade; border-radius:7px; padding:7px 8px; font-size:12px; }
@@ -59,6 +62,17 @@
   #leaderboard li { display:flex; gap:8px; padding:5px 0; border-top:1px solid #25302e; font-size:11px; }
   #leaderboard li span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; }
   #leaderboard li span:last-child { color:#f0d9a0; white-space:nowrap; }
+  #liveChallenges { margin:0 0 10px; padding:10px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
+  #liveChallenges h3 { margin:0 0 5px; color:#d5e7bd; font-size:13px; }
+  #liveChallenges .live-note { margin:0 0 8px; color:#9eae91; font-size:11px; line-height:1.4; }
+  #liveChallenges .lb-status { min-height:15px; margin-top:6px; color:#9db89f; font-size:11px; }
+  #liveChallengeRows { display:grid; gap:8px; }
+  .live-challenge { padding:8px; border:1px solid #36452f; border-radius:8px; background:#111a12; }
+  .live-challenge b { display:block; color:#e1eacb; font-size:12px; }
+  .live-challenge p { margin:4px 0; color:#aeb99f; font-size:11px; line-height:1.4; }
+  .live-challenge small { color:#a7b695; font-size:10px; }
+  .live-challenge button { display:block; width:100%; margin-top:6px; cursor:pointer; background:#293923; border:1px solid #526d43; color:#e0edce; border-radius:7px; padding:7px; font-size:11px; }
+  .live-challenge button:disabled { opacity:.55; cursor:default; }
   #settings input[type=range] { flex:1; accent-color:#9fd9a8; }
   #restore { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
@@ -111,6 +125,9 @@
   #statsbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#7fb0c4;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #statsbtn:hover, #statsbtn.open { border-color:#7fc4d9; color:#cfeaf0; }
+  #lbbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#9fc78f;
+    border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
+  #lbbtn:hover, #lbbtn.open { border-color:#8fc299; color:#dceade; }
   #pestbtn, #freezebtn, #forcebtn, #bpbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1;
     min-width:170px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -261,7 +278,7 @@
   #panel button.prune { width:100%; margin-top:10px; background:#241a18; border-color:#5a3530; color:#dba79e; }
   #panel button.prune:hover:not(:disabled) { border-color:#8a4f47; background:#31201d; }
   #panel button.prune.armed { background:#46221c; border-color:#b05a4e; color:#f3c3ba; }
-  /* ---- Minigame dock: bottom-of-screen launchers (Pantheon, more to come) ---- */
+  /* ---- Minigame dock: bottom-of-screen launchers ---- */
   #minidock { position:fixed; z-index:40; pointer-events:none;
     left:max(12px, env(safe-area-inset-left));
     bottom:calc(12px + env(safe-area-inset-bottom));
@@ -303,7 +320,7 @@
     .introlede, .introlist li { font-size:12.5px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    #settings.open, #achievements.open, #statspanel.open, #panel[style*="display: block"],
+    #settings.open, #leaderboard.open, #achievements.open, #statspanel.open, #panel[style*="display: block"],
     #intro.open, #welcome.open, #pantheon.open, #pantheon.open .panbox, #grove.open, #grove.open .grovebox {
       animation-duration:.01ms !important;
     }
@@ -366,6 +383,28 @@
     border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
   .godbtn:hover:not(:disabled) { background:#3a2d68; border-color:#a374df; }
   .godbtn:disabled { opacity:.45; cursor:not-allowed; }
+  /* ---- Canopy Rush: short active minigame ---- */
+  #canopygame { position:fixed; inset:0; display:none; z-index:56; background:rgba(7,14,12,.86);
+    backdrop-filter:blur(5px); overflow-y:auto; padding:24px 16px; }
+  #canopygame.open { display:block; animation:overlayIn .24s ease-out both; }
+  .rushbox { max-width:600px; margin:4vh auto 0; padding:22px; border-radius:18px;
+    background:rgba(13,25,20,.98); border:1px solid #315846; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .rushhead { display:flex; align-items:center; justify-content:space-between; }
+  .rushhead h2 { margin:0; color:#b9ecc9; font-size:22px; }
+  #rushClose { background:none; border:1px solid #315846; color:#a8cdb4; border-radius:8px; width:32px; height:32px; cursor:pointer; }
+  .rushsub { color:#9db89f; font-size:13px; line-height:1.5; }
+  .rushboons { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0; }
+  .rushboons button, #rushStart { background:#1b3327; border:1px solid #426b53; color:#dceade; border-radius:10px; padding:10px; cursor:pointer; }
+  .rushboons button.selected { border-color:#b9ecc9; background:#294b38; }
+  .rushstatus { display:flex; justify-content:space-between; color:#d7e8d9; font-variant-numeric:tabular-nums; margin:12px 0; }
+  .rushtarget { text-align:center; padding:10px; color:#b9ecc9; font-size:14px; }
+  #rushField { min-height:210px; position:relative; overflow:hidden; border:1px solid #294637; border-radius:14px;
+    background:radial-gradient(ellipse at center,#1a3527,#0d1b15); }
+  .rushglyph { position:absolute; border:1px solid #8fc299; border-radius:50%; background:#244a35; color:#e3ffe8;
+    width:54px; height:54px; font-size:25px; cursor:pointer; box-shadow:0 0 18px rgba(120,220,150,.25); touch-action:manipulation; }
+  .rushglyph:hover { background:#376c4a; transform:scale(1.06); }
+  #rushResult { min-height:20px; color:#f0d9a0; text-align:center; font-size:13px; margin:10px 0; }
+  @media(max-width:520px) { .rushbox { margin:0 auto; padding:17px 14px; } .rushboons { grid-template-columns:1fr; } #rushField { min-height:190px; } }
   /* ---- The Grove: prestige overlay ---- */
   #grove { position:fixed; inset:0; display:none; z-index:50; background:rgba(6,10,7,.82);
     backdrop-filter:blur(4px); overflow-y:auto; overscroll-behavior:contain; padding:24px 16px; }
@@ -473,7 +512,7 @@
     #topbar { gap:7px; padding-top:max(8px, env(safe-area-inset-top)); flex-wrap:wrap; row-gap:6px; }
     #topbar .title { display:none; }
     /* Keep the action buttons (incl. settings) intact when the bar wraps */
-    #pestbtn, #acornbtn, #trophy, #statsbtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
+    #pestbtn, #acornbtn, #trophy, #statsbtn, #lbbtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
     #gear { margin-left:0; }
     #topbar .statcard { min-width:0; flex:1 1 0; padding:6px 8px 7px; border-radius:10px; }
     #topbar .statlabel { font-size:9.5px; letter-spacing:.03em; }
@@ -482,6 +521,7 @@
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
     #settings { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
+    #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(300px, calc(100vw - 48px)); max-height:70vh; }
     #settings .srow, #restore { font-size:14px; }
     #restore { padding:11px 10px; }
     #reset { padding:7px 9px; font-size:13px; }
@@ -603,6 +643,7 @@
   <button id="reset" title="Cut down the tree to start over and bank rings">🪓 Cut</button>
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="statsbtn" aria-label="Stats" title="Stats">📊</button>
+  <button id="lbbtn" aria-label="Leaderboard" title="Leaderboard">🌿</button>
   <button id="gear" aria-label="Settings">⚙</button>
   <!-- Contextual items live on their own slim second row so they never break up
        the resource cards / controls when they appear. Hidden entirely when empty. -->
@@ -626,21 +667,6 @@
     <p>Administrator sign-in required. Manage player accounts and support actions.</p>
     <a href="admin.html">Open admin dashboard ↗</a>
   </section>
-  <section id="leaderboard" aria-label="Leaderboard">
-    <h3>🌿 Grove leaderboards</h3>
-    <p class="lb-note">Separate rankings for lifetime production, peak production, and gold leaves clicked.</p>
-    <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Display name (optional)">
-    <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
-      <button type="button" data-lb="lifetime_sap" class="active">Lifetime sap</button>
-      <button type="button" data-lb="lifetime_resin">Lifetime resin</button>
-      <button type="button" data-lb="highest_sap">Highest sap</button>
-      <button type="button" data-lb="highest_resin">Highest resin</button>
-      <button type="button" data-lb="gold_leaves">Gold leaves</button>
-    </div>
-    <button id="lbRefresh" type="button" style="width:100%;margin-top:6px">Refresh leaderboard</button>
-    <ol id="lbRows" aria-live="polite"></ol>
-    <div class="lb-status" id="lbStatus" role="status">Leaderboard is not configured.</div>
-  </section>
   <button id="restore">Restore backup</button>
   <button id="showintro" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">📖 Show intro</button>
   <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
@@ -650,6 +676,27 @@
   <button id="exitblight" style="display:none">Exit Blight mode<span class="sublabel">Available after your first cut — leaving is permanent, you can't re-enter</span></button>
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
+  <section id="leaderboard" aria-label="Leaderboard">
+  <h3>🌿 Grove leaderboards</h3>
+  <p class="lb-note">Separate rankings for lifetime production, peak production, and gold leaves clicked.</p>
+  <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Display name (optional)">
+  <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
+    <button type="button" data-lb="lifetime_sap" class="active">Lifetime sap</button>
+    <button type="button" data-lb="lifetime_resin">Lifetime resin</button>
+    <button type="button" data-lb="highest_sap">Highest sap</button>
+    <button type="button" data-lb="highest_resin">Highest resin</button>
+    <button type="button" data-lb="gold_leaves">Gold leaves</button>
+  </div>
+  <button id="lbRefresh" type="button" style="width:100%;margin-top:6px">Refresh leaderboard</button>
+  <ol id="lbRows" aria-live="polite"></ol>
+    <div class="lb-status" id="lbStatus" role="status">Leaderboard is not configured.</div>
+  </section>
+  <section id="liveChallenges" aria-label="Live challenges">
+    <h3>🏆 Live Challenges</h3>
+    <p class="live-note">Limited-time community challenges. The first finisher earns the listed bonus.</p>
+    <div id="liveChallengeRows"><div class="lb-status">Loading live challenges…</div></div>
+    <div class="lb-status" id="liveChallengeStatus" role="status"></div>
+  </section>
 <div id="achievements"></div>
 <div id="statspanel"></div>
 <div id="sethatubby">
@@ -665,6 +712,7 @@
 <div id="minidock" style="display:none">
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
+  <button id="rushbtn" title="Canopy Rush — earn blessings through a quick skill challenge">🍃 Canopy Rush</button>
 </div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
@@ -672,6 +720,22 @@
     <p class="pansub">Slot a tree-god into each pedestal. Their blessings and banes apply globally, every tree, until removed.</p>
     <div class="panslots" id="panSlots"></div>
     <div id="panGods" class="pangrid"></div>
+  </div>
+</div>
+<div id="canopygame" role="dialog" aria-labelledby="rushTitle" aria-modal="true">
+  <div class="rushbox">
+    <div class="rushhead"><h2 id="rushTitle">🍃 Canopy Rush</h2><button id="rushClose" aria-label="Close">✕</button></div>
+    <p class="rushsub">Choose a blessing, then gather its matching leaf glyphs before the grove quiets. Correct clicks build a streak; misses break it.</p>
+    <div class="rushboons" id="rushBoons">
+      <button type="button" data-boon="sap">🍂 Sap · score rewards</button>
+      <button type="button" data-boon="resin">🟠 Resin · score rewards</button>
+      <button type="button" data-boon="acorn" id="rushAcornBoon">🌰 Acorn · one-time gift</button>
+    </div>
+  <div class="rushstatus"><span id="rushClock">20s</span><span id="rushScore">Score 0 · streak 0</span></div>
+    <div class="rushtarget" id="rushTarget">Target: 🍃</div>
+    <div id="rushField" aria-label="Minigame field"></div>
+    <div id="rushResult" role="status">Choose a blessing to begin.</div>
+    <button id="rushStart" type="button" style="width:100%">Start Canopy Rush</button>
   </div>
 </div>
 <div id="grove">
@@ -845,7 +909,7 @@ const groveGlyph = k => (hardMode() && GROVE[k].blightGlyph) || GROVE[k].glyph;
 let META;
 let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0 });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0 });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -962,6 +1026,7 @@ function loadMeta() {
   if (!META || typeof META !== 'object') META = newMeta();
   META.up = META.up || {};
   META.achievements = META.achievements || {};
+  META.liveChallengeAchievements = META.liveChallengeAchievements || {};
   if (typeof META.hacks !== 'boolean') META.hacks = false;
   if (typeof META.hardMode !== 'boolean') META.hardMode = false;
   if (typeof META.acorns !== 'number') META.acorns = 0;
@@ -1218,7 +1283,8 @@ const metaGoldMult  = () => (1 + 0.25 * metaLvl('goldenbough')) * (1 + 0.2 * met
 const metaAmberMult = () => 1 + 0.25 * metaLvl('amberheart');
 // Count of earned achievements that count toward Accolades/Laurels (everything except secret ones).
 const achBonusCount = () => Object.keys((META && META.achievements) || {})
-  .filter(k => ACHIEVEMENTS[k] && ACHIEVEMENTS[k].cat !== 'secret').length;
+  .filter(k => (ACHIEVEMENTS[k] || (META.liveChallengeAchievements || {})[k]) &&
+    (ACHIEVEMENTS[k] || META.liveChallengeAchievements[k]).cat !== 'secret').length;
 const accoladesMult = () => metaLvl('accolades') > 0 ? 1 + 0.01 * achBonusCount() : 1;
 const laurelsMult   = () => metaLvl('laurels')   > 0 ? 1 + 0.01 * achBonusCount() : 1;
 const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (1 + 0.1 * metaLvl('sapheart')) * (1 + 0.1 * metaLvl('starfall')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf;
@@ -2290,7 +2356,7 @@ function witherAway(id) {
 // True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
 // Back) — wither pauses then so you aren't penalized for time spent in a menu.
 function overlayBlocksTree() {
-  return ['grove', 'pantheon', 'intro', 'welcome'].some(id => {
+  return ['grove', 'pantheon', 'canopygame', 'intro', 'welcome'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('open');
   });
@@ -4027,6 +4093,7 @@ function refreshHud() {
     const _muted = (S.dismissedHints || []).includes(_h);
     elHint.textContent = (_h && !_muted) ? _h : '';
   }
+  checkLiveChallengeClaims();
 }
 
 // ---------- save / load ----------
@@ -4169,10 +4236,14 @@ function toast(msg) {
 }
 const gear = document.getElementById('gear'), settings = document.getElementById('settings'),
       volSlider = document.getElementById('vol');
+const lbButton = document.getElementById('lbbtn');
 // Public Supabase project URL and anon key can be injected here at deployment.
 // The anon key is intentionally public; database RLS policies protect writes.
 const LEADERBOARD_CONFIG = window.SAPLING_LEADERBOARD || { url: '', anonKey: '' };
 const leaderboard = document.getElementById('leaderboard');
+const liveChallengesPanel = document.getElementById('liveChallenges');
+const liveChallengeRows = document.getElementById('liveChallengeRows');
+const liveChallengeStatus = document.getElementById('liveChallengeStatus');
 const lbName = document.getElementById('lbName'), lbRows = document.getElementById('lbRows');
 const lbStatus = document.getElementById('lbStatus');
 const LB_BOARDS = {
@@ -4213,6 +4284,101 @@ async function loadLeaderboard() {
     lbStatus.textContent = 'Updated just now';
   } catch (err) { lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
 }
+let liveChallenges = [];
+const liveChallengeClaimsInFlight = new Set();
+const liveChallengeLastClaimAttempt = new Map();
+function liveChallengeTime(iso) {
+  const ms = Date.parse(iso) - Date.now();
+  if (ms <= 0) return 'Ended';
+  const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
+  return h ? `${h}h ${m}m left` : `${m}m left`;
+}
+function liveRewardText(sap, resin) {
+  return [Number(sap) ? `${fmt(Number(sap))} sap` : '', Number(resin) ? `${fmt(Number(resin))} resin` : ''].filter(Boolean).join(' + ') || 'achievement';
+}
+function renderLiveChallenges() {
+  if (!liveChallengesPanel) return;
+  liveChallengeRows.innerHTML = liveChallenges.map(c => {
+    const claimed = c.player_completed;
+    const restricted = !!(META.hacks || META.hardMode);
+    const ready = S.sap >= Number(c.target_sap);
+    const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
+    const reward = liveRewardText(c.reward_sap, c.reward_resin);
+    const bonus = liveRewardText(c.first_bonus_sap, c.first_bonus_resin);
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable in this save mode' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - S.sap))} more sap`}</button></article>`;
+  }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
+}
+async function loadLiveChallenges() {
+  if (!lbConfigured || !lbPlayerId) {
+    if (liveChallengeRows) liveChallengeRows.innerHTML = '<div class="lb-status">Live challenges are unavailable until Supabase is configured.</div>';
+    return;
+  }
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/get_live_challenges`, {
+      method:'POST', headers:lbHeaders(), body:JSON.stringify({p_player_id:lbPlayerId})
+    });
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    liveChallenges = await res.json();
+    renderLiveChallenges();
+    liveChallengeStatus.textContent = liveChallenges.length ? 'Updated just now' : '';
+    checkLiveChallengeClaims();
+  } catch (err) {
+    liveChallengeStatus.textContent = `Could not load challenges: ${err.message}`;
+  }
+}
+async function claimLiveChallenge(id, button) {
+  if (!lbConfigured || !lbPlayerId) return;
+  if (META.hacks || META.hardMode) { liveChallengeStatus.textContent = 'Live challenges are disabled for hacked or Blight saves.'; return; }
+  if (liveChallengeClaimsInFlight.has(id)) return;
+  liveChallengeClaimsInFlight.add(id);
+  liveChallengeLastClaimAttempt.set(id, Date.now());
+  if (button) button.disabled = true;
+  liveChallengeStatus.textContent = 'Submitting completion…';
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/claim_live_challenge`, {
+      method:'POST', headers:lbHeaders(), body:JSON.stringify({
+        p_challenge_id:id, p_player_id:lbPlayerId,
+        p_display_name:(lbName.value.trim() || 'Sapling').slice(0,20), p_current_sap:Number(S.sap)||0
+      })
+    });
+    if (!res.ok) throw new Error((await res.text()).slice(0,180) || `Request failed (${res.status})`);
+    const rows = await res.json(), result = rows && rows[0];
+    if (!result) throw new Error('The server returned no completion result.');
+    if (!result.already_completed) {
+      S.sap += Number(result.reward_sap)||0;
+      S.resin += Number(result.reward_resin)||0;
+      const challenge = liveChallenges.find(c => c.id === id);
+      const achievementKey = `liveChallenge:${id}`;
+      META.liveChallengeAchievements = META.liveChallengeAchievements || {};
+      META.liveChallengeAchievements[achievementKey] = { name:challenge?.title || 'Live Challenge', glyph:'🏆', desc:challenge?.description || 'Completed a live Sapling challenge.', cat:'challenge' };
+      META.achievements = META.achievements || {};
+      META.achievements[achievementKey] = { t:Date.now(), cat:'challenge' };
+      save(); saveMeta();
+      toast(result.first_finisher ? '🏆 First finisher! Challenge complete and bonus reward claimed.' : '🏆 Live challenge complete! Reward claimed.');
+    }
+    liveChallengeStatus.textContent = result.first_finisher ? 'You were the first finisher — bonus reward included!' : 'Challenge complete — reward claimed.';
+    await loadLiveChallenges();
+    if (achPanel?.classList.contains('open')) renderAchievements();
+  } catch (err) {
+    liveChallengeStatus.textContent = `Could not claim challenge: ${err.message}`;
+    if (button) button.disabled = false;
+  } finally {
+    liveChallengeClaimsInFlight.delete(id);
+  }
+}
+function checkLiveChallengeClaims() {
+  if (!lbConfigured || !lbPlayerId || META.hacks || META.hardMode) return;
+  const now = Date.now();
+  for (const challenge of liveChallenges) {
+    if (challenge.player_completed || S.sap < Number(challenge.target_sap) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
+    if (now - (liveChallengeLastClaimAttempt.get(challenge.id) || 0) < 30000) continue;
+    claimLiveChallenge(challenge.id, null);
+  }
+}
+liveChallengeRows?.addEventListener('click', e => {
+  const button = e.target.closest('button[data-live-claim]');
+  if (button && !button.disabled) claimLiveChallenge(button.dataset.liveClaim, button);
+});
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch]);
 }
@@ -4301,6 +4467,7 @@ async function submitPlayerSnapshot() {
   } catch (e) { /* Online profile reporting is best-effort. */ }
 }
 setInterval(submitPlayerSnapshot, 60000);
+setInterval(loadLiveChallenges, 60000);
 window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
 lbName.addEventListener('change', () => { try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value.trim().slice(0, 20)); } catch (e) {} });
@@ -4312,8 +4479,19 @@ document.getElementById('lbTabs').addEventListener('click', e => {
   document.querySelectorAll('#lbTabs button').forEach(button => button.classList.toggle('active', button === tab));
   loadLeaderboard();
 });
-if (lbConfigured) { lbStatus.textContent = 'Ready'; loadLeaderboard(); }
+if (lbConfigured) { lbStatus.textContent = 'Ready'; loadLeaderboard(); loadLiveChallenges(); }
 else leaderboard.title = 'Set window.SAPLING_LEADERBOARD at deployment to enable';
+lbButton.addEventListener('click', () => {
+  const open = leaderboard.classList.toggle('open');
+  lbButton.classList.toggle('open', open);
+  if (open) {
+    loadLiveChallenges();
+    if (lbConfigured) loadLeaderboard();
+    settings.classList.remove('open'); gear.classList.remove('open');
+    achPanel.classList.remove('open'); trophy.classList.remove('open');
+    statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
+  }
+});
 gear.addEventListener('click', () => {
   refreshCheatBadges();
   const open = settings.classList.toggle('open');
@@ -4321,6 +4499,7 @@ gear.addEventListener('click', () => {
   if (open) {
     achPanel.classList.remove('open'); trophy.classList.remove('open');
     statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
+    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
   }
 });
 document.addEventListener('pointerdown', e => {
@@ -4328,6 +4507,9 @@ document.addEventListener('pointerdown', e => {
   if (AU.ctx && AU.ctx.state === 'suspended') AU.ctx.resume();
   if (!settings.contains(e.target) && e.target !== gear) {
     settings.classList.remove('open'); gear.classList.remove('open');
+  }
+  if (!leaderboard.contains(e.target) && e.target !== lbButton) {
+    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
   }
 });
 volSlider.value = AU.vol;
@@ -5130,6 +5312,83 @@ function openPantheon() {
   renderPantheon();
 }
 function closePantheon() { pantheon.classList.remove('open'); }
+// ---------- Canopy Rush minigame ----------
+const canopyGame = document.getElementById('canopygame');
+const rushField = document.getElementById('rushField');
+const RUSH_BOONS = {
+  sap: { label:'🍂 Sap', glyphs:['🍃','🍂'], reward: score => Math.floor(score / 8) * 1000 },
+  resin: { label:'🟠 Resin', glyphs:['🟠','🪵'], reward: score => Math.floor(score / 8) * 250 },
+  acorn: { label:'🌰 Acorn', glyphs:['🌰','🌿'], reward: score => Math.floor(score / 12) }
+};
+let rushBoon = 'sap', rushTimer = null, rushTick = null, rushEndsAt = 0;
+let rush = { active:false, score:0, streak:0, seconds:20, target:'🍃' };
+function renderRush() {
+  document.getElementById('rushClock').textContent = `${rush.seconds}s`;
+  document.getElementById('rushScore').textContent = `Score ${rush.score} · streak ${rush.streak}`;
+  document.getElementById('rushTarget').textContent = `Target: ${rush.target}`;
+}
+function openCanopyRush() {
+  if (!META.pantheonOpened) { toast('Wake the Pantheon first to unlock Canopy Rush.'); return; }
+  canopyGame.classList.add('open');
+  document.getElementById('rushResult').textContent = 'Choose a blessing to begin.';
+}
+function closeCanopyRush() {
+  canopyGame.classList.remove('open');
+  clearTimeout(rushTimer); clearInterval(rushTick);
+  rush.active = false;
+}
+function spawnRushGlyph() {
+  if (!rush.active) return;
+  const boon = RUSH_BOONS[rushBoon];
+  rush.target = boon.glyphs[Math.floor(Math.random() * boon.glyphs.length)];
+  const field = rushField, glyph = document.createElement('button');
+  glyph.type = 'button'; glyph.className = 'rushglyph';
+  glyph.textContent = Math.random() < 0.35 ? (RUSH_BOONS[Object.keys(RUSH_BOONS).filter(k => k !== rushBoon)[Math.floor(Math.random()*2)]].glyphs[0]) : rush.target;
+  glyph.setAttribute('aria-label', `Collect ${glyph.textContent}`);
+  glyph.style.left = `${4 + Math.random() * Math.max(0, field.clientWidth - 64)}px`;
+  glyph.style.top = `${4 + Math.random() * Math.max(0, field.clientHeight - 64)}px`;
+  glyph.addEventListener('click', () => {
+    if (!rush.active) return;
+    if (glyph.textContent === rush.target) { rush.score += 10 + Math.min(10, rush.streak); rush.streak++; sfx('gold'); }
+    else { rush.score = Math.max(0, rush.score - 3); rush.streak = 0; sfx('plink'); }
+    rushField.replaceChildren(); renderRush(); spawnRushGlyph();
+  }, { once:true });
+  field.replaceChildren(glyph);
+}
+function finishCanopyRush() {
+  if (!rush.active) return;
+  clearTimeout(rushTimer); clearInterval(rushTick); rush.active = false; rushField.replaceChildren();
+  const reward = RUSH_BOONS[rushBoon].reward(rush.score);
+  let line = `Final score ${rush.score}. `;
+  if (reward > 0 && rushBoon === 'sap') { S.sap += reward; line += `Grove gift: +${fmt(reward)} sap.`; }
+  else if (reward > 0 && rushBoon === 'resin') { S.resin += reward; line += `Grove gift: +${fmt(reward)} resin.`; }
+  else if (rushBoon === 'acorn' && reward > 0 && !META.rushAcornClaimed) {
+    META.acorns += 1; META.rushAcornClaimed = true; line += 'Grove gift: +1 acorn (one-time gift).'; refreshAcorns();
+  } else if (rushBoon === 'acorn' && META.rushAcornClaimed) line += 'Your one-time acorn gift has already been claimed.';
+  else line += 'Reach 8 points for sap, 8 for resin, or 12 for the acorn gift.';
+  document.getElementById('rushResult').textContent = line;
+  save(); saveMeta(); sfx(reward > 0 ? 'buy' : 'plink');
+}
+document.getElementById('rushBoons')?.addEventListener('click', e => {
+  const button = e.target.closest('button[data-boon]');
+  if (!button || rush.active) return;
+  rushBoon = button.dataset.boon;
+  if (rushBoon === 'acorn' && META.rushAcornClaimed) {
+    document.getElementById('rushResult').textContent = 'Your once-per-tree acorn gift has been claimed; choose sap or resin.';
+  } else document.getElementById('rushResult').textContent = `Selected ${RUSH_BOONS[rushBoon].label}.`;
+  document.querySelectorAll('#rushBoons button').forEach(b => b.classList.toggle('selected', b === button));
+});
+document.getElementById('rushStart')?.addEventListener('click', () => {
+  if (rush.active) return;
+  rush = { active:true, score:0, streak:0, seconds:20, target:'🍃' };
+  document.getElementById('rushResult').textContent = 'Collect the matching glyph!';
+  renderRush(); spawnRushGlyph();
+  rushEndsAt = Date.now() + 20000;
+  rushTick = setInterval(() => { if (!rush.active) return; rush.seconds = Math.max(0, Math.ceil((rushEndsAt - Date.now()) / 1000)); renderRush(); if (rush.seconds <= 0) finishCanopyRush(); }, 100);
+  rushTimer = setTimeout(finishCanopyRush, 20000);
+});
+document.getElementById('rushClose')?.addEventListener('click', closeCanopyRush);
+canopyGame?.addEventListener('click', e => { if (e.target === canopyGame) closeCanopyRush(); });
 // Spend acorns to wake the Pantheon the first time. Returns true once unlocked.
 function unlockPantheon() {
   if (META.pantheonOpened) return true;
@@ -5150,6 +5409,7 @@ function tryOpenPantheon() {
 // ---------- minigame dock ----------
 const miniDock = document.getElementById('minidock');
 const pantheonBtn = document.getElementById('pantheonbtn');
+const rushBtn = document.getElementById('rushbtn');
 function refreshMiniDock() {
   if (!miniDock) return;
   // Show the Pantheon launcher once acorns exist; before it's woken, it reads as
@@ -5165,10 +5425,12 @@ function refreshMiniDock() {
       pantheonBtn.title = `Spend ${PANTHEON_OPEN_COST} acorn to wake the Pantheon (have ${acornsBanked()})`;
     }
   }
+  if (rushBtn) rushBtn.style.display = META.pantheonOpened ? '' : 'none';
   // Dock is visible whenever it holds at least one available minigame.
   miniDock.style.display = showPantheon ? '' : 'none';
 }
 pantheonBtn?.addEventListener('click', tryOpenPantheon);
+rushBtn?.addEventListener('click', openCanopyRush);
 pantheon?.addEventListener('click', e => {
   if (e.target === pantheon || e.target.id === 'panClose') { closePantheon(); return; }
   const slotEl = e.target.closest('.panslot');
@@ -5423,11 +5685,12 @@ const trophy = document.getElementById('trophy');
 const achPanel = document.getElementById('achievements');
 function renderAchievements() {
   const owned = META.achievements || {};
-  const total = Object.keys(ACHIEVEMENTS).length;
-  const unlocked = Object.keys(owned).length;
-  const catOf = k => (ACHIEVEMENTS[k].cat || 'normal');
+  const definitions = { ...ACHIEVEMENTS, ...(META.liveChallengeAchievements || {}) };
+  const total = Object.keys(definitions).length;
+  const unlocked = Object.keys(owned).filter(k => definitions[k]).length;
+  const catOf = k => (definitions[k].cat || 'normal');
   const rowHtml = k => {
-    const a = ACHIEVEMENTS[k], has = !!owned[k];
+    const a = definitions[k], has = !!owned[k];
     return `<div class="achrow ${has ? '' : 'locked'}">
       <div class="ag">${has ? a.glyph : '🔒'}</div>
       <div class="at"><div class="ah">${has ? a.name : '???'}</div><div class="ad">${has ? a.desc : '???'}</div></div>
@@ -5455,6 +5718,7 @@ trophy?.addEventListener('click', () => {
   if (open) {
     renderAchievements();
     settings.classList.remove('open'); gear.classList.remove('open');
+    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
     statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
     trophy.classList.add('open');
   } else {
@@ -5523,6 +5787,7 @@ statsBtn?.addEventListener('click', () => {
   if (open) {
     renderStats();
     settings.classList.remove('open'); gear.classList.remove('open');
+    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
     achPanel.classList.remove('open'); trophy.classList.remove('open');
     statsBtn.classList.add('open');
   } else {
