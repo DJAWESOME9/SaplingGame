@@ -4466,7 +4466,10 @@ async function submitPlayerSnapshot() {
     if (res.ok) await processAdminActions();
   } catch (e) { /* Online profile reporting is best-effort. */ }
 }
-setInterval(submitPlayerSnapshot, 60000);
+setInterval(() => {
+  submitPlayerSnapshot();
+  submitLeaderboardScore();
+}, 60000);
 setInterval(loadLiveChallenges, 60000);
 window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
@@ -6020,6 +6023,7 @@ resize();
 loadMeta();
 load();
 submitPlayerSnapshot();
+submitLeaderboardScore();
 refreshCheatBadges();
 document.getElementById('wbClose')?.addEventListener('click', () => {
   document.getElementById('welcome').classList.remove('open');
