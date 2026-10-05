@@ -4394,14 +4394,28 @@ function showGrovePopover(k) {
   positionGrovePopover(k);
 }
 function positionGrovePopover(k) {
-  // Fixed to the bottom-center of the viewport, like the roots panel — always
-  // reachable regardless of how far the grove is scrolled or the tree panned.
+  // Keep the purchase panel beside the selected upgrade so the action reads in
+  // context and the player does not have to look away from the Grove tree.
   const pop = document.getElementById('grovepopover');
   if (!pop) return;
-  const w = pop.offsetWidth || 320;
-  pop.style.left = Math.max(8, (window.innerWidth - w) / 2) + 'px';
-  pop.style.top = 'auto';
-  pop.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
+  const node = document.querySelector(`#grovesvg .gnode[data-up="${k}"]`);
+  const nodeRect = node?.getBoundingClientRect();
+  const w = pop.offsetWidth || Math.min(360, window.innerWidth - 16);
+  const h = pop.offsetHeight || 120;
+  if (!nodeRect) {
+    pop.style.left = `${Math.max(8, (window.innerWidth - w) / 2)}px`;
+    pop.style.top = `${Math.max(8, (window.innerHeight - h) / 2)}px`;
+    pop.style.bottom = 'auto';
+    return;
+  }
+  const gap = 12;
+  const leftOfNode = nodeRect.left + nodeRect.width / 2 > window.innerWidth / 2;
+  const preferredLeft = leftOfNode ? nodeRect.left - w - gap : nodeRect.right + gap;
+  const left = clamp(preferredLeft, 8, Math.max(8, window.innerWidth - w - 8));
+  const top = clamp(nodeRect.top + nodeRect.height / 2 - h / 2, 8, Math.max(8, window.innerHeight - h - 8));
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.bottom = 'auto';
 }
 
 function renderGrove() {
