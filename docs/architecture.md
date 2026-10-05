@@ -43,7 +43,7 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 | Acorns/Pantheon/achievement/stat drawers | `tickAcorns`, `renderPantheon`, `renderAchievements`, `renderStats` |
 | Persistence/offline recovery | `save`, `load`, `creditOffline`, `loadMeta`, `saveMeta` |
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |
-| Optional online leaderboard | Settings panel and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
+| Optional online leaderboard | Top-bar leaderboard drawer and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
 | Live challenges | Settings challenge panel, `loadLiveChallenges`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql` |
 | Main runtime and boot | `frame`, listeners near the end, final load/intro/bootstrap calls |
 

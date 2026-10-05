@@ -60,6 +60,8 @@
   #adminTools a { display:block; margin-top:8px; color:#f0d9a0; font-size:12px; }
   #leaderboard ol { list-style:none; padding:0; margin:7px 0 0; max-height:190px; overflow:auto; }
   #leaderboard li { display:flex; gap:8px; padding:5px 0; border-top:1px solid #25302e; font-size:11px; }
+  #leaderboard li.blight-entry { color:#e0c8ff; background:rgba(91,48,130,.22); border-top-color:#67428a; }
+  #leaderboard li.blight-entry span:last-child { color:#d7b5ff; }
   #leaderboard li span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; }
   #leaderboard li span:last-child { color:#f0d9a0; white-space:nowrap; }
   #liveChallenges { margin:0 0 10px; padding:10px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
@@ -383,28 +385,6 @@
     border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
   .godbtn:hover:not(:disabled) { background:#3a2d68; border-color:#a374df; }
   .godbtn:disabled { opacity:.45; cursor:not-allowed; }
-  /* ---- Canopy Rush: short active minigame ---- */
-  #canopygame { position:fixed; inset:0; display:none; z-index:56; background:rgba(7,14,12,.86);
-    backdrop-filter:blur(5px); overflow-y:auto; padding:24px 16px; }
-  #canopygame.open { display:block; animation:overlayIn .24s ease-out both; }
-  .rushbox { max-width:600px; margin:4vh auto 0; padding:22px; border-radius:18px;
-    background:rgba(13,25,20,.98); border:1px solid #315846; box-shadow:0 20px 60px rgba(0,0,0,.5); }
-  .rushhead { display:flex; align-items:center; justify-content:space-between; }
-  .rushhead h2 { margin:0; color:#b9ecc9; font-size:22px; }
-  #rushClose { background:none; border:1px solid #315846; color:#a8cdb4; border-radius:8px; width:32px; height:32px; cursor:pointer; }
-  .rushsub { color:#9db89f; font-size:13px; line-height:1.5; }
-  .rushboons { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0; }
-  .rushboons button, #rushStart { background:#1b3327; border:1px solid #426b53; color:#dceade; border-radius:10px; padding:10px; cursor:pointer; }
-  .rushboons button.selected { border-color:#b9ecc9; background:#294b38; }
-  .rushstatus { display:flex; justify-content:space-between; color:#d7e8d9; font-variant-numeric:tabular-nums; margin:12px 0; }
-  .rushtarget { text-align:center; padding:10px; color:#b9ecc9; font-size:14px; }
-  #rushField { min-height:210px; position:relative; overflow:hidden; border:1px solid #294637; border-radius:14px;
-    background:radial-gradient(ellipse at center,#1a3527,#0d1b15); }
-  .rushglyph { position:absolute; border:1px solid #8fc299; border-radius:50%; background:#244a35; color:#e3ffe8;
-    width:54px; height:54px; font-size:25px; cursor:pointer; box-shadow:0 0 18px rgba(120,220,150,.25); touch-action:manipulation; }
-  .rushglyph:hover { background:#376c4a; transform:scale(1.06); }
-  #rushResult { min-height:20px; color:#f0d9a0; text-align:center; font-size:13px; margin:10px 0; }
-  @media(max-width:520px) { .rushbox { margin:0 auto; padding:17px 14px; } .rushboons { grid-template-columns:1fr; } #rushField { min-height:190px; } }
   /* ---- The Grove: prestige overlay ---- */
   #grove { position:fixed; inset:0; display:none; z-index:50; background:rgba(6,10,7,.82);
     backdrop-filter:blur(4px); overflow-y:auto; overscroll-behavior:contain; padding:24px 16px; }
@@ -712,7 +692,6 @@
 <div id="minidock" style="display:none">
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
-  <button id="rushbtn" title="Canopy Rush — earn blessings through a quick skill challenge">🍃 Canopy Rush</button>
 </div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
@@ -720,22 +699,6 @@
     <p class="pansub">Slot a tree-god into each pedestal. Their blessings and banes apply globally, every tree, until removed.</p>
     <div class="panslots" id="panSlots"></div>
     <div id="panGods" class="pangrid"></div>
-  </div>
-</div>
-<div id="canopygame" role="dialog" aria-labelledby="rushTitle" aria-modal="true">
-  <div class="rushbox">
-    <div class="rushhead"><h2 id="rushTitle">🍃 Canopy Rush</h2><button id="rushClose" aria-label="Close">✕</button></div>
-    <p class="rushsub">Choose a blessing, then gather its matching leaf glyphs before the grove quiets. Correct clicks build a streak; misses break it.</p>
-    <div class="rushboons" id="rushBoons">
-      <button type="button" data-boon="sap">🍂 Sap · score rewards</button>
-      <button type="button" data-boon="resin">🟠 Resin · score rewards</button>
-      <button type="button" data-boon="acorn" id="rushAcornBoon">🌰 Acorn · one-time gift</button>
-    </div>
-  <div class="rushstatus"><span id="rushClock">20s</span><span id="rushScore">Score 0 · streak 0</span></div>
-    <div class="rushtarget" id="rushTarget">Target: 🍃</div>
-    <div id="rushField" aria-label="Minigame field"></div>
-    <div id="rushResult" role="status">Choose a blessing to begin.</div>
-    <button id="rushStart" type="button" style="width:100%">Start Canopy Rush</button>
   </div>
 </div>
 <div id="grove">
@@ -2356,7 +2319,7 @@ function witherAway(id) {
 // True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
 // Back) — wither pauses then so you aren't penalized for time spent in a menu.
 function overlayBlocksTree() {
-  return ['grove', 'pantheon', 'canopygame', 'intro', 'welcome'].some(id => {
+  return ['grove', 'pantheon', 'intro', 'welcome'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('open');
   });
@@ -4277,10 +4240,10 @@ async function loadLeaderboard() {
   if (!board) return;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
-    lbRows.innerHTML = rows.map((row, i) => `<li><span>${i + 1}. ${escapeHtml(row.display_name)}</span><span>${board.format(row[board.column])}</span></li>`).join('') || '<li><span>No scores yet</span></li>';
+    lbRows.innerHTML = rows.map((row, i) => `<li class="${row.is_blight ? 'blight-entry' : ''}"><span>${i + 1}. ${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span>${board.format(row[board.column])}</span></li>`).join('') || '<li><span>No scores yet</span></li>';
     lbStatus.textContent = 'Updated just now';
   } catch (err) { lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
 }
@@ -4383,7 +4346,7 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch]);
 }
 async function submitLeaderboardScore() {
-  if (!lbConfigured || !lbPlayerId || META.hacks || META.hardMode) return;
+  if (!lbConfigured || !lbPlayerId || META.hacks) return;
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
@@ -4396,7 +4359,8 @@ async function submitLeaderboardScore() {
         p_lifetime_resin: META.lifetimeResin || 0,
         p_highest_sap: META.peakBuffS || 0,
         p_highest_resin: META.peakBuffR || 0,
-        p_gold_leaves: META.goldClicked || 0
+        p_gold_leaves: META.goldClicked || 0,
+        p_is_blight: !!META.hardMode
       })
     });
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -5315,83 +5279,6 @@ function openPantheon() {
   renderPantheon();
 }
 function closePantheon() { pantheon.classList.remove('open'); }
-// ---------- Canopy Rush minigame ----------
-const canopyGame = document.getElementById('canopygame');
-const rushField = document.getElementById('rushField');
-const RUSH_BOONS = {
-  sap: { label:'🍂 Sap', glyphs:['🍃','🍂'], reward: score => Math.floor(score / 8) * 1000 },
-  resin: { label:'🟠 Resin', glyphs:['🟠','🪵'], reward: score => Math.floor(score / 8) * 250 },
-  acorn: { label:'🌰 Acorn', glyphs:['🌰','🌿'], reward: score => Math.floor(score / 12) }
-};
-let rushBoon = 'sap', rushTimer = null, rushTick = null, rushEndsAt = 0;
-let rush = { active:false, score:0, streak:0, seconds:20, target:'🍃' };
-function renderRush() {
-  document.getElementById('rushClock').textContent = `${rush.seconds}s`;
-  document.getElementById('rushScore').textContent = `Score ${rush.score} · streak ${rush.streak}`;
-  document.getElementById('rushTarget').textContent = `Target: ${rush.target}`;
-}
-function openCanopyRush() {
-  if (!META.pantheonOpened) { toast('Wake the Pantheon first to unlock Canopy Rush.'); return; }
-  canopyGame.classList.add('open');
-  document.getElementById('rushResult').textContent = 'Choose a blessing to begin.';
-}
-function closeCanopyRush() {
-  canopyGame.classList.remove('open');
-  clearTimeout(rushTimer); clearInterval(rushTick);
-  rush.active = false;
-}
-function spawnRushGlyph() {
-  if (!rush.active) return;
-  const boon = RUSH_BOONS[rushBoon];
-  rush.target = boon.glyphs[Math.floor(Math.random() * boon.glyphs.length)];
-  const field = rushField, glyph = document.createElement('button');
-  glyph.type = 'button'; glyph.className = 'rushglyph';
-  glyph.textContent = Math.random() < 0.35 ? (RUSH_BOONS[Object.keys(RUSH_BOONS).filter(k => k !== rushBoon)[Math.floor(Math.random()*2)]].glyphs[0]) : rush.target;
-  glyph.setAttribute('aria-label', `Collect ${glyph.textContent}`);
-  glyph.style.left = `${4 + Math.random() * Math.max(0, field.clientWidth - 64)}px`;
-  glyph.style.top = `${4 + Math.random() * Math.max(0, field.clientHeight - 64)}px`;
-  glyph.addEventListener('click', () => {
-    if (!rush.active) return;
-    if (glyph.textContent === rush.target) { rush.score += 10 + Math.min(10, rush.streak); rush.streak++; sfx('gold'); }
-    else { rush.score = Math.max(0, rush.score - 3); rush.streak = 0; sfx('plink'); }
-    rushField.replaceChildren(); renderRush(); spawnRushGlyph();
-  }, { once:true });
-  field.replaceChildren(glyph);
-}
-function finishCanopyRush() {
-  if (!rush.active) return;
-  clearTimeout(rushTimer); clearInterval(rushTick); rush.active = false; rushField.replaceChildren();
-  const reward = RUSH_BOONS[rushBoon].reward(rush.score);
-  let line = `Final score ${rush.score}. `;
-  if (reward > 0 && rushBoon === 'sap') { S.sap += reward; line += `Grove gift: +${fmt(reward)} sap.`; }
-  else if (reward > 0 && rushBoon === 'resin') { S.resin += reward; line += `Grove gift: +${fmt(reward)} resin.`; }
-  else if (rushBoon === 'acorn' && reward > 0 && !META.rushAcornClaimed) {
-    META.acorns += 1; META.rushAcornClaimed = true; line += 'Grove gift: +1 acorn (one-time gift).'; refreshAcorns();
-  } else if (rushBoon === 'acorn' && META.rushAcornClaimed) line += 'Your one-time acorn gift has already been claimed.';
-  else line += 'Reach 8 points for sap, 8 for resin, or 12 for the acorn gift.';
-  document.getElementById('rushResult').textContent = line;
-  save(); saveMeta(); sfx(reward > 0 ? 'buy' : 'plink');
-}
-document.getElementById('rushBoons')?.addEventListener('click', e => {
-  const button = e.target.closest('button[data-boon]');
-  if (!button || rush.active) return;
-  rushBoon = button.dataset.boon;
-  if (rushBoon === 'acorn' && META.rushAcornClaimed) {
-    document.getElementById('rushResult').textContent = 'Your once-per-tree acorn gift has been claimed; choose sap or resin.';
-  } else document.getElementById('rushResult').textContent = `Selected ${RUSH_BOONS[rushBoon].label}.`;
-  document.querySelectorAll('#rushBoons button').forEach(b => b.classList.toggle('selected', b === button));
-});
-document.getElementById('rushStart')?.addEventListener('click', () => {
-  if (rush.active) return;
-  rush = { active:true, score:0, streak:0, seconds:20, target:'🍃' };
-  document.getElementById('rushResult').textContent = 'Collect the matching glyph!';
-  renderRush(); spawnRushGlyph();
-  rushEndsAt = Date.now() + 20000;
-  rushTick = setInterval(() => { if (!rush.active) return; rush.seconds = Math.max(0, Math.ceil((rushEndsAt - Date.now()) / 1000)); renderRush(); if (rush.seconds <= 0) finishCanopyRush(); }, 100);
-  rushTimer = setTimeout(finishCanopyRush, 20000);
-});
-document.getElementById('rushClose')?.addEventListener('click', closeCanopyRush);
-canopyGame?.addEventListener('click', e => { if (e.target === canopyGame) closeCanopyRush(); });
 // Spend acorns to wake the Pantheon the first time. Returns true once unlocked.
 function unlockPantheon() {
   if (META.pantheonOpened) return true;
@@ -5412,7 +5299,6 @@ function tryOpenPantheon() {
 // ---------- minigame dock ----------
 const miniDock = document.getElementById('minidock');
 const pantheonBtn = document.getElementById('pantheonbtn');
-const rushBtn = document.getElementById('rushbtn');
 function refreshMiniDock() {
   if (!miniDock) return;
   // Show the Pantheon launcher once acorns exist; before it's woken, it reads as
@@ -5428,12 +5314,10 @@ function refreshMiniDock() {
       pantheonBtn.title = `Spend ${PANTHEON_OPEN_COST} acorn to wake the Pantheon (have ${acornsBanked()})`;
     }
   }
-  if (rushBtn) rushBtn.style.display = META.pantheonOpened ? '' : 'none';
   // Dock is visible whenever it holds at least one available minigame.
   miniDock.style.display = showPantheon ? '' : 'none';
 }
 pantheonBtn?.addEventListener('click', tryOpenPantheon);
-rushBtn?.addEventListener('click', openCanopyRush);
 pantheon?.addEventListener('click', e => {
   if (e.target === pantheon || e.target.id === 'panClose') { closePantheon(); return; }
   const slotEl = e.target.closest('.panslot');
