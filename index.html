@@ -51,6 +51,12 @@
   .update-entry time { color:#9db89f; font-size:11px; }
   .update-entry ul { margin:8px 0 10px; padding-left:20px; color:#cad9c8; font-size:13px; line-height:1.5; }
   #updatesClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
+  #adminNotice { position:fixed; inset:0; display:none; z-index:66; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
+  #adminNotice.open { display:flex; animation:overlayIn .22s ease-out both; }
+  .adminnoticebox { box-sizing:border-box; width:min(420px,100%); max-height:calc(100dvh - 40px); overflow:auto; background:#101a12; border:1px solid #63876a; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
+  .adminnoticebox h2 { margin:0 0 12px; color:#e7ddc4; }
+  .adminnoticebox p { color:#cad9c8; white-space:pre-wrap; overflow-wrap:anywhere; }
+  #adminNoticeClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
   #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
     box-sizing:border-box; width:328px; height:min(70vh, 640px); min-height:190px; max-height:calc(100dvh - 16px); overflow:hidden;
@@ -367,6 +373,10 @@
   .introlist b { color:#e7ddc4; font-weight:600; }
   .introlist .ig { display:inline-block; width:22px; text-align:center; margin-right:6px; }
   .introtip { color:#7d8c7e; font-size:11.5px; line-height:1.45; margin:0 0 16px; }
+  .intro-name { display:block; margin:0 0 16px; color:#dceade; font-size:13px; font-weight:600; }
+  .intro-name input { box-sizing:border-box; display:block; width:100%; margin-top:7px; padding:10px 12px; border:1px solid #536747; border-radius:8px; background:#101f18; color:#f3e9cf; font:inherit; }
+  .intro-name input:focus-visible { outline:2px solid #e4ba69; outline-offset:2px; }
+  .intro-name small { display:block; margin-top:5px; color:#9db89f; font-weight:400; }
   .introhard { display:flex; align-items:flex-start; gap:11px; background:rgba(42,16,24,.5);
     border:1px solid #5a2540; border-radius:10px; padding:11px 13px; margin:0 0 14px; cursor:pointer; transition:border-color .15s, background .15s; }
   .introhard:hover { border-color:#a83a6a; }
@@ -644,6 +654,10 @@
       <li><span class="ig">🍃</span><b>Cut the tree</b> when it's grown to bank <b>rings</b> — eternal upgrades and new species in the Grove.</li>
     </ul>
     <p class="introtip">Tip: tap the 🔓 lock on any node's panel to protect it from accidental upgrades or pruning. Drag to pan, pinch or scroll to zoom.</p>
+    <label class="intro-name" id="introNameRow">Choose your username
+      <input id="introName" maxlength="20" autocomplete="nickname" placeholder="Your username" required>
+      <small>This is the name shown on the leaderboard. You can change it there later.</small>
+    </label>
     <label class="introhard" id="introHard">
       <input type="checkbox" id="introHardCheck">
       <span class="ihtext"><b>🥀 Activate Blight mode</b> — for veterans who want a fight. <span>Critters swarm harder, leaf output is taxed −15%, and every cheat code is disabled. You may leave after your first cut — but once you do, you can't re-enter.</span></span>
@@ -657,6 +671,14 @@
     <p>Updates to Sapling, newest first.</p>
     <div id="updateEntries"></div>
     <button id="updatesClose" type="button">Back to the grove</button>
+  </div>
+</div>
+<div id="adminNotice" role="dialog" aria-modal="true" aria-labelledby="adminNoticeTitle">
+  <div class="adminnoticebox">
+    <h2 id="adminNoticeTitle">Message from Sapling</h2>
+    <p id="adminNoticeChange"></p>
+    <p id="adminNoticeMessage"></p>
+    <button id="adminNoticeClose" type="button">Continue</button>
   </div>
 </div>
 <div id="welcome" role="dialog" aria-labelledby="wbTitle">
@@ -739,7 +761,7 @@
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
   <p class="lb-note">Lifetime records count all sap and resin gained. Production records count tree output, including offline growth.</p>
   <label class="lb-label" for="lbName">Your display name</label>
-  <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Optional · up to 20 characters">
+  <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Up to 20 characters">
   <div class="lb-section-label">Choose a record</div>
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
     <button type="button" data-lb="lifetime_sap" class="active" aria-pressed="true">Lifetime sap</button>
@@ -961,6 +983,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-05-admin-messages', date:'October 5, 2026', title:'Messages with balance changes', notes:[
+    'When an admin grants or removes sap or resin, you now see the amount and any accompanying message in a popup.'
+  ] },
+  { id:'2026-10-05-start-username', date:'October 5, 2026', title:'Choose your username', notes:[
+    'New players now choose a username before they begin growing. It also appears on the leaderboard and can be changed there later.'
+  ] },
   { id:'2026-10-05-earned-production-boards', date:'October 5, 2026', title:'Lifetime earnings and production records', notes:[
     'Lifetime sap and resin now include gold leaves, challenge rewards, starting resources, and other gains as well as production.',
     'New Sap production and Resin production leaderboards track only what your tree produces, including offline growth.',
@@ -4683,6 +4711,27 @@ async function submitLeaderboardScore() {
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
+const ADMIN_NOTICES_KEY = 'sapling-admin-notices-v1';
+function adminNotices() {
+  try { const rows = JSON.parse(localStorage.getItem(ADMIN_NOTICES_KEY) || '[]'); return Array.isArray(rows) ? rows : []; } catch (e) { return []; }
+}
+function showAdminNotice() {
+  const modal = document.getElementById('adminNotice');
+  if (modal.classList.contains('open') || ['intro', 'welcome', 'updates'].some(id => document.getElementById(id).classList.contains('open'))) return;
+  const notice = adminNotices()[0];
+  if (!notice) return;
+  document.getElementById('adminNoticeChange').textContent = notice.change;
+  document.getElementById('adminNoticeMessage').textContent = notice.message;
+  modal.classList.add('open');
+  document.getElementById('adminNoticeClose').focus();
+}
+document.getElementById('adminNoticeClose').addEventListener('click', () => {
+  const notices = adminNotices();
+  notices.shift();
+  localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
+  document.getElementById('adminNotice').classList.remove('open');
+  showAdminNotice();
+});
 function adminActionDone(id) {
   try { return JSON.parse(localStorage.getItem(ADMIN_ACTIONS_KEY) || '[]').includes(id); } catch (e) { return false; }
 }
@@ -4702,24 +4751,31 @@ async function processAdminActions() {
     if (!res.ok) return false;
     const actions = await res.json();
     for (const action of actions || []) {
-      if (adminActionDone(action.id)) continue;
-      if (action.action_type === 'balance') {
+      const alreadyDone = adminActionDone(action.id);
+      if (!alreadyDone && action.action_type === 'balance') {
         const oldSap = S.sap, oldResin = S.resin;
         if (Number.isFinite(action.sap_delta)) S.sap = Math.max(0, S.sap + action.sap_delta);
         if (Number.isFinite(action.resin_delta)) S.resin = Math.max(0, S.resin + action.resin_delta);
         recordEarned(Math.max(0, S.sap - oldSap), Math.max(0, S.resin - oldResin));
+        const changes = [];
+        if (action.sap_delta) changes.push(`${action.sap_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(S.sap - oldSap))} sap`);
+        if (action.resin_delta) changes.push(`${action.resin_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(S.resin - oldResin))} resin`);
+        const notices = adminNotices();
+        notices.push({ change: changes.join(' · '), message: typeof action.message === 'string' ? action.message : '' });
+        localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
         recordHighestBalances();
         save();
-      } else if (action.action_type === 'reset') {
+      } else if (!alreadyDone && action.action_type === 'reset') {
         window.__SAPLING_WIPED = true;
         for (const key of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);
       }
-      rememberAdminAction(action.id);
+      if (!alreadyDone) rememberAdminAction(action.id);
       await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_ack_admin_action`, {
         method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_action_id: action.id })
       });
-      if (action.action_type === 'reset') { location.reload(); return true; }
+      if (!alreadyDone && action.action_type === 'reset') { location.reload(); return true; }
     }
+    showAdminNotice();
     if (actions && actions.length) { buildPanel(); computeFlow(0); }
     return false;
   } catch (e) { return false; /* Admin commands are best-effort while a player is online. */ }
@@ -6442,15 +6498,21 @@ document.getElementById('updateLogButton').addEventListener('click', openUpdates
 document.getElementById('updatesClose').addEventListener('click', () => {
   updatesOverlay.classList.remove('open');
   if (META.seenUpdateId !== UPDATE_LOG[0].id) { META.seenUpdateId = UPDATE_LOG[0].id; saveMeta(); }
+  showAdminNotice();
 });
 document.getElementById('wbClose')?.addEventListener('click', () => {
   document.getElementById('welcome').classList.remove('open');
   showUnseenUpdates();
+  showAdminNotice();
 });
 // ---------- intro overlay: shown on first play and after hard reset ----------
 function openIntro() {
   const el = document.getElementById('intro');
   if (el) el.classList.add('open');
+  const nameRow = document.getElementById('introNameRow');
+  const introName = document.getElementById('introName');
+  if (nameRow) nameRow.style.display = META.seenIntro ? 'none' : '';
+  if (introName && !META.seenIntro) introName.value = lbName.value;
   // The Blight-mode opt-in is only offered on a genuine first run (or after a
   // hard reset, which clears seenIntro). Hide it when re-opened via "Show intro"
   // or if the save is already running Blight mode.
@@ -6472,18 +6534,37 @@ introHardCheck?.addEventListener('change', () => {
 // chosen we throw up one last warning of what it entails; returns false (leaving
 // the intro open) if the player backs out at that gate.
 function beginRun() {
+  if (!META.seenIntro) {
+    const introName = document.getElementById('introName');
+    const name = (introName.value.trim()).replace(/[^\w\u00C0-\u024F _.-]/g, '').trim().slice(0, 20);
+    if (!name) {
+      introName.setCustomValidity('Please enter a username using letters, numbers, spaces, or _ . -');
+      introName.reportValidity();
+      introName.focus();
+      return false;
+    }
+    introName.setCustomValidity('');
+    introName.value = name;
+  }
   if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
     if (!confirm('Begin in Blight mode? This is the hard mode: critters swarm harder, leaf output is taxed −15%, neglected nodes wither and rot away, and every cheat code is disabled. You may leave only after your first cut — and leaving is permanent, you can never re-enter Blight on this save. Embrace the Blight?')) return false;
     META.hardMode = true;
     grantAchievement('blightStart'); sfx('blightStart');
     refreshCheatBadges();
   }
+  if (!META.seenIntro) {
+    lbName.value = document.getElementById('introName').value;
+    try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value); } catch (e) {}
+  }
   META.seenIntro = true; saveMeta();
   closeIntro();
   showUnseenUpdates();
+  showAdminNotice();
   return true;
 }
 document.getElementById('introBegin')?.addEventListener('click', () => { beginRun(); });
+document.getElementById('introName')?.addEventListener('input', e => e.target.setCustomValidity(''));
+document.getElementById('introName')?.addEventListener('keydown', e => { if (e.key === 'Enter') beginRun(); });
 document.getElementById('intro')?.addEventListener('click', e => {
   // Click the dimmed backdrop to dismiss (counts as seen, since they've at least skimmed it)
   if (e.target.id === 'intro') beginRun();
@@ -6495,6 +6576,7 @@ document.getElementById('showintro')?.addEventListener('click', () => {
 // Trigger first-run intro after boot. loadMeta/load already ran above, so META is hydrated.
 if (!META.seenIntro) openIntro();
 showUnseenUpdates();
+showAdminNotice();
 
 requestAnimationFrame(frame);
 </script>

@@ -14,7 +14,8 @@
   h2 { margin:0 0 12px; font-size:16px; color:#cfe0cf; }
   .card { background:#101812; border:1px solid #2e3f31; border-radius:12px; padding:16px; margin-bottom:16px; }
   .muted { color:#8fa891; font-size:13px; }
-  input,button,select { font:inherit; border:1px solid #3c5340; border-radius:8px; padding:9px 11px; color:#dceade; background:#0f1611; }
+  input,button,select,textarea { font:inherit; border:1px solid #3c5340; border-radius:8px; padding:9px 11px; color:#dceade; background:#0f1611; }
+  #actionMessage { display:block; width:min(520px,100%); margin-top:10px; resize:vertical; }
   button { cursor:pointer; background:#1d2c20; }
   button:hover { border-color:#8fc299; }
   button.danger { background:#321919; border-color:#704040; color:#f0b2a8; }
@@ -71,7 +72,7 @@
       <div id="challengeList" aria-live="polite"></div>
     </div>
     <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
-    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="resetPlayer" class="danger" type="button">Reset account</button></div><p class="muted">Balance changes and resets are queued for the player's game. They take effect the next time that browser checks in. A reset clears their local run and meta progress.</p></div>
+    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="resetPlayer" class="danger" type="button">Reset account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes and messages are queued for the player's game. They appear at the next online check-in. A reset clears their local run and meta progress.</p></div>
   </section>
   <div id="message" role="status"></div>
 </main>
@@ -145,7 +146,7 @@ async function publishChallenge(e) {
 async function act(type,sap=0,resin=0) {
   if (!selected) { say('Select a player first.'); return; }
   if (type==='reset' && !confirm(`Reset ${selected.display_name}'s Sapling account? This clears their current tree and persistent meta progress the next time they are online.`)) return;
-  try { await rpc('admin_apply_action',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin}); say(type==='reset'?'Account reset queued.':'Balance adjustment queued.'); }
+  try { await rpc(type==='reset'?'admin_apply_action':'admin_apply_action_with_message',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin,...(type==='reset'?{}:{p_message:$('actionMessage').value.trim()})}); if(type!=='reset') $('actionMessage').value=''; say(type==='reset'?'Account reset queued.':'Balance adjustment and message queued.'); }
   catch(e) { say(`Action failed: ${e.message}`); }
 }
 function escapeHtml(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
