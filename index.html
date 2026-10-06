@@ -1028,6 +1028,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-shortcut-success-feedback', date:'October 6, 2026', title:'Right-click success feedback', notes:[
+    'Successful right-click polishing and branch thickening now show a small message at the upgraded node.'
+  ] },
   { id:'2026-10-06-current-bank-leaderboards', date:'October 6, 2026', title:'Bank balances on the leaderboard', notes:[
     'Highest sap and Highest resin now rank the sap and resin currently in each player’s bank. Scores can rise or fall as resources are earned and spent.',
     'Players appear on these two boards after opening the updated game and reporting their current balances.'
@@ -3960,6 +3963,7 @@ cv.addEventListener('contextmenu', e => {
   if (message) { spawnFloaty(target.x, target.y, message, '#f0c469'); return; }
   if (action === 'polish') polish(target.id);
   else thicken(target.id);
+  spawnFloaty(target.x, target.y, action === 'polish' ? '✨ Polished' : '🌿 Branch thickened', '#9fe0b0');
 });
 cv.addEventListener('pointerleave', () => {
   hovered = null;
