@@ -8,6 +8,7 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 2. Run [`../supabase/leaderboard.sql`](../supabase/leaderboard.sql).
 3. Run [`../supabase/live_challenges.sql`](../supabase/live_challenges.sql) after the leaderboard setup to enable live challenges.
 4. Run [`../supabase/live_challenge_leaf_sap.sql`](../supabase/live_challenge_leaf_sap.sql) to enable leaf-produced sap goals and real-time event progress.
+5. Run [`../supabase/live_challenge_server_clock.sql`](../supabase/live_challenge_server_clock.sql) to return the database clock with active events for countdown alignment.
 4. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 5. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.
 6. The migration allowlists `djdavidfreeman@gmail.com` for admin access. Open `admin.html`, create/sign in to a Supabase Auth account with that email, and confirm the email if Supabase prompts you.

@@ -4202,7 +4202,7 @@ function creditOffline(awaySecRaw) {
   if (META) META.offlineMs = (META.offlineMs || 0) + away * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
-  accrueLeafSapWindow(Date.now() - away * 1000, Date.now(), S.leafSapRate * rate, true);
+  accrueLeafSapWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), S.leafSapRate * rate, true);
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
   if (sap + resin > 0) {
     S.sap += sap;
@@ -4365,7 +4365,7 @@ let liveChallenges = [];
 const liveChallengeClaimsInFlight = new Set();
 const liveChallengeLastClaimAttempt = new Map();
 function liveChallengeTime(iso) {
-  const ms = Date.parse(iso) - Date.now();
+  const ms = Date.parse(iso) - liveChallengeNow();
   if (ms <= 0) return 'Ended';
   const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
   return `${h}h ${m}m ${sec}s left`;
@@ -4373,6 +4373,8 @@ function liveChallengeTime(iso) {
 const eventHud = document.getElementById('eventHud');
 const eventHudMin = document.getElementById('eventHudMin');
 const eventHudPosKey = 'sapling-live-event-position-v1';
+let liveChallengeClockOffsetMs = 0;
+const liveChallengeNow = () => Date.now() + liveChallengeClockOffsetMs;
 function clampEventHud() {
   if (!eventHud || !eventHud.classList.contains('visible')) return;
   const rect = eventHud.getBoundingClientRect();
@@ -4439,9 +4441,11 @@ window.addEventListener('resize', clampEventHud);
 function accrueLeafSapWindow(startMs, endMs, rate, queueIfUnavailable = false) {
   if (!(endMs > startMs) || !(rate > 0)) return;
   if (!liveChallenges.length) {
-    if (queueIfUnavailable) {
+    if (queueIfUnavailable && lbConfigured && lbPlayerId) {
       META.pendingLeafSapWindows = META.pendingLeafSapWindows || [];
-      META.pendingLeafSapWindows.push({ startMs, endMs, rate });
+      const last = META.pendingLeafSapWindows[META.pendingLeafSapWindows.length - 1];
+      if (last && last.localTime && last.rate === rate && startMs - last.endMs < 100) last.endMs = endMs;
+      else META.pendingLeafSapWindows.push({ startMs, endMs, rate, localTime:true });
       if (META.pendingLeafSapWindows.length > 200) META.pendingLeafSapWindows.splice(0, META.pendingLeafSapWindows.length - 200);
       peakMetaDirty = true;
     }
@@ -4484,9 +4488,16 @@ async function loadLiveChallenges() {
     });
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     liveChallenges = await res.json();
+    if (liveChallenges[0]?.server_now) {
+      const serverNow = Date.parse(liveChallenges[0].server_now);
+      if (Number.isFinite(serverNow)) liveChallengeClockOffsetMs = serverNow - Date.now();
+    }
     const pending = META.pendingLeafSapWindows || [];
     META.pendingLeafSapWindows = [];
-    for (const w of pending) accrueLeafSapWindow(Number(w.startMs), Number(w.endMs), Number(w.rate));
+    for (const w of pending) {
+      const offset = w.localTime ? liveChallengeClockOffsetMs : 0;
+      accrueLeafSapWindow(Number(w.startMs) + offset, Number(w.endMs) + offset, Number(w.rate));
+    }
     if (pending.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
     renderLiveChallenges();
     renderEventHud();
@@ -6207,7 +6218,7 @@ function frame(now) {
     }
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
-    accrueLeafSapWindow(Date.now() - dt * 1000, Date.now(), (S.leafSapRate || 0) * prod);
+    accrueLeafSapWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), (S.leafSapRate || 0) * prod, true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) { frame.eventHudAt = Date.now(); renderEventHud(); }
     const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
     S.sap += sapInc;
