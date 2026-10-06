@@ -1028,6 +1028,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-shortcut-feedback', date:'October 6, 2026', title:'Clearer right-click upgrades', notes:[
+    'Right-click shortcuts now show when polish is maxed or locked, or when you need more sap or resin.'
+  ] },
   { id:'2026-10-06-right-click-polish', date:'October 6, 2026', title:'Quick polish', notes:[
     'Right-click a leaf, amplifier, or capacitor to polish it. In Settings, you can switch the shortcut to thicken branches or turn it off.'
   ] },
@@ -3944,8 +3947,15 @@ cv.addEventListener('contextmenu', e => {
   const branchId = action === 'thicken' ? (node?.parent != null ? node.id : pickBranch(e.clientX, e.clientY)) : null;
   if (action === 'thicken' && branchId == null) return;
   e.preventDefault();
-  if (action === 'polish') polish(node.id);
-  else thicken(branchId);
+  const target = action === 'polish' ? node : N(branchId);
+  const cost = action === 'polish' ? (metaLvl('empyrean') > 0 ? 0 : costPolish(target)) : costEdge(target);
+  const message = action === 'polish' && target.locked ? 'Node locked' :
+    action === 'polish' && polishAtCap(target) ? 'Max polish' :
+    action === 'polish' && S.resin < cost ? `Need ${fmt(cost)} resin` :
+    action === 'thicken' && S.sap < cost ? `Need ${fmt(cost)} sap` : '';
+  if (message) { spawnFloaty(target.x, target.y, message, '#f0c469'); return; }
+  if (action === 'polish') polish(target.id);
+  else thicken(target.id);
 });
 cv.addEventListener('pointerleave', () => {
   hovered = null;
