@@ -48,7 +48,7 @@ The Critter Hub and expedition slots also live in `META`, so stored critters, of
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |
 | Release notes and update popup | `UPDATE_LOG`, `newMeta().seenUpdateId`, `openUpdates`, `showUnseenUpdates` |
 | Optional online leaderboard | Top-bar leaderboard drawer and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
-| Live challenges | Settings challenge panel and draggable event HUD, `loadLiveChallenges`, `accrueChallengeWindow`, `recordChallengeEvent`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql`, `supabase/live_challenge_leaf_sap.sql`, `supabase/live_challenge_server_clock.sql`, and `supabase/live_challenge_goals.sql` |
+| Live challenges | Settings challenge panel and draggable event HUD, `loadLiveChallenges`, `challengeGoals`, `accrueChallengeWindow`, `recordChallengeEvent`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql`, `supabase/live_challenge_leaf_sap.sql`, `supabase/live_challenge_server_clock.sql`, and `supabase/live_challenge_goals.sql` |
 | Main runtime and boot | `frame`, listeners near the end, final load/intro/bootstrap calls |
 
 ## Persistence and compatibility

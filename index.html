@@ -1045,7 +1045,7 @@ const UPDATE_LOG = [
     'The leaderboard Refresh button now fetches the latest rankings instead of showing a cached result.'
   ] },
   { id:'2026-10-06-live-challenge-goals', date:'October 6, 2026', title:'More live challenge goals', notes:[
-    'Live challenges can now ask you to make sap, leaf sap, resin, refinery resin, amber, or rings, complete expeditions, or defeat bugs. Several challenges can run together; use the arrow on the event bar to view each one.',
+    'Live challenges can now combine several requirements in one event: make sap, leaf sap, resin, refinery resin, amber, or rings, complete expeditions, or defeat bugs. Several challenges can run together; use the arrow on the event bar to view each one.',
     'Challenge and first-finisher rewards can now include sap, resin, acorns, rings, and amber.'
   ] },
   { id:'2026-10-06-settings-panel-fix', date:'October 6, 2026', title:'Settings panel fix', notes:[
@@ -4817,9 +4817,9 @@ function renderEventHud() {
   document.getElementById('eventHudTitle').textContent = `🏆 ${challenge.title}${liveChallenges.length > 1 ? ` (${index + 1}/${liveChallenges.length})` : ''}`;
   document.getElementById('eventHudTime').textContent = liveChallengeTime(challenge.closes_at);
   const target = Number(challenge.target_sap) || 100000;
-  const progress = Math.min(target, challengeProgress(challenge.id));
-  document.getElementById('eventHudCount').textContent = `${fmt(progress)} / ${fmt(target)} ${CHALLENGE_UNITS[challenge.target_type] || 'sap'}`;
-  document.getElementById('eventHudMetric').textContent = challenge.player_completed ? 'Completed ✓' : CHALLENGE_LABELS[challenge.target_type] || 'Progress';
+  const goals = challengeGoals(challenge), values = challengeProgressValues(challenge);
+  document.getElementById('eventHudCount').textContent = challengeReady(challenge) ? 'All goals complete' : `${values.filter((v, i) => v >= Number(goals[i].target)).length} / ${goals.length} goals complete`;
+  document.getElementById('eventHudMetric').textContent = challenge.player_completed ? 'Completed ✓' : goals.map(g => CHALLENGE_LABELS[g.type] || g.type).join(' + ');
   if (!eventHud.style.left) {
     try {
       const saved = JSON.parse(localStorage.getItem(eventHudPosKey) || 'null');
@@ -4869,18 +4869,35 @@ const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', resin:'res
 const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', resin:'Resin made', refinery_resin:'Resin made by refineries', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
 function addChallengeProgress(challenge, amount) {
   if (!(amount > 0) || challenge.player_completed) return;
+  const goals = challengeGoals(challenge), type = arguments[2];
+  if (type && !goals.some(g => g.type === type)) return;
   META.liveChallengeProgress = META.liveChallengeProgress || {};
-  META.liveChallengeProgress[challenge.id] = Math.min(Number(challenge.target_sap), (Number(META.liveChallengeProgress[challenge.id]) || 0) + amount);
+  let progress = META.liveChallengeProgress[challenge.id];
+  if (typeof progress === 'number') progress = [progress];
+  if (!Array.isArray(progress)) progress = [];
+  progress = goals.map((g, i) => Math.min(Number(g.target), (Number(progress[i]) || 0) + (g.type === type || !type ? amount : 0)));
+  META.liveChallengeProgress[challenge.id] = progress;
   peakMetaDirty = true;
 }
+function challengeGoals(challenge) {
+  return Array.isArray(challenge.goals) && challenge.goals.length ? challenge.goals : [{ type:challenge.target_type || 'banked_sap', target:Number(challenge.target_sap) || 0 }];
+}
+function challengeProgressValues(challenge) {
+  const goals = challengeGoals(challenge), raw = META.liveChallengeProgress?.[challenge.id];
+  if (Array.isArray(raw)) return goals.map((g, i) => g.type === 'banked_sap' ? Number(S.sap) || 0 : Number(raw[i]) || 0);
+  return goals.map((g, i) => g.type === 'banked_sap' ? Number(S.sap) || 0 : i === 0 && typeof raw === 'number' ? raw : 0);
+}
+function challengeReady(challenge) { return challengeGoals(challenge).every((g, i) => challengeProgressValues(challenge)[i] >= Number(g.target)); }
+function challengeProgressPayload(challenge) { return challengeProgressValues(challenge); }
 function accrueChallengeWindow(startMs, endMs, rates, queue = false, appliedIds = []) {
   if (!(endMs > startMs)) return;
   const applied = new Set(appliedIds);
   for (const challenge of liveChallenges) {
-    if (applied.has(challenge.id) || !(rates[challenge.target_type] > 0)) continue;
+    const goals = challengeGoals(challenge), matching = goals.some(g => rates[g.type] > 0);
+    if (applied.has(challenge.id) || !matching) continue;
     const a = Math.max(startMs, Date.parse(challenge.opens_at));
     const b = Math.min(endMs, Date.parse(challenge.closes_at));
-    if (b > a) addChallengeProgress(challenge, (b - a) / 1000 * rates[challenge.target_type]);
+    if (b > a) for (const goal of goals) if (rates[goal.type] > 0) addChallengeProgress(challenge, (b - a) / 1000 * rates[goal.type], goal.type);
     applied.add(challenge.id);
   }
   if (queue && lbConfigured && lbPlayerId && Object.values(rates).some(v => v > 0)) {
@@ -4900,8 +4917,8 @@ function recordChallengeEvent(type, amount) {
   if (!(amount > 0) || !META || !lbConfigured || !lbPlayerId) return;
   const at = liveChallengeNow(), appliedIds = [];
   for (const challenge of liveChallenges) {
-    if (challenge.target_type !== type) continue;
-    if (at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, amount);
+    if (!challengeGoals(challenge).some(g => g.type === type)) continue;
+    if (at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, amount, type);
     appliedIds.push(challenge.id);
   }
   const events = META.pendingChallengeEvents = META.pendingChallengeEvents || [];
@@ -4917,15 +4934,15 @@ function renderLiveChallenges() {
   liveChallengeRows.innerHTML = liveChallenges.map(c => {
     const claimed = c.player_completed;
     const restricted = !!META.hacks;
-    const current = challengeProgress(c.id);
-    const ready = current >= Number(c.target_sap);
+    const goals = challengeGoals(c), current = challengeProgressValues(c), ready = challengeReady(c);
     const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
     const reward = liveRewardText(c, 'reward');
     const bonus = liveRewardText(c, 'first_bonus');
     const action = claimed
       ? '<small class="live-complete">Completed ✓</small>'
-      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more ${CHALLENGE_UNITS[c.target_type] || 'sap'}`}</button>`;
-    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>${escapeHtml(CHALLENGE_LABELS[c.target_type] || 'Goal')}: ${fmt(Number(c.target_sap))} ${CHALLENGE_UNITS[c.target_type] || 'sap'} · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
+      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${goals.filter((g,i)=>current[i] < Number(g.target)).length} goal${goals.filter((g,i)=>current[i] < Number(g.target)).length===1?'':'s'} remaining`}</button>`;
+    const goalText=goals.map((g,i)=>`${escapeHtml(CHALLENGE_LABELS[g.type]||g.type)}: ${fmt(current[i])}/${fmt(Number(g.target))} ${CHALLENGE_UNITS[g.type]||'units'}`).join(' · ');
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>${goalText} · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
   }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
@@ -4956,7 +4973,7 @@ async function loadLiveChallenges() {
       if (event.rates) accrueChallengeWindow(event.startMs + offset, event.endMs + offset, event.rates, false, event.appliedIds);
       else for (const challenge of liveChallenges) {
         const at = event.at + offset;
-        if (!event.appliedIds?.includes(challenge.id) && challenge.target_type === event.type && at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, event.amount);
+        if (!event.appliedIds?.includes(challenge.id) && challengeGoals(challenge).some(g => g.type === event.type) && at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, event.amount, event.type);
       }
     }
     if (pending.length || events.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
@@ -4970,6 +4987,8 @@ async function loadLiveChallenges() {
 }
 async function claimLiveChallenge(id, button) {
   if (!lbConfigured || !lbPlayerId) return;
+  const challenge = liveChallenges.find(c => c.id === id);
+  if (!challenge) return;
   if (META.hacks) { liveChallengeStatus.textContent = 'Live challenges are disabled for hacked saves.'; return; }
   if (liveChallengeClaimsInFlight.has(id)) return;
   liveChallengeClaimsInFlight.add(id);
@@ -4981,7 +5000,7 @@ async function claimLiveChallenge(id, button) {
       method:'POST', headers:lbHeaders(), body:JSON.stringify({
         p_challenge_id:id, p_player_id:lbPlayerId,
         p_display_name:(lbName.value.trim() || 'Sapling').slice(0,20),
-        p_progress:Number(challengeProgress(id))||0
+        p_progress:challengeProgressPayload(challenge)
       })
     });
     if (!res.ok) throw new Error((await res.text()).slice(0,180) || `Request failed (${res.status})`);
@@ -4999,7 +5018,6 @@ async function claimLiveChallenge(id, button) {
       recordEarned(rewardSap, rewardResin);
       recordHighestBalances();
       refreshAcorns();
-      const challenge = liveChallenges.find(c => c.id === id);
       const achievementKey = `liveChallenge:${id}`;
       META.liveChallengeAchievements = META.liveChallengeAchievements || {};
       META.liveChallengeAchievements[achievementKey] = { name:challenge?.title || 'Live Challenge', glyph:'🏆', desc:challenge?.description || 'Completed a live Sapling challenge.', cat:'challenge' };
@@ -5018,15 +5036,11 @@ async function claimLiveChallenge(id, button) {
     liveChallengeClaimsInFlight.delete(id);
   }
 }
-function challengeProgress(id) {
-  const c = liveChallenges.find(x => x.id === id);
-  return c?.target_type === 'banked_sap' ? Number(S.sap) || 0 : Number(META.liveChallengeProgress?.[id]) || 0;
-}
 function checkLiveChallengeClaims() {
   if (!lbConfigured || !lbPlayerId || META.hacks) return;
   const now = Date.now();
   for (const challenge of liveChallenges) {
-    if (challenge.player_completed || challengeProgress(challenge.id) < Number(challenge.target_sap) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
+    if (challenge.player_completed || !challengeReady(challenge) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
     if (now - (liveChallengeLastClaimAttempt.get(challenge.id) || 0) < 30000) continue;
     claimLiveChallenge(challenge.id, null);
   }
