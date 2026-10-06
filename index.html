@@ -1041,6 +1041,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-gold-leaf-ripening', date:'October 6, 2026', title:'Gold leaves ripen faster', notes:[
+    'Gold leaves now appear more frequently, especially once your canopy grows, so there are more windfalls to harvest during a run.'
+  ] },
   { id:'2026-10-06-leaderboard-refresh-fix', date:'October 6, 2026', title:'Leaderboard refresh fix', notes:[
     'The leaderboard Refresh button now fetches the latest rankings instead of showing a cached result.'
   ] },
@@ -1685,11 +1688,11 @@ const myceliumMult = () => Math.pow(1.2, rootLvl('mycelium'));
 const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * myceliumMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so without a brake the tree-wide
 // rate would climb with every leaf. Stretch each leaf's timer with the leaf
-// count (L^1.2): the aggregate appearance rate is then ~L / L^1.2 = L^-0.2, so the
-// tree-wide gold-leaf rate eases off gently as the canopy fills out without ever
-// drying up, while a small sapling is left untouched (floor of 1).
-const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.2);
-const leafGiftDelay = n => clamp(80 / Math.max(leafRate(n), 0.75), 65, 210) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
+// count (L^1.08): the aggregate appearance rate is then ~L / L^1.08 = L^-0.08,
+// so larger canopies still get a gentle brake without making gold leaves feel
+// scarce. The shorter base delay also makes the first few leaves pay out sooner.
+const goldLeafCrowding = () => Math.pow(Math.max(1, (S && S.counts && S.counts.leaf) || 1), 1.08);
+const leafGiftDelay = n => clamp(65 / Math.max(leafRate(n), 0.75), 50, 180) * Math.pow(0.9, metaLvl('sunray')) * pantheonGoldDelay() * goldLeafCrowding();
 // Never let the canopy flood with gold leaves (e.g. after returning from a long
 // time away, when many timers have ripened at once). Cap how many can sit
 // unharvested at the same time; any leaf that ripens past the cap simply holds at
