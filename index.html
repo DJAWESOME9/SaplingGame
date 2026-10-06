@@ -4468,13 +4468,13 @@ function renderLiveChallenges() {
   if (!liveChallengesPanel) return;
   liveChallengeRows.innerHTML = liveChallenges.map(c => {
     const claimed = c.player_completed;
-    const restricted = !!(META.hacks || META.hardMode);
+    const restricted = !!META.hacks;
     const current = c.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[c.id]) || 0 : S.sap;
     const ready = current >= Number(c.target_sap);
     const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
     const reward = liveRewardText(c.reward_sap, c.reward_resin);
     const bonus = liveRewardText(c.first_bonus_sap, c.first_bonus_resin);
-    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable in this save mode' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button></article>`;
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button></article>`;
   }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
@@ -4509,7 +4509,7 @@ async function loadLiveChallenges() {
 }
 async function claimLiveChallenge(id, button) {
   if (!lbConfigured || !lbPlayerId) return;
-  if (META.hacks || META.hardMode) { liveChallengeStatus.textContent = 'Live challenges are disabled for hacked or Blight saves.'; return; }
+  if (META.hacks) { liveChallengeStatus.textContent = 'Live challenges are disabled for hacked saves.'; return; }
   if (liveChallengeClaimsInFlight.has(id)) return;
   liveChallengeClaimsInFlight.add(id);
   liveChallengeLastClaimAttempt.set(id, Date.now());
@@ -4554,7 +4554,7 @@ function challengeProgress(id) {
   return c?.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[id]) || 0 : Number(S.sap) || 0;
 }
 function checkLiveChallengeClaims() {
-  if (!lbConfigured || !lbPlayerId || META.hacks || META.hardMode) return;
+  if (!lbConfigured || !lbPlayerId || META.hacks) return;
   const now = Date.now();
   for (const challenge of liveChallenges) {
     if (challenge.player_completed || challengeProgress(challenge.id) < Number(challenge.target_sap) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
