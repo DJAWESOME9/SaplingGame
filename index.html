@@ -130,6 +130,13 @@
   #lbbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#9fc78f;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #lbbtn:hover, #lbbtn.open { border-color:#8fc299; color:#dceade; }
+  .floating-drawer-button { position:fixed; z-index:60; margin:0; touch-action:none; cursor:grab !important; }
+  .floating-drawer-button.dragging { cursor:grabbing !important; }
+  .drawer-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:move; touch-action:none; }
+  .drawer-heading h3 { margin-bottom:0 !important; }
+  .drawer-lock { flex:none; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:7px; padding:5px 8px; cursor:pointer; font-size:12px; }
+  .drawer-lock[aria-pressed="true"] { border-color:#d9b864; color:#f0d9a0; }
+  #leaderboard.open.moved, #achievements.open.moved, #statspanel.open.moved { animation:none; }
   #pestbtn, #freezebtn, #forcebtn, #bpbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 8px; font-size:14px; cursor:pointer; line-height:1;
     min-width:170px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -657,8 +664,8 @@
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
   <section id="leaderboard" aria-label="Leaderboard">
-  <h3>🌿 Grove leaderboards</h3>
-  <p class="lb-note">Separate rankings for lifetime production, peak production, and gold leaves clicked.</p>
+  <div class="drawer-heading"><h3>🌿 Grove leaderboards</h3><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
+  <p class="lb-note">Separate rankings for lifetime production, highest balances ever held, and gold leaves clicked.</p>
   <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Display name (optional)">
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
     <button type="button" data-lb="lifetime_sap" class="active">Lifetime sap</button>
@@ -872,7 +879,7 @@ const groveGlyph = k => (hardMode() && GROVE[k].blightGlyph) || GROVE[k].glyph;
 let META;
 let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0 });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0 });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -995,6 +1002,8 @@ function loadMeta() {
   if (typeof META.acorns !== 'number') META.acorns = 0;
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (typeof META.lifetimeResin !== 'number') META.lifetimeResin = 0;
+  if (typeof META.highestHeldSap !== 'number') META.highestHeldSap = 0;
+  if (typeof META.highestHeldResin !== 'number') META.highestHeldResin = 0;
   if (typeof META.peakBaseS !== 'number') META.peakBaseS = 0;
   if (typeof META.peakBaseR !== 'number') META.peakBaseR = 0;
   if (typeof META.peakBuffS !== 'number') META.peakBuffS = 0;
@@ -4438,6 +4447,90 @@ setInterval(loadLiveChallenges, 60000);
 window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
 lbName.addEventListener('change', () => { try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value.trim().slice(0, 20)); } catch (e) {} });
+// The three utility drawers can be pinned and placed independently of the top bar.
+const utilityDrawers = [
+  ['lbbtn', 'leaderboard'], ['trophy', 'achievements'], ['statsbtn', 'statspanel']
+];
+function closeOtherDrawers(except) {
+  utilityDrawers.forEach(([buttonId, panelId]) => {
+    const panel = document.getElementById(panelId);
+    if (panelId === except || panel.dataset.locked === 'true') return;
+    panel.classList.remove('open');
+    document.getElementById(buttonId).classList.remove('open');
+  });
+}
+function drawerHeading(title) {
+  return `<div class="drawer-heading"><h3>${title}</h3><button class="drawer-lock" type="button" aria-label="Lock panel open" aria-pressed="false">🔓</button></div>`;
+}
+function placeFloating(el, x, y) {
+  el.style.left = `${Math.max(0, Math.min(x, innerWidth - el.offsetWidth))}px`;
+  el.style.top = `${Math.max(0, Math.min(y, innerHeight - el.offsetHeight))}px`;
+  el.style.right = 'auto';
+  el.classList.add(el.matches('button') ? 'floating-drawer-button' : 'moved');
+}
+function enableDrag(handle, item, storageKey) {
+  let drag = null;
+  handle.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('.drawer-lock')) return;
+    const r = item.getBoundingClientRect();
+    drag = { id:e.pointerId, x:e.clientX, y:e.clientY, left:r.left, top:r.top, moved:false };
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    item.classList.add('dragging');
+    placeFloating(item, drag.left + dx, drag.top + dy);
+  });
+  const finish = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (drag.moved) {
+      try { localStorage.setItem(storageKey, JSON.stringify({ x:parseFloat(item.style.left), y:parseFloat(item.style.top) })); } catch (_) {}
+      // A pointer gesture still fires click; consume only the click following a drag.
+      if (e.type === 'pointerup') handle.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); }, { capture:true, once:true });
+    }
+    item.classList.remove('dragging');
+    drag = null;
+  };
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
+}
+function initDrawerHeading(panel) {
+  const heading = panel.querySelector('.drawer-heading');
+  const lock = panel.querySelector('.drawer-lock');
+  if (!heading || !lock) return;
+  const locked = panel.dataset.locked === 'true';
+  lock.setAttribute('aria-pressed', String(locked));
+  lock.textContent = locked ? '🔒' : '🔓';
+  lock.setAttribute('aria-label', locked ? 'Unlock panel' : 'Lock panel open');
+  enableDrag(heading, panel, `sapling-position-${panel.id}`);
+}
+utilityDrawers.forEach(([buttonId, panelId]) => {
+  const button = document.getElementById(buttonId), panel = document.getElementById(panelId);
+  const key = `sapling-position-${buttonId}`;
+  try { const p = JSON.parse(localStorage.getItem(key)); if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) placeFloating(button, p.x, p.y); } catch (_) {}
+  enableDrag(button, button, key);
+  panel.addEventListener('click', e => {
+    const lock = e.target.closest('.drawer-lock');
+    if (!lock) return;
+    panel.dataset.locked = panel.dataset.locked === 'true' ? 'false' : 'true';
+    lock.setAttribute('aria-pressed', panel.dataset.locked);
+    lock.textContent = panel.dataset.locked === 'true' ? '🔒' : '🔓';
+    lock.setAttribute('aria-label', panel.dataset.locked === 'true' ? 'Unlock panel' : 'Lock panel open');
+  });
+  initDrawerHeading(panel);
+  try { const p = JSON.parse(localStorage.getItem(`sapling-position-${panelId}`)); if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) placeFloating(panel, p.x, p.y); } catch (_) {}
+});
+window.addEventListener('resize', () => {
+  utilityDrawers.forEach(([buttonId, panelId]) => {
+    for (const id of [buttonId, panelId]) {
+      const el = document.getElementById(id);
+      if (el.style.left) placeFloating(el, parseFloat(el.style.left), parseFloat(el.style.top));
+    }
+  });
+});
 document.getElementById('lbRefresh').addEventListener('click', loadLeaderboard);
 document.getElementById('lbTabs').addEventListener('click', e => {
   const tab = e.target.closest('button[data-lb]');
@@ -4455,8 +4548,7 @@ lbButton.addEventListener('click', () => {
     loadLiveChallenges();
     if (lbConfigured) loadLeaderboard();
     settings.classList.remove('open'); gear.classList.remove('open');
-    achPanel.classList.remove('open'); trophy.classList.remove('open');
-    statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
+    closeOtherDrawers('leaderboard');
   }
 });
 gear.addEventListener('click', () => {
@@ -4464,9 +4556,7 @@ gear.addEventListener('click', () => {
   const open = settings.classList.toggle('open');
   gear.classList.toggle('open', open);
   if (open) {
-    achPanel.classList.remove('open'); trophy.classList.remove('open');
-    statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
-    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
+    closeOtherDrawers();
   }
 });
 document.addEventListener('pointerdown', e => {
@@ -4475,7 +4565,7 @@ document.addEventListener('pointerdown', e => {
   if (!settings.contains(e.target) && e.target !== gear) {
     settings.classList.remove('open'); gear.classList.remove('open');
   }
-  if (!leaderboard.contains(e.target) && e.target !== lbButton) {
+  if (leaderboard.dataset.locked !== 'true' && !leaderboard.contains(e.target) && e.target !== lbButton) {
     leaderboard.classList.remove('open'); lbButton.classList.remove('open');
   }
 });
@@ -5590,7 +5680,7 @@ function renderAchievements() {
     { cat:'secret',    title:'Secrets',      note:'no bonus' },
   ];
   const bonusOn = metaLvl('accolades') > 0 || metaLvl('laurels') > 0;
-  let html = `<h3>Achievements · ${unlocked}/${total}</h3>`;
+  let html = drawerHeading(`Achievements · ${unlocked}/${total}`);
   for (const s of sections) {
     const keys = Object.keys(ACHIEVEMENTS).filter(k => catOf(k) === s.cat);
     if (!keys.length) continue;
@@ -5599,21 +5689,21 @@ function renderAchievements() {
     html += `<div class="achsec">${s.title} · ${got}/${keys.length}${note}</div>` + keys.map(rowHtml).join('');
   }
   achPanel.innerHTML = html;
+  initDrawerHeading(achPanel);
 }
 trophy?.addEventListener('click', () => {
   const open = achPanel.classList.toggle('open');
   if (open) {
     renderAchievements();
     settings.classList.remove('open'); gear.classList.remove('open');
-    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
-    statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
+    closeOtherDrawers('achievements');
     trophy.classList.add('open');
   } else {
     trophy.classList.remove('open');
   }
 });
 document.addEventListener('pointerdown', e => {
-  if (!achPanel.contains(e.target) && e.target !== trophy) {
+  if (achPanel.dataset.locked !== 'true' && !achPanel.contains(e.target) && e.target !== trophy) {
     achPanel.classList.remove('open'); trophy.classList.remove('open');
   }
 });
@@ -5661,28 +5751,28 @@ function renderStats() {
     { k: 'Rings banked', v: `<span class="stlife">${fmt(META.totalRings || 0)}</span>` },
     { k: 'This tree planted', v: `<span class="sttree">${plantedAge}</span>` },
   ];
-  let html = '<h3>Stats</h3><div class="stsec" style="margin-top:6px;color:#7d8c7e;font-weight:500;text-transform:none;letter-spacing:0">' +
+  let html = drawerHeading('Stats') + '<div class="stsec" style="margin-top:6px;color:#7d8c7e;font-weight:500;text-transform:none;letter-spacing:0">' +
     '<span class="sttree">this tree</span> · <span class="stlife">lifetime</span></div>';
   for (const r of rows) {
     if (r.sec) { html += `<div class="stsec">${r.sec}</div>`; continue; }
     html += `<div class="strow"><span class="stk">${r.k}</span><span class="stv">${r.v}</span></div>`;
   }
   statsPanel.innerHTML = html;
+  initDrawerHeading(statsPanel);
 }
 statsBtn?.addEventListener('click', () => {
   const open = statsPanel.classList.toggle('open');
   if (open) {
     renderStats();
     settings.classList.remove('open'); gear.classList.remove('open');
-    leaderboard.classList.remove('open'); lbButton.classList.remove('open');
-    achPanel.classList.remove('open'); trophy.classList.remove('open');
+    closeOtherDrawers('statspanel');
     statsBtn.classList.add('open');
   } else {
     statsBtn.classList.remove('open');
   }
 });
 document.addEventListener('pointerdown', e => {
-  if (!statsPanel.contains(e.target) && e.target !== statsBtn) {
+  if (statsPanel.dataset.locked !== 'true' && !statsPanel.contains(e.target) && e.target !== statsBtn) {
     statsPanel.classList.remove('open'); statsBtn.classList.remove('open');
   }
 });
