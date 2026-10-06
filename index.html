@@ -999,6 +999,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-update-log-navigation', date:'October 6, 2026', title:'Update log is easier to browse', notes:[
+    'The update log now opens at the newest entry every time. Tap outside it to close it.'
+  ] },
   { id:'2026-10-06-grove-upgrade-near-node', date:'October 6, 2026', title:'Grove upgrade panel follows your selection', notes:[
     'The Grove purchase panel now opens just below or above the upgrade you select and follows it as you pan or zoom.'
   ] },
@@ -6670,18 +6673,21 @@ function openUpdates() {
   }
   settings.classList.remove('open'); gear.classList.remove('open');
   updatesOverlay.classList.add('open');
-  document.getElementById('updatesClose').focus();
+  updatesOverlay.querySelector('.updatesbox').scrollTop = 0;
+  document.getElementById('updatesClose').focus({ preventScroll: true });
 }
 function showUnseenUpdates() {
   if (META.seenUpdateId === UPDATE_LOG[0].id || document.getElementById('intro').classList.contains('open') || document.getElementById('welcome').classList.contains('open')) return;
   openUpdates();
 }
 document.getElementById('updateLogButton').addEventListener('click', openUpdates);
-document.getElementById('updatesClose').addEventListener('click', () => {
+function closeUpdates() {
   updatesOverlay.classList.remove('open');
   if (META.seenUpdateId !== UPDATE_LOG[0].id) { META.seenUpdateId = UPDATE_LOG[0].id; saveMeta(); }
   showAdminNotice();
-});
+}
+document.getElementById('updatesClose').addEventListener('click', closeUpdates);
+updatesOverlay.addEventListener('click', e => { if (e.target === updatesOverlay) closeUpdates(); });
 document.getElementById('wbClose')?.addEventListener('click', () => {
   document.getElementById('welcome').classList.remove('open');
   showUnseenUpdates();
