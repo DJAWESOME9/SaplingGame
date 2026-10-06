@@ -838,7 +838,7 @@
 <div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
   <div class="expbox">
     <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
-    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They occupy hub spaces during the trip and are consumed when it ends. Trips advance at your offline production rate while you are away.</p>
+    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They leave the hub as soon as a trip starts, freeing those spaces. Trips advance at your offline production rate while you are away.</p>
     <div id="expSlots" class="expgrid"></div>
   </div>
 </div>
@@ -1026,9 +1026,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-expedition-departure', date:'October 6, 2026', title:'Critters leave when sent', notes:[
+    'Sending critters on an expedition now removes them from the hub immediately, freeing storage and ending their sap drain while they travel.'
+  ] },
   { id:'2026-10-06-critter-expeditions', date:'October 6, 2026', title:'Critter expeditions', notes:[
     'The Critter Hub now unlocks Expeditions beside the Pantheon. Send stored critters for sap, resin, rings, rare acorns, and occasional production boosts.',
-    'Each slot shows its trip time and possible rewards. Trips progress while you play and at your offline rate while away; critters are consumed when a trip finishes.',
+    'Each slot shows its trip time and possible rewards. Trips progress while you play and at your offline rate while away; sent critters leave the hub.',
     'Unlock a second expedition slot for 3 acorns and a third for 5. Reroll an offer for 1 acorn. Welcome Back now shows expedition progress and rewards.'
   ] },
   { id:'2026-10-06-update-log-navigation', date:'October 6, 2026', title:'Update log is easier to browse', notes:[
@@ -1215,6 +1218,13 @@ function loadMeta() {
   META.expeditions.slots = clamp(Math.floor(Number(META.expeditions.slots) || 1), 1, 3);
   if (!Array.isArray(META.expeditions.entries)) META.expeditions.entries = [];
   META.expeditions.entries.length = Math.min(META.expeditions.entries.length, META.expeditions.slots);
+  // Saves from the first expedition release kept travelling critters in the hub.
+  for (const slot of META.expeditions.entries) {
+    if (slot && slot.active && !slot.active.crittersDeparted) {
+      META.critterHub.bugs = Math.max(0, META.critterHub.bugs - (slot.active.critters || 0));
+      slot.active.crittersDeparted = true;
+    }
+  }
   if (!Number.isFinite(META.expeditions.lastTickAt)) META.expeditions.lastTickAt = Date.now();
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (typeof META.lifetimeResin !== 'number') META.lifetimeResin = 0;
@@ -6116,10 +6126,7 @@ function ensureExpeditionOffers() {
   }
   if (changed) saveMeta();
 }
-function expeditionReserved() {
-  return META.expeditions.entries.reduce((n, slot) => n + (slot && slot.active ? slot.active.critters : 0), 0);
-}
-const expeditionAvailable = () => Math.max(0, META.critterHub.bugs - expeditionReserved());
+const expeditionAvailable = () => META.critterHub.bugs;
 function expeditionRingRange() {
   const total = Math.max(0, META.totalRings || 0);
   return total < 1 ? [0,1] : [Math.max(1, Math.floor(Math.sqrt(total) * 0.5)), Math.max(2, Math.floor(Math.sqrt(total)))];
@@ -6157,13 +6164,14 @@ function startExpedition(i) {
   const slot = META.expeditions.entries[i];
   if (!slot || slot.active || !slot.offer) return;
   const t = EXPEDITION_TYPES[slot.offer.kind];
-  if (expeditionAvailable() < t.critters) { toast(`Need ${t.critters} free critters in the hub.`); return; }
+  if (expeditionAvailable() < t.critters) { toast(`Need ${t.critters} critters in the hub.`); return; }
+  META.critterHub.bugs -= t.critters;
   const { sap:baseSap, resin:baseResin } = expeditionBaseRates();
   const [ringMin, ringMax] = expeditionRingRange();
-  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration, progress:0, critters:t.critters, baseSap, baseResin, ringMin, ringMax };
+  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration, progress:0, critters:t.critters, crittersDeparted:true, baseSap, baseResin, ringMin, ringMax };
   slot.offer = null;
   META.expeditions.lastTickAt = Date.now();
-  saveMeta(); renderExpeditions(); sfx('buy');
+  renderCritterHub(); saveMeta(); renderExpeditions(); sfx('buy');
   toast(`🧭 ${t.critters} critter${t.critters === 1 ? '' : 's'} set off for ${t.name}.`);
 }
 function advanceExpeditions(seconds, now = Date.now()) {
@@ -6190,7 +6198,6 @@ function advanceExpeditions(seconds, now = Date.now()) {
     const buff = Math.random() < 0.3;
     S.sap += sap; S.resin += resin; recordEarned(sap, resin);
     META.rings += rings; META.totalRings += rings; META.acorns += acorn;
-    META.critterHub.bugs = Math.max(0, META.critterHub.bugs - a.critters);
     if (buff) applyBloom('expedition', 300);
     recordHighestBalances();
     const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
