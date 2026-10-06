@@ -737,13 +737,15 @@
   <section id="leaderboard" aria-label="Leaderboard">
   <div class="lb-content">
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
-  <p class="lb-note">See the growers who have gathered the most, held the most, and found the gold.</p>
+  <p class="lb-note">Lifetime records count all sap and resin gained. Production records count tree output, including offline growth.</p>
   <label class="lb-label" for="lbName">Your display name</label>
   <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Optional · up to 20 characters">
   <div class="lb-section-label">Choose a record</div>
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
     <button type="button" data-lb="lifetime_sap" class="active" aria-pressed="true">Lifetime sap</button>
     <button type="button" data-lb="lifetime_resin" aria-pressed="false">Lifetime resin</button>
+    <button type="button" data-lb="production_sap" aria-pressed="false">Sap production</button>
+    <button type="button" data-lb="production_resin" aria-pressed="false">Resin production</button>
     <button type="button" data-lb="highest_sap" aria-pressed="false">Highest sap</button>
     <button type="button" data-lb="highest_resin" aria-pressed="false">Highest resin</button>
     <button type="button" data-lb="gold_leaves" aria-pressed="false">Gold leaves</button>
@@ -959,6 +961,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-05-earned-production-boards', date:'October 5, 2026', title:'Lifetime earnings and production records', notes:[
+    'Lifetime sap and resin now include gold leaves, challenge rewards, starting resources, and other gains as well as production.',
+    'New Sap production and Resin production leaderboards track only what your tree produces, including offline growth.',
+    'Lifetime totals now save with each autosave so a reload keeps recent gains.',
+    'Older saves keep their recorded production totals; gains from before this update cannot be reconstructed exactly.'
+  ] },
   { id:'2026-10-05-last-online', date:'October 5, 2026', title:'Last online in admin', notes:[
     'The admin dashboard now shows each player’s last successful game check-in separately from the account update time.'
   ] },
@@ -983,7 +991,7 @@ const UPDATE_LOG = [
     'You can revisit every update from Settings → Update log.'
   ] }
 ];
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -1109,6 +1117,9 @@ function loadMeta() {
   if (typeof META.acorns !== 'number') META.acorns = 0;
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (typeof META.lifetimeResin !== 'number') META.lifetimeResin = 0;
+  // Before production had its own counters, lifetime totals counted production only.
+  if (typeof META.productionSap !== 'number') META.productionSap = META.lifetimeSap;
+  if (typeof META.productionResin !== 'number') META.productionResin = META.lifetimeResin;
   if (typeof META.highestHeldSap !== 'number') META.highestHeldSap = 0;
   if (typeof META.highestHeldResin !== 'number') META.highestHeldResin = 0;
   if (typeof META.peakBaseS !== 'number') META.peakBaseS = 0;
@@ -1161,6 +1172,15 @@ function recordHighestBalances() {
   if (!META || !S || META.hacks) return;
   if (S.sap > META.highestHeldSap) { META.highestHeldSap = S.sap; peakMetaDirty = true; }
   if (S.resin > META.highestHeldResin) { META.highestHeldResin = S.resin; peakMetaDirty = true; }
+}
+function recordEarned(sap = 0, resin = 0) {
+  if (sap > 0) META.lifetimeSap = (META.lifetimeSap || 0) + sap;
+  if (resin > 0) META.lifetimeResin = (META.lifetimeResin || 0) + resin;
+}
+function recordProduction(sap = 0, resin = 0) {
+  recordEarned(sap, resin);
+  if (sap > 0) { META.productionSap = (META.productionSap || 0) + sap; S.treeSap = (S.treeSap || 0) + sap; }
+  if (resin > 0) { META.productionResin = (META.productionResin || 0) + resin; S.treeResin = (S.treeResin || 0) + resin; }
 }
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
@@ -1794,7 +1814,7 @@ function mkNode(type, parent) {
 }
 const N = id => S.nodes[id];
 
-function newGame() {
+function newGame(creditStarting = true) {
   S = { sap: CFG.startSap, resin: 0, amber: 0, nodes: {}, nextId: 1, rootId: 0,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, funnel: 0 },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -1806,6 +1826,8 @@ function newGame() {
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
+  if (creditStarting) recordEarned(S.sap, S.resin);
+  META.earnedTotalsMigrated = true;
   S.amber += 10 * metaLvl('crescent');
   const dr = metaLvl('deeproots');
   const rootStarts = Math.min(4, metaLvl('rootmemory'));
@@ -2053,6 +2075,7 @@ function harvestLeaf(id) {
   n.giftT = freshGiftT(n);
   declumpGiftTimers(); // keep a freshly-recycled timer off any neighbour's phase
   S.sap += gain;
+  recordEarned(gain);
   if (wasBig) {
     grantAchievement('bloomBasic');
     const kind = pickBloom();
@@ -4204,7 +4227,8 @@ function save() {
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, peakBuffS: S.peakBuffS || 0, peakBuffR: S.peakBuffR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, nodes }));
-  if (peakMetaDirty) { saveMeta(); peakMetaDirty = false; }
+  // Lifetime earnings and production change even when no new peak is reached.
+  saveMeta(); peakMetaDirty = false;
 }
 // Offline production rate ladder: 5% base, +5% per Slumber lvl, +10% per Patience lvl, +5% per Dreams lvl, capped at 85% (100% with Eternity).
 const offlineRateNow = () => metaLvl('eternity') > 0 ? 1 : Math.min(0.85, 0.05 + 0.05 * metaLvl('slumber') + 0.10 * metaLvl('patience') + 0.05 * metaLvl('dreams'));
@@ -4223,10 +4247,7 @@ function creditOffline(awaySecRaw) {
   const rate = offlineRateNow();
   accrueLeafSapWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), S.leafSapRate * rate, true);
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
-  META.lifetimeSap = (META.lifetimeSap || 0) + sap;
-  META.lifetimeResin = (META.lifetimeResin || 0) + resin;
-  S.treeSap = (S.treeSap || 0) + sap;
-  S.treeResin = (S.treeResin || 0) + resin;
+  recordProduction(sap, resin);
   if (sap + resin > 0) {
     S.sap += sap;
     S.resin += resin;
@@ -4318,6 +4339,12 @@ function load() {
   relaxNodes(400); // thorough one-time declump so a crowded save loads fully spread
   for (const id in S.nodes) { const n = N(id); n.x = n.tx; n.y = n.ty; }
   prepareEdgeCache();
+  if (!META.hacks && (!META.earnedTotalsMigrated || META.lifetimeSap < S.sap || META.lifetimeResin < S.resin)) {
+    META.lifetimeSap = Math.max(META.lifetimeSap || 0, S.sap || 0, META.highestHeldSap || 0);
+    META.lifetimeResin = Math.max(META.lifetimeResin || 0, S.resin || 0, META.highestHeldResin || 0);
+    META.earnedTotalsMigrated = true;
+    saveMeta();
+  }
   creditOffline((Date.now() - d.t) / 1000);
 }
 let toastTimer = null;
@@ -4344,6 +4371,8 @@ const lbStatus = document.getElementById('lbStatus');
 const LB_BOARDS = {
   lifetime_sap: { column: 'lifetime_sap', format: value => fmt(Number(value) || 0) },
   lifetime_resin: { column: 'lifetime_resin', format: value => fmt(Number(value) || 0) },
+  production_sap: { column: 'production_sap', format: value => fmt(Number(value) || 0) },
+  production_resin: { column: 'production_resin', format: value => fmt(Number(value) || 0) },
   highest_sap: { column: 'highest_held_sap', format: value => fmt(Number(value) || 0) },
   highest_resin: { column: 'highest_held_resin', format: value => fmt(Number(value) || 0) },
   gold_leaves: { column: 'gold_leaves', format: value => (Number(value) || 0).toLocaleString() }
@@ -4373,8 +4402,8 @@ async function loadLeaderboard() {
   lbStatus.textContent = 'Loading…';
   try {
     const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
-    if (res.status === 400 && board.column.startsWith('highest_held_')) {
-      lbRows.innerHTML = '<li class="lb-empty"><strong>Balance rankings are on their way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
+    if (res.status === 400 && (board.column.startsWith('highest_held_') || board.column.startsWith('production_'))) {
+      lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
       lbStatus.textContent = 'Other records are available now.';
       return;
     }
@@ -4552,8 +4581,10 @@ async function claimLiveChallenge(id, button) {
     const rows = await res.json(), result = rows && rows[0];
     if (!result) throw new Error('The server returned no completion result.');
     if (!result.already_completed) {
-      S.sap += Number(result.reward_sap)||0;
-      S.resin += Number(result.reward_resin)||0;
+      const rewardSap = Number(result.reward_sap)||0, rewardResin = Number(result.reward_resin)||0;
+      S.sap += rewardSap;
+      S.resin += rewardResin;
+      recordEarned(rewardSap, rewardResin);
       recordHighestBalances();
       const challenge = liveChallenges.find(c => c.id === id);
       const achievementKey = `liveChallenge:${id}`;
@@ -4601,19 +4632,33 @@ async function submitLeaderboardScore() {
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
+    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_totals`, {
       method: 'POST', headers: lbHeaders(),
       body: JSON.stringify({
         p_player_id: lbPlayerId,
         p_display_name: displayName,
         p_lifetime_sap: META.lifetimeSap || 0,
         p_lifetime_resin: META.lifetimeResin || 0,
+        p_production_sap: META.productionSap || 0,
+        p_production_resin: META.productionResin || 0,
         p_highest_held_sap: META.highestHeldSap || 0,
         p_highest_held_resin: META.highestHeldResin || 0,
         p_gold_leaves: META.goldClicked || 0,
         p_is_blight: !!META.hardMode
       })
     });
+    const productionLegacy = res.status === 404;
+    if (productionLegacy) {
+      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
+        method: 'POST', headers: lbHeaders(),
+        body: JSON.stringify({
+          p_player_id: lbPlayerId, p_display_name: displayName,
+          p_lifetime_sap: META.lifetimeSap || 0, p_lifetime_resin: META.lifetimeResin || 0,
+          p_highest_held_sap: META.highestHeldSap || 0, p_highest_held_resin: META.highestHeldResin || 0,
+          p_gold_leaves: META.goldClicked || 0, p_is_blight: !!META.hardMode
+        })
+      });
+    }
     const legacy = res.status === 404;
     if (legacy) {
       // Keep lifetime and gold-leaf boards updating until the balance-score RPC is installed.
@@ -4634,6 +4679,7 @@ async function submitLeaderboardScore() {
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     await loadLeaderboard();
     if (legacy && !selectedLeaderboard.startsWith('highest_')) lbStatus.textContent = 'Lifetime scores updated · balance records await a database update';
+    else if (productionLegacy && !selectedLeaderboard.startsWith('production_')) lbStatus.textContent = 'Score updated · production records await a database update';
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
@@ -4658,8 +4704,10 @@ async function processAdminActions() {
     for (const action of actions || []) {
       if (adminActionDone(action.id)) continue;
       if (action.action_type === 'balance') {
+        const oldSap = S.sap, oldResin = S.resin;
         if (Number.isFinite(action.sap_delta)) S.sap = Math.max(0, S.sap + action.sap_delta);
         if (Number.isFinite(action.resin_delta)) S.resin = Math.max(0, S.resin + action.resin_delta);
+        recordEarned(Math.max(0, S.sap - oldSap), Math.max(0, S.resin - oldResin));
         recordHighestBalances();
         save();
       } else if (action.action_type === 'reset') {
@@ -4936,7 +4984,7 @@ function treeValue() {
 const ringGain = () => Math.floor(Math.pow(treeValue() / RING_K, 0.34) * ringMult());
 function replantIfPristine() {
   // while the sapling is untouched, keep re-applying live grove/species choices to it
-  if (S && S.pristine) { newGame(); computeFlow(0); buildPanel(); save(); }
+  if (S && S.pristine) { newGame(false); computeFlow(0); buildPanel(); save(); }
 }
 function buyGrove(k, n) {
   const g = GROVE[k];
@@ -5593,6 +5641,7 @@ function _checkCheatInner(raw) {
     applyBloom('sonic', 15);
     const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 15;
     S.sap += inst;
+    recordEarned(inst);
     toast(`💨 SONIC! ×7 production for 15s · +${fmt(inst)} sap instantly`);
     sfx('bloom');
     return true;
@@ -5633,6 +5682,7 @@ function _checkCheatInner(raw) {
     const minutes = 5;
     const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 60 * minutes;
     S.sap += inst;
+    recordEarned(inst);
     saveMeta();
     toast(`🧵 ${v.charAt(0).toUpperCase() + v.slice(1)}! +${fmt(inst)} sap (≈${minutes} min of production)`);
     sfx('buy');
@@ -5647,6 +5697,7 @@ function _checkCheatInner(raw) {
     S.bloomT = Math.max(S.bloomT || 0, 300);
     const inst = (S.ema && S.ema.s ? S.ema.s : 0) * 300;
     S.sap += inst;
+    recordEarned(inst);
     grantAchievement('chocoholic');
     toast(`🍫 CHOCOHOLIC! ×3 production for 5 min · +${fmt(inst)} sap instantly`);
     sfx('buy');
@@ -6085,9 +6136,11 @@ function renderStats() {
     { sec: 'Production (peak with buffs)' },
     { k: 'Highest sap', v: pair(rate(S.peakBuffS || 0), rate(META.peakBuffS || 0)) },
     { k: 'Highest resin', v: pair(rate(S.peakBuffR || 0), rate(META.peakBuffR || 0)) },
-    { sec: 'Banked' },
-    { k: 'Total sap', v: pair(fmt(S.treeSap || 0), fmt(META.lifetimeSap || 0)) },
-    { k: 'Total resin', v: pair(fmt(S.treeResin || 0), fmt(META.lifetimeResin || 0)) },
+    { sec: 'Earned and produced' },
+    { k: 'Sap earned', v: pair('—', fmt(META.lifetimeSap || 0)) },
+    { k: 'Resin earned', v: pair('—', fmt(META.lifetimeResin || 0)) },
+    { k: 'Sap produced', v: pair(fmt(S.treeSap || 0), fmt(META.productionSap || 0)) },
+    { k: 'Resin produced', v: pair(fmt(S.treeResin || 0), fmt(META.productionResin || 0)) },
     { sec: 'Harvest' },
     { k: 'Gold leaves clicked', v: pair(count(S.goldClicked), count(META.goldClicked)) },
     { sec: 'Time' },
@@ -6252,15 +6305,8 @@ function frame(now) {
     if (idle) { idleSap += sapInc; idleResin += resinInc; }
     // Lifetime sap drives the acorn unlock — accumulate raw income, never the
     // hacker-mode refill below.
-    if (S.incomeS > 0) {
-      META.lifetimeSap = (META.lifetimeSap || 0) + sapInc;
-      // Per-tree total — resets with each newGame(), powers the one-tree challenges.
-      S.treeSap = (S.treeSap || 0) + sapInc;
-    }
-    if (S.incomeR > 0) {
-      META.lifetimeResin = (META.lifetimeResin || 0) + resinInc;
-      S.treeResin = (S.treeResin || 0) + resinInc;
-    }
+    // Per-tree production resets with each newGame() and powers one-tree challenges.
+    recordProduction(sapInc, resinInc);
     // Track the highest actual production reached, including active buffs.
     if (S.incomeS > (S.peakBuffS || 0)) S.peakBuffS = S.incomeS;
     if (S.incomeR > (S.peakBuffR || 0)) S.peakBuffR = S.incomeR;
