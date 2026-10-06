@@ -70,6 +70,7 @@
   .adminnoticebox p { color:#cad9c8; white-space:pre-wrap; overflow-wrap:anywhere; }
   #adminNoticeClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
+  #rightClickAction { flex:1; min-width:0; color:#dceade; background:#1d2c20; border:1px solid #3c5340; border-radius:7px; padding:5px; }
   #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
     box-sizing:border-box; width:328px; height:min(70vh, 640px); min-height:190px; max-height:calc(100dvh - 16px); overflow:hidden;
     display:none; margin:0; padding:16px; border:1px solid #617349; border-radius:14px;
@@ -774,6 +775,7 @@
 <div id="settings">
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
+  <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
   <section id="adminTools" aria-label="Admin tools">
     <h3>🛠 Admin controls</h3>
     <p>Administrator sign-in required. Manage player accounts and support actions.</p>
@@ -1026,6 +1028,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-right-click-polish', date:'October 6, 2026', title:'Quick polish', notes:[
+    'Right-click a leaf, amplifier, or capacitor to polish it. In Settings, you can switch the shortcut to thicken branches or turn it off.'
+  ] },
   { id:'2026-10-06-expedition-departure', date:'October 6, 2026', title:'Critters leave when sent', notes:[
     'Sending critters on an expedition now removes them from the hub immediately, freeing storage and ending their sap drain while they travel.'
   ] },
@@ -3925,6 +3930,18 @@ cv.addEventListener('pointercancel', e => {
   }
   if (pointers.size < 2) pinch = null;
 });
+cv.addEventListener('contextmenu', e => {
+  const action = rightClickAction.value;
+  if (action === 'off') return;
+  const node = Object.values(S.nodes).find(n =>
+    Math.hypot(sx(n.x) - e.clientX, sy(n.y) - e.clientY) <= nodeRadius(n) * cam.scale + 8);
+  if (action === 'polish' && (!node || !canPolish(node))) return;
+  const branchId = action === 'thicken' ? (node?.parent != null ? node.id : pickBranch(e.clientX, e.clientY)) : null;
+  if (action === 'thicken' && branchId == null) return;
+  e.preventDefault();
+  if (action === 'polish') polish(node.id);
+  else thicken(branchId);
+});
 cv.addEventListener('pointerleave', () => {
   hovered = null;
   hoveredRoot = null;
@@ -4625,6 +4642,12 @@ function toast(msg) {
 }
 const gear = document.getElementById('gear'), settings = document.getElementById('settings'),
       volSlider = document.getElementById('vol');
+const rightClickAction = document.getElementById('rightClickAction');
+try { rightClickAction.value = localStorage.getItem('sapling-right-click-action') || (localStorage.getItem('sapling-right-click-polish') === 'false' ? 'off' : 'polish'); }
+catch (e) { rightClickAction.value = 'polish'; }
+rightClickAction.addEventListener('change', () => {
+  try { localStorage.setItem('sapling-right-click-action', rightClickAction.value); } catch (e) {}
+});
 const lbButton = document.getElementById('lbbtn');
 // Public Supabase project URL and anon key can be injected here at deployment.
 // The anon key is intentionally public; database RLS policies protect writes.
