@@ -1041,6 +1041,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-staggered-wither', date:'October 6, 2026', title:'Staggered node withering', notes:[
+    'In Blight mode, nodes now have slightly different grace periods, so neglected nodes are less likely to start withering all at once.'
+  ] },
   { id:'2026-10-06-gold-leaf-ripening', date:'October 6, 2026', title:'Gold leaves ripen faster', notes:[
     'Gold leaves now appear more frequently, especially once your canopy grows, so there are more windfalls to harvest during a run.'
   ] },
@@ -1974,6 +1977,7 @@ function mkNode(type, parent) {
     life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0, idle: 0, wither: 0,
+    witherGraceOffset: Math.random() * 0.3 - 0.15,
     giftT: type === 'leaf' ? initialGiftT({ lvl: lvl0 }) : 0,
     giftAge: 0, giftLife: 0, giftGain: 0, giftA: 0,
     fx: { pop: 0, flash: 0 } };
@@ -2666,7 +2670,8 @@ function updateWither(dt, idle) {
       n.idle = 0; if (n.wither) n.wither = 0; continue;
     }
     n.idle = (n.idle || 0) + dt;
-    if (n.idle < grace) {
+    const nodeGrace = grace * (1 + (n.witherGraceOffset || 0));
+    if (n.idle < nodeGrace) {
       if (n.wither) n.wither = Math.max(0, n.wither - dt / wtime);
       continue;
     }
@@ -4564,6 +4569,7 @@ function save() {
   const nodes = Object.values(S.nodes).map(n => ({
     id: n.id, type: n.type, parent: n.parent, children: n.children, lvl: n.lvl, edgeLvl: n.edgeLvl,
     extraKids: n.extraKids, polish: n.polish || 0, locked: !!n.locked, life: n.life, lifeR: n.lifeR || 0, buf: n.buf, discharging: n.discharging,
+    witherGraceOffset: n.witherGraceOffset || 0,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
@@ -4664,6 +4670,7 @@ function load() {
     runStart: (typeof d.runStart === 'number') ? d.runStart : (Date.now() - 24 * 3600 * 1000) };
   for (const m of d.nodes) {
     S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false,
+      witherGraceOffset: Math.random() * 0.3 - 0.15,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
       giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
