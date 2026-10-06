@@ -108,7 +108,7 @@
   #liveChallenges h3 { margin:0 0 5px; color:#d5e7bd; font-size:13px; }
   #liveChallenges .live-note { margin:0 0 8px; color:#9eae91; font-size:11px; line-height:1.4; }
   #liveChallenges .lb-status { min-height:15px; margin-top:6px; color:#9db89f; font-size:11px; }
-  #eventHud { position:fixed; z-index:30; display:none; box-sizing:border-box; width:min(390px,calc(100vw - 24px));
+  #eventHud { position:fixed; z-index:30; display:none; box-sizing:border-box; width:min(310px,calc(100vw - 24px)); max-width:calc(100vw - 24px); right:auto; bottom:auto;
     padding:0; overflow:hidden; border:1px solid #779356; border-radius:11px; color:#edf5dc;
     background:linear-gradient(135deg,rgba(29,49,30,.97),rgba(17,31,24,.97)); box-shadow:0 8px 24px rgba(0,0,0,.42); }
   #eventHud.visible { display:block; }
@@ -118,12 +118,10 @@
   #eventHudMin { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
   #eventHudBody { padding:0 11px 10px; }
   #eventHudProgress { display:flex; justify-content:space-between; gap:8px; margin:0 0 6px; color:#cbd8be; font-size:11px; font-variant-numeric:tabular-nums; }
-  #eventHudTrack { height:5px; overflow:hidden; border-radius:99px; background:#344735; }
-  #eventHudFill { width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#87b65f,#d5c66c); transition:width .25s ease; }
   #eventHud.minimized { width:auto; min-width:185px; }
   #eventHud.minimized #eventHudHead { min-height:33px; }
   #eventHud.minimized #eventHudBody { display:none; }
-  @media(max-width:600px) { #eventHud { width:min(340px,calc(100vw - 16px)); } #eventHud.minimized { min-width:170px; } }
+  @media(max-width:600px) { #eventHud { width:min(290px,calc(100vw - 16px)); max-width:calc(100vw - 16px); } #eventHud.minimized { min-width:170px; } }
   #liveChallengeRows { display:grid; gap:8px; }
   .live-challenge { padding:8px; border:1px solid #36452f; border-radius:8px; background:#111a12; }
   .live-challenge b { display:block; color:#e1eacb; font-size:12px; }
@@ -712,7 +710,7 @@
 </div>
 <section id="eventHud" aria-label="Live event progress" aria-live="polite">
   <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
-  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span>from leaves</span></div><div id="eventHudTrack"><div id="eventHudFill"></div></div></div>
+  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span>from leaves</span></div></div>
 </section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
@@ -4397,7 +4395,6 @@ function renderEventHud() {
   const target = Number(challenge.target_sap) || 100000;
   const progress = Math.min(target, Number(META.liveChallengeProgress?.[challenge.id]) || 0);
   document.getElementById('eventHudCount').textContent = `${fmt(progress)} / ${fmt(target)} sap`;
-  document.getElementById('eventHudFill').style.width = `${Math.min(100, progress / target * 100)}%`;
   if (!eventHud.style.left) {
     try {
       const saved = JSON.parse(localStorage.getItem(eventHudPosKey) || 'null');
