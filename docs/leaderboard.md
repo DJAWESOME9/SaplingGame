@@ -7,6 +7,7 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 1. Create a Supabase project and open **SQL Editor**.
 2. Run [`../supabase/leaderboard.sql`](../supabase/leaderboard.sql).
 3. Run [`../supabase/live_challenges.sql`](../supabase/live_challenges.sql) after the leaderboard setup to enable live challenges.
+4. Run [`../supabase/live_challenge_leaf_sap.sql`](../supabase/live_challenge_leaf_sap.sql) to enable leaf-produced sap goals and real-time event progress.
 4. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 5. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.
 6. The migration allowlists `djdavidfreeman@gmail.com` for admin access. Open `admin.html`, create/sign in to a Supabase Auth account with that email, and confirm the email if Supabase prompts you.
@@ -24,7 +25,7 @@ Admin pages are protected by Supabase Auth and the `admin_emails` database allow
 
 ## Live challenges
 
-After applying `live_challenges.sql`, an allowlisted admin can publish a challenge in `admin.html` with a title, player-facing description, sap target, active duration, base sap/resin reward, and an additional first-finisher bonus. Publishing starts it immediately. Players see active events under Settings → Live Challenges. When their current sap balance reaches the target, the game submits completion automatically. Each completion adds an achievement to the Challenges category and grants the configured in-game reward. Supabase serializes claims per event and awards the additional bonus to the first accepted completion.
+After applying both live-challenge SQL files, an allowlisted admin can publish a challenge in `admin.html` with either a banked-sap goal or a leaf-produced-sap goal, duration, base reward, and first-finisher bonus. Publishing starts the clock immediately using Supabase timestamps, so the deadline keeps running while players are offline. Leaf goals count production at leaf nodes (not sap spent or rewards); eligible offline production is included using the game's normal offline rate and cap. Active events appear in the draggable, minimizable HUD bar and under Settings → Live Challenges. Completion adds an achievement to the Challenges category and grants the configured reward. Supabase serializes claims per event and gives the first accepted completion the additional bonus. The player progress meter is local to each browser save; completion eligibility is reported by the browser, so it is not tamper-proof.
 
 Challenge claims use the same browser-reported game state as the leaderboard and are suitable for casual in-game rewards, not cash or other high-value prizes. A modified client can falsify its current sap amount. The database determines which submitted claim arrived first, but it cannot independently verify gameplay in this static browser game.
 

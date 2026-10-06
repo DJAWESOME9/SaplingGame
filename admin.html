@@ -14,7 +14,7 @@
   h2 { margin:0 0 12px; font-size:16px; color:#cfe0cf; }
   .card { background:#101812; border:1px solid #2e3f31; border-radius:12px; padding:16px; margin-bottom:16px; }
   .muted { color:#8fa891; font-size:13px; }
-  input,button { font:inherit; border:1px solid #3c5340; border-radius:8px; padding:9px 11px; color:#dceade; background:#0f1611; }
+  input,button,select { font:inherit; border:1px solid #3c5340; border-radius:8px; padding:9px 11px; color:#dceade; background:#0f1611; }
   button { cursor:pointer; background:#1d2c20; }
   button:hover { border-color:#8fc299; }
   button.danger { background:#321919; border-color:#704040; color:#f0b2a8; }
@@ -60,6 +60,7 @@
         <input class="wide" id="challengeTitle" maxlength="60" placeholder="Challenge title" required>
         <input class="wide" id="challengeDescription" maxlength="240" placeholder="Player-facing goal description" required>
         <input id="challengeTarget" type="number" min="0.000001" step="any" placeholder="Sap target" required>
+        <select id="challengeTargetType" aria-label="Challenge progress type"><option value="banked_sap">Banked sap</option><option value="leaf_sap">Sap made by leaves</option></select>
         <input id="challengeHours" type="number" min="0.01" max="8760" step="any" value="24" placeholder="Duration (hours)" required>
         <input id="challengeRewardSap" type="number" min="0" step="any" value="0" placeholder="Reward sap">
         <input id="challengeRewardResin" type="number" min="0" step="any" value="0" placeholder="Reward resin">
@@ -112,7 +113,8 @@ async function refreshChallenges() {
       const active=!c.ended_at && Date.parse(c.closes_at)>Date.now();
       const first=c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)}` : 'No finisher yet';
       const status=active ? `LIVE · closes ${new Date(c.closes_at).toLocaleString()}` : c.ended_at ? `Ended ${new Date(c.ended_at).toLocaleString()}` : `Expired ${new Date(c.closes_at).toLocaleString()}`;
-      return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} sap · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Base: ${n(c.reward_sap)} sap + ${n(c.reward_resin)} resin · First bonus: ${n(c.first_bonus_sap)} sap + ${n(c.first_bonus_resin)} resin</p></div>${active?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
+      const goal=c.target_type==='leaf_sap'?'leaf-produced sap':'banked sap';
+      return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} ${goal} · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Base: ${n(c.reward_sap)} sap + ${n(c.reward_resin)} resin · First bonus: ${n(c.first_bonus_sap)} sap + ${n(c.first_bonus_resin)} resin</p></div>${active?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
     }).join('') || '<p class="muted">No challenges published yet.</p>';
   } catch(e) { $('challengeList').innerHTML=`<p class="muted">Could not load live challenges: ${escapeHtml(e.message)}</p>`; }
 }
@@ -123,7 +125,7 @@ async function publishChallenge(e) {
     say('Publishing challenge…');
     await rpc('admin_publish_live_challenge',{
       p_title:$('challengeTitle').value.trim(), p_description:$('challengeDescription').value.trim(),
-      p_target_sap:value('challengeTarget'), p_duration_hours:value('challengeHours'),
+      p_target_sap:value('challengeTarget'), p_target_type:$('challengeTargetType').value, p_duration_hours:value('challengeHours'),
       p_reward_sap:value('challengeRewardSap'), p_reward_resin:value('challengeRewardResin'),
       p_first_bonus_sap:value('challengeFirstSap'), p_first_bonus_resin:value('challengeFirstResin')
     });

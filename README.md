@@ -183,6 +183,8 @@ Saves live in `localStorage`:
 
 ## Online leaderboards and live challenges
 
+Live challenges can track banked sap or sap generated directly by leaves. Leaf-event progress persists in the local save and includes eligible offline production, while the deadline is a real-time Supabase timestamp. Active events appear in a movable, minimizable HUD bar. See [the setup guide](docs/leaderboard.md) for database setup and reward details.
+
 The optional Supabase integration provides public leaderboards and timed community challenges. Players can view active challenges in **Settings → Live Challenges**; reaching the sap target submits completion automatically. Every completion grants a Challenge achievement and the configured in-game reward. The first database-recorded finisher also receives the larger first-finisher bonus.
 
 Allowlisted admins publish and end challenges from [`admin.html`](admin.html). Setup, rewards, and the limits of client-reported completion are documented in [`docs/leaderboard.md`](docs/leaderboard.md). The game works without Supabase, but online features are unavailable.

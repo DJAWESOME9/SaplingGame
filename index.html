@@ -108,6 +108,22 @@
   #liveChallenges h3 { margin:0 0 5px; color:#d5e7bd; font-size:13px; }
   #liveChallenges .live-note { margin:0 0 8px; color:#9eae91; font-size:11px; line-height:1.4; }
   #liveChallenges .lb-status { min-height:15px; margin-top:6px; color:#9db89f; font-size:11px; }
+  #eventHud { position:fixed; z-index:30; display:none; box-sizing:border-box; width:min(390px,calc(100vw - 24px));
+    padding:0; overflow:hidden; border:1px solid #779356; border-radius:11px; color:#edf5dc;
+    background:linear-gradient(135deg,rgba(29,49,30,.97),rgba(17,31,24,.97)); box-shadow:0 8px 24px rgba(0,0,0,.42); }
+  #eventHud.visible { display:block; }
+  #eventHudHead { display:flex; align-items:center; gap:8px; min-height:36px; padding:5px 7px 5px 11px; cursor:move; touch-action:none; user-select:none; }
+  #eventHudTitle { flex:1; overflow:hidden; color:#d8e9b6; font-size:12px; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+  #eventHudTime { color:#f0d9a0; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #eventHudMin { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
+  #eventHudBody { padding:0 11px 10px; }
+  #eventHudProgress { display:flex; justify-content:space-between; gap:8px; margin:0 0 6px; color:#cbd8be; font-size:11px; font-variant-numeric:tabular-nums; }
+  #eventHudTrack { height:5px; overflow:hidden; border-radius:99px; background:#344735; }
+  #eventHudFill { width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#87b65f,#d5c66c); transition:width .25s ease; }
+  #eventHud.minimized { width:auto; min-width:185px; }
+  #eventHud.minimized #eventHudHead { min-height:33px; }
+  #eventHud.minimized #eventHudBody { display:none; }
+  @media(max-width:600px) { #eventHud { width:min(340px,calc(100vw - 16px)); } #eventHud.minimized { min-width:170px; } }
   #liveChallengeRows { display:grid; gap:8px; }
   .live-challenge { padding:8px; border:1px solid #36452f; border-radius:8px; background:#111a12; }
   .live-challenge b { display:block; color:#e1eacb; font-size:12px; }
@@ -694,6 +710,10 @@
     <button id="acornbtn" aria-label="Acorns" title="Acorns — bank ripe, spend on Pantheon" style="display:none">🌰</button>
   </div>
 </div>
+<section id="eventHud" aria-label="Live event progress" aria-live="polite">
+  <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
+  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span>from leaves</span></div><div id="eventHudTrack"><div id="eventHudFill"></div></div></div>
+</section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
 <div id="settings">
@@ -943,7 +963,7 @@ const UPDATE_LOG = [
     'You can revisit every update from Settings → Update log.'
   ] }
 ];
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: UPDATE_LOG[0].id });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: UPDATE_LOG[0].id });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -1061,6 +1081,9 @@ function loadMeta() {
   META.up = META.up || {};
   META.achievements = META.achievements || {};
   META.liveChallengeAchievements = META.liveChallengeAchievements || {};
+  META.liveChallengeProgress = META.liveChallengeProgress || {};
+  META.liveChallengeUi = META.liveChallengeUi || {};
+  META.pendingLeafSapWindows = Array.isArray(META.pendingLeafSapWindows) ? META.pendingLeafSapWindows : [];
   if (typeof META.hacks !== 'boolean') META.hacks = false;
   if (typeof META.hardMode !== 'boolean') META.hardMode = false;
   if (typeof META.acorns !== 'number') META.acorns = 0;
@@ -1859,6 +1882,7 @@ function prepareEdgeCache() {
 // ---------- economy: typed flow {sap, resin} from leaves to core ----------
 function computeFlow(dt) {
   S.waste = 0; S.wasteSap = 0; S.wasteResin = 0; S.maxLife = 0;
+  let leafSapRate = 0;
   // How many gold leaves are already showing — ripe leaves past the cap hold their
   // timer at the ready instead of materialising, so the screen never floods.
   let goldShown = (dt > 0) ? goldOnScreen() : 0;
@@ -1936,6 +1960,7 @@ function computeFlow(dt) {
     }
     if (n.type !== 'core') { const cm = critterSlowMult(n.id); s *= cm; r *= cm; }
     if (n.type !== 'core' && n.wither) { const wm = witherMult(n); s *= wm; r *= wm; }
+    if (n.type === 'leaf') leafSapRate += s;
     if (n.type === 'leaf' || n.type === 'amp' || n.type === 'core') n.inFlow = s + r;
     n.through = s + r;
     if (n.parent == null) { n.out = s + r; n.outS = s; n.outR = r; n.waste = 0; n.wasteS = 0; n.wasteR = 0; return { s, r }; }
@@ -1953,6 +1978,7 @@ function computeFlow(dt) {
   };
   const o = rec(N(S.rootId));
   S.incomeS = o.s; S.incomeR = o.r;
+  S.leafSapRate = leafSapRate;
 }
 
 // ---------- actions ----------
@@ -4173,6 +4199,7 @@ function creditOffline(awaySecRaw) {
   if (META) META.offlineMs = (META.offlineMs || 0) + away * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
+  accrueLeafSapWindow(Date.now() - away * 1000, Date.now(), S.leafSapRate * rate, true);
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
   if (sap + resin > 0) {
     S.sap += sap;
@@ -4337,8 +4364,95 @@ const liveChallengeLastClaimAttempt = new Map();
 function liveChallengeTime(iso) {
   const ms = Date.parse(iso) - Date.now();
   if (ms <= 0) return 'Ended';
-  const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
-  return h ? `${h}h ${m}m left` : `${m}m left`;
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  return `${h}h ${m}m ${sec}s left`;
+}
+const eventHud = document.getElementById('eventHud');
+const eventHudMin = document.getElementById('eventHudMin');
+const eventHudPosKey = 'sapling-live-event-position-v1';
+function clampEventHud() {
+  if (!eventHud || !eventHud.classList.contains('visible')) return;
+  const rect = eventHud.getBoundingClientRect();
+  const x = Math.max(8, Math.min(innerWidth - rect.width - 8, rect.left));
+  const y = Math.max(8, Math.min(innerHeight - rect.height - 8, rect.top));
+  eventHud.style.left = `${x}px`; eventHud.style.top = `${y}px`; eventHud.style.transform = 'none';
+}
+function renderEventHud() {
+  if (!eventHud) return;
+  const challenge = liveChallenges.find(c => c.target_type === 'leaf_sap');
+  if (!challenge) { eventHud.classList.remove('visible'); return; }
+  eventHud.classList.add('visible');
+  const prefs = META.liveChallengeUi || {};
+  eventHud.classList.toggle('minimized', !!prefs.minimized);
+  eventHudMin.textContent = prefs.minimized ? '+' : '−';
+  eventHudMin.setAttribute('aria-label', prefs.minimized ? 'Expand event bar' : 'Minimize event bar');
+  eventHudMin.title = prefs.minimized ? 'Expand' : 'Minimize';
+  document.getElementById('eventHudTitle').textContent = `🌿 ${challenge.title}`;
+  document.getElementById('eventHudTime').textContent = liveChallengeTime(challenge.closes_at);
+  const target = Number(challenge.target_sap) || 100000;
+  const progress = Math.min(target, Number(META.liveChallengeProgress?.[challenge.id]) || 0);
+  document.getElementById('eventHudCount').textContent = `${fmt(progress)} / ${fmt(target)} sap`;
+  document.getElementById('eventHudFill').style.width = `${Math.min(100, progress / target * 100)}%`;
+  if (!eventHud.style.left) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(eventHudPosKey) || 'null');
+      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+        eventHud.style.left = `${saved.x}px`; eventHud.style.top = `${saved.y}px`;
+      } else {
+        eventHud.style.left = '50%'; eventHud.style.top = `${Math.max(75, document.getElementById('topbar').getBoundingClientRect().bottom + 8)}px`;
+        eventHud.style.transform = 'translateX(-50%)';
+      }
+    } catch (e) { eventHud.style.left = '50%'; eventHud.style.top = '90px'; eventHud.style.transform = 'translateX(-50%)'; }
+    requestAnimationFrame(clampEventHud);
+  }
+}
+eventHudMin?.addEventListener('click', () => {
+  META.liveChallengeUi = META.liveChallengeUi || {};
+  META.liveChallengeUi.minimized = !META.liveChallengeUi.minimized;
+  saveMeta(); renderEventHud(); clampEventHud();
+});
+{
+  const head = document.getElementById('eventHudHead');
+  let drag = null;
+  head?.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    const rect = eventHud.getBoundingClientRect();
+    drag = { id:e.pointerId, dx:e.clientX - rect.left, dy:e.clientY - rect.top };
+    eventHud.style.left = `${rect.left}px`; eventHud.style.top = `${rect.top}px`; eventHud.style.transform = 'none';
+    head.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  head?.addEventListener('pointermove', e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    eventHud.style.left = `${e.clientX - drag.dx}px`; eventHud.style.top = `${e.clientY - drag.dy}px`; clampEventHud();
+  });
+  const stop = e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    drag = null; const rect = eventHud.getBoundingClientRect();
+    try { localStorage.setItem(eventHudPosKey, JSON.stringify({ x:rect.left, y:rect.top })); } catch (err) {}
+  };
+  head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
+}
+window.addEventListener('resize', clampEventHud);
+function accrueLeafSapWindow(startMs, endMs, rate, queueIfUnavailable = false) {
+  if (!(endMs > startMs) || !(rate > 0)) return;
+  if (!liveChallenges.length) {
+    if (queueIfUnavailable) {
+      META.pendingLeafSapWindows = META.pendingLeafSapWindows || [];
+      META.pendingLeafSapWindows.push({ startMs, endMs, rate });
+      if (META.pendingLeafSapWindows.length > 200) META.pendingLeafSapWindows.splice(0, META.pendingLeafSapWindows.length - 200);
+      peakMetaDirty = true;
+    }
+    return;
+  }
+  for (const challenge of liveChallenges) {
+    if (challenge.target_type !== 'leaf_sap' || challenge.player_completed) continue;
+    const a = Math.max(startMs, Date.parse(challenge.opens_at));
+    const b = Math.min(endMs, Date.parse(challenge.closes_at));
+    if (b <= a) continue;
+    META.liveChallengeProgress = META.liveChallengeProgress || {};
+    META.liveChallengeProgress[challenge.id] = Math.min(Number(challenge.target_sap), (Number(META.liveChallengeProgress[challenge.id]) || 0) + (b - a) / 1000 * rate);
+    peakMetaDirty = true;
+  }
 }
 function liveRewardText(sap, resin) {
   return [Number(sap) ? `${fmt(Number(sap))} sap` : '', Number(resin) ? `${fmt(Number(resin))} resin` : ''].filter(Boolean).join(' + ') || 'achievement';
@@ -4348,11 +4462,12 @@ function renderLiveChallenges() {
   liveChallengeRows.innerHTML = liveChallenges.map(c => {
     const claimed = c.player_completed;
     const restricted = !!(META.hacks || META.hardMode);
-    const ready = S.sap >= Number(c.target_sap);
+    const current = c.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[c.id]) || 0 : S.sap;
+    const ready = current >= Number(c.target_sap);
     const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
     const reward = liveRewardText(c.reward_sap, c.reward_resin);
     const bonus = liveRewardText(c.first_bonus_sap, c.first_bonus_resin);
-    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable in this save mode' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - S.sap))} more sap`}</button></article>`;
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable in this save mode' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button></article>`;
   }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
@@ -4366,7 +4481,12 @@ async function loadLiveChallenges() {
     });
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     liveChallenges = await res.json();
+    const pending = META.pendingLeafSapWindows || [];
+    META.pendingLeafSapWindows = [];
+    for (const w of pending) accrueLeafSapWindow(Number(w.startMs), Number(w.endMs), Number(w.rate));
+    if (pending.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
     renderLiveChallenges();
+    renderEventHud();
     liveChallengeStatus.textContent = liveChallenges.length ? 'Updated just now' : '';
     checkLiveChallengeClaims();
   } catch (err) {
@@ -4385,7 +4505,8 @@ async function claimLiveChallenge(id, button) {
     const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/claim_live_challenge`, {
       method:'POST', headers:lbHeaders(), body:JSON.stringify({
         p_challenge_id:id, p_player_id:lbPlayerId,
-        p_display_name:(lbName.value.trim() || 'Sapling').slice(0,20), p_current_sap:Number(S.sap)||0
+        p_display_name:(lbName.value.trim() || 'Sapling').slice(0,20),
+        p_progress:Number(challengeProgress(id))||0
       })
     });
     if (!res.ok) throw new Error((await res.text()).slice(0,180) || `Request failed (${res.status})`);
@@ -4414,11 +4535,15 @@ async function claimLiveChallenge(id, button) {
     liveChallengeClaimsInFlight.delete(id);
   }
 }
+function challengeProgress(id) {
+  const c = liveChallenges.find(x => x.id === id);
+  return c?.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[id]) || 0 : Number(S.sap) || 0;
+}
 function checkLiveChallengeClaims() {
   if (!lbConfigured || !lbPlayerId || META.hacks || META.hardMode) return;
   const now = Date.now();
   for (const challenge of liveChallenges) {
-    if (challenge.player_completed || S.sap < Number(challenge.target_sap) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
+    if (challenge.player_completed || challengeProgress(challenge.id) < Number(challenge.target_sap) || liveChallengeClaimsInFlight.has(challenge.id)) continue;
     if (now - (liveChallengeLastClaimAttempt.get(challenge.id) || 0) < 30000) continue;
     claimLiveChallenge(challenge.id, null);
   }
@@ -6079,6 +6204,8 @@ function frame(now) {
     }
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
+    accrueLeafSapWindow(Date.now() - dt * 1000, Date.now(), (S.leafSapRate || 0) * prod);
+    if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) { frame.eventHudAt = Date.now(); renderEventHud(); }
     const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
     S.sap += sapInc;
     S.resin += resinInc;
