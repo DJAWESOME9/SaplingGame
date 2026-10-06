@@ -40,6 +40,17 @@
     background:rgba(16,24,18,.96); border:1px solid #2e3f31; border-radius:12px; padding:12px 14px;
     backdrop-filter:blur(6px); }
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
+  #updateLogButton { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  #updates { position:fixed; inset:0; display:none; z-index:65; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
+  #updates.open { display:flex; animation:overlayIn .22s ease-out both; }
+  .updatesbox { box-sizing:border-box; width:min(440px, 100%); max-height:calc(100dvh - 40px); overflow:auto; background:#101a12; border:1px solid #4a6547; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
+  .updatesbox h2 { margin:0 0 4px; color:#e7ddc4; font-size:21px; }
+  .updatesbox > p { margin:0 0 16px; color:#9db89f; font-size:13px; }
+  .update-entry { border-top:1px solid #344735; padding:14px 0 4px; }
+  .update-entry h3 { margin:0 0 5px; color:#dceade; font-size:15px; }
+  .update-entry time { color:#9db89f; font-size:11px; }
+  .update-entry ul { margin:8px 0 10px; padding-left:20px; color:#cad9c8; font-size:13px; line-height:1.5; }
+  #updatesClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
   #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
     box-sizing:border-box; width:328px; height:min(70vh, 640px); min-height:190px; max-height:calc(100dvh - 16px); overflow:hidden;
@@ -360,7 +371,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #settings.open, #leaderboard.open, #achievements.open, #statspanel.open, #panel[style*="display: block"],
-    #intro.open, #welcome.open, #pantheon.open, #pantheon.open .panbox, #grove.open, #grove.open .grovebox {
+    #intro.open, #welcome.open, #updates.open, #pantheon.open, #pantheon.open .panbox, #grove.open, #grove.open .grovebox {
       animation-duration:.01ms !important;
     }
   }
@@ -625,6 +636,14 @@
     <button id="introBegin">Begin growing 🌱</button>
   </div>
 </div>
+<div id="updates" role="dialog" aria-modal="true" aria-labelledby="updatesTitle">
+  <div class="updatesbox">
+    <h2 id="updatesTitle">🌱 What's new</h2>
+    <p>Updates to Sapling, newest first.</p>
+    <div id="updateEntries"></div>
+    <button id="updatesClose" type="button">Back to the grove</button>
+  </div>
+</div>
 <div id="welcome" role="dialog" aria-labelledby="wbTitle">
   <div class="wbbox">
     <h2 id="wbTitle">😴 Welcome Back</h2>
@@ -687,6 +706,7 @@
   </section>
   <button id="restore">Restore backup</button>
   <button id="showintro" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">📖 Show intro</button>
+  <button id="updateLogButton" type="button">📋 Update log</button>
   <button id="resetMenuPositions" type="button" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">Reset menu positions</button>
   <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
   <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
@@ -916,7 +936,14 @@ const groveGlyph = k => (hardMode() && GROVE[k].blightGlyph) || GROVE[k].glyph;
 let META;
 let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0 });
+// Add new releases at the front. The first id is the one shown to returning players.
+const UPDATE_LOG = [
+  { id:'2026-10-05-update-log', date:'October 5, 2026', title:'Update notes', notes:[
+    'New updates now appear in a popup when you return to Sapling.',
+    'You can revisit every update from Settings → Update log.'
+  ] }
+];
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, hacks: false, acorns: 0, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: UPDATE_LOG[0].id });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -6171,8 +6198,42 @@ requestAnimationFrame(() => {
 submitPlayerSnapshot();
 submitLeaderboardScore();
 refreshCheatBadges();
+const updatesOverlay = document.getElementById('updates');
+function openUpdates() {
+  const entries = document.getElementById('updateEntries');
+  entries.replaceChildren();
+  for (const update of UPDATE_LOG) {
+    const article = document.createElement('article');
+    article.className = 'update-entry';
+    const heading = document.createElement('h3');
+    heading.textContent = update.title;
+    const date = document.createElement('time');
+    date.textContent = update.date;
+    const list = document.createElement('ul');
+    for (const note of update.notes) {
+      const item = document.createElement('li');
+      item.textContent = note;
+      list.append(item);
+    }
+    article.append(heading, date, list);
+    entries.append(article);
+  }
+  settings.classList.remove('open'); gear.classList.remove('open');
+  updatesOverlay.classList.add('open');
+  document.getElementById('updatesClose').focus();
+}
+function showUnseenUpdates() {
+  if (META.seenUpdateId === UPDATE_LOG[0].id || document.getElementById('intro').classList.contains('open') || document.getElementById('welcome').classList.contains('open')) return;
+  openUpdates();
+}
+document.getElementById('updateLogButton').addEventListener('click', openUpdates);
+document.getElementById('updatesClose').addEventListener('click', () => {
+  updatesOverlay.classList.remove('open');
+  if (META.seenUpdateId !== UPDATE_LOG[0].id) { META.seenUpdateId = UPDATE_LOG[0].id; saveMeta(); }
+});
 document.getElementById('wbClose')?.addEventListener('click', () => {
   document.getElementById('welcome').classList.remove('open');
+  showUnseenUpdates();
 });
 // ---------- intro overlay: shown on first play and after hard reset ----------
 function openIntro() {
@@ -6207,6 +6268,7 @@ function beginRun() {
   }
   META.seenIntro = true; saveMeta();
   closeIntro();
+  showUnseenUpdates();
   return true;
 }
 document.getElementById('introBegin')?.addEventListener('click', () => { beginRun(); });
@@ -6220,6 +6282,7 @@ document.getElementById('showintro')?.addEventListener('click', () => {
 });
 // Trigger first-run intro after boot. loadMeta/load already ran above, so META is hydrated.
 if (!META.seenIntro) openIntro();
+showUnseenUpdates();
 
 requestAnimationFrame(frame);
 </script>
