@@ -27,6 +27,8 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 
 `META` holds cross-tree progression such as rings, species, Grove upgrades, achievements, Pantheon/acorns, and lifetime statistics. A cut credits meta progression and then starts a new run tree.
 
+The Critter Hub and expedition slots also live in `META`, so stored critters, offers, and active trip progress survive cuts and reloads. An expedition reserves critters until completion, then consumes them. Foreground progress advances in `frame`; offline elapsed time advances at `offlineRateNow()` in `creditOffline`. Resource rewards use buff-free production rates captured when a trip begins and count as earned resources, not tree production.
+
 ## Subsystem landmarks
 
 | Subsystem | Main code landmarks |
@@ -39,6 +41,7 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 | Pointer interactions | canvas `pointerdown/move/up/cancel` and `wheel` listeners around the hit-testing code |
 | HTML action panel and HUD | `buildPanel`, `refreshPanel`, `refreshHud`, `hintText` |
 | Temporary effects, critters, Blight | `BLOOMS`, `tickBlooms`, `spawnCritter`, `updateCritters`, `updateWither` |
+| Critter Hub and expeditions | `renderCritterHub`, `EXPEDITION_TYPES`, `renderExpeditions`, `startExpedition`, `advanceExpeditions` |
 | Grove and prestige | `buyGrove`, Grove layout/render/popover functions, `cutDown`, `finalizeCut` |
 | Acorns/Pantheon/achievement/stat drawers | `tickAcorns`, `renderPantheon`, `renderAchievements`, `renderStats` |
 | Persistence/offline recovery | `save`, `load`, `creditOffline`, `loadMeta`, `saveMeta` |

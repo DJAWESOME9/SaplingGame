@@ -372,6 +372,22 @@
     border-radius:10px; padding:9px 14px; font-size:14px; cursor:pointer; line-height:1; backdrop-filter:blur(6px);
     font-family:inherit; white-space:nowrap; transition:border-color .14s ease, color .14s ease, background .14s ease; }
   #minidock button:hover { border-color:#a374df; color:#f0d9ff; background:rgba(40,28,58,.92); }
+  @media (max-width:600px) { #minidock { flex-direction:column; align-items:flex-start; gap:4px; } #minidock button { padding:7px 10px; font-size:12px; } }
+  #expeditions { position:fixed; inset:0; display:none; z-index:55; background:rgba(6,12,8,.84); backdrop-filter:blur(5px); overflow-y:auto; padding:24px 16px; box-sizing:border-box; }
+  #expeditions.open { display:block; }
+  .expbox { max-width:760px; margin:auto; padding:22px; background:#152319; border:1px solid #5b7658; border-radius:18px; color:#e5eadc; box-shadow:0 20px 60px #0008; }
+  .exphead { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .exphead h2 { margin:0; font-size:22px; }
+  #expClose { border:1px solid #5b7658; border-radius:8px; background:#203528; color:#e5eadc; padding:5px 10px; cursor:pointer; }
+  .expsub { color:#a6baa0; font-size:13px; line-height:1.5; }
+  .expgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:16px; }
+  .expcard { padding:14px; border:1px solid #456143; border-radius:12px; background:#1b2d20; }
+  .expcard h3 { margin:0 0 8px; color:#d4e6b5; font-size:16px; }
+  .expcard p { margin:5px 0; font-size:12px; line-height:1.45; }
+  .expcard button { margin:8px 6px 0 0; padding:7px 10px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
+  .expcard button:disabled { opacity:.45; cursor:default; }
+  .expprogress { height:8px; overflow:hidden; border-radius:6px; background:#0d1a12; margin:12px 0 8px; }
+  .expprogress span { display:block; height:100%; background:#99ca79; }
   /* ---- Intro overlay: shown on first play / after hard reset ---- */
   #intro { position:fixed; inset:0; display:none; z-index:60; background:rgba(6,10,7,.9);
     backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:32px 16px; }
@@ -416,7 +432,7 @@
   #welcome { position:fixed; inset:0; display:none; z-index:62; background:rgba(6,10,7,.82);
     backdrop-filter:blur(5px); align-items:center; justify-content:center; padding:24px 16px; }
   #welcome.open { display:flex; animation:overlayIn .22s ease-out both; }
-  .wbbox { width:340px; max-width:92vw; background:rgba(14,21,15,.98);
+  .wbbox { width:340px; max-width:92vw; max-height:calc(100dvh - 48px); overflow:auto; box-sizing:border-box; background:rgba(14,21,15,.98);
     border:1px solid #2e3f31; border-radius:16px; padding:22px 22px 18px; box-shadow:0 20px 60px rgba(0,0,0,.55);
     animation:toastPop .32s ease-out; }
   .wbbox h2 { margin:0 0 2px; font-size:21px; letter-spacing:.03em; color:#e7ddc4; }
@@ -427,6 +443,8 @@
   .wblist .wbk { color:#9db89f; font-size:12.5px; }
   .wblist .wbv { color:#f0d9a0; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
   .wblist .wbv small { color:#8fa891; font-weight:400; font-size:11px; margin-left:4px; }
+  #wbExpeditionRow { display:block; }
+  #wbExpeditionRow .wbv { display:block; margin-top:5px; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
   #wbClose { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:11px 14px; font-size:14px; font-weight:600; cursor:pointer;
     transition:border-color .14s ease, background .14s ease; }
@@ -705,6 +723,7 @@
       <li id="wbResinRow"><span class="wbk">Resin earned</span><span class="wbv" id="wbResin"></span></li>
       <li><span class="wbk">Offline rate</span><span class="wbv" id="wbRate"></span></li>
       <li id="wbAcornRow"><span class="wbk">Acorns</span><span class="wbv" id="wbAcorn"></span></li>
+      <li id="wbExpeditionRow" style="display:none"><span class="wbk">Expeditions</span><span class="wbv" id="wbExpedition"></span></li>
     </ul>
     <button id="wbClose">Collect</button>
   </div>
@@ -814,6 +833,14 @@
 <div id="minidock" style="display:none">
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
+  <button id="expeditionbtn" title="Send stored critters on expeditions" style="display:none">🧭 Expeditions</button>
+</div>
+<div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
+  <div class="expbox">
+    <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
+    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They occupy hub spaces during the trip and are consumed when it ends. Trips advance at your offline production rate while you are away.</p>
+    <div id="expSlots" class="expgrid"></div>
+  </div>
 </div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
@@ -999,6 +1026,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-critter-expeditions', date:'October 6, 2026', title:'Critter expeditions', notes:[
+    'The Critter Hub now unlocks Expeditions beside the Pantheon. Send stored critters for sap, resin, rings, rare acorns, and occasional production boosts.',
+    'Each slot shows its trip time and possible rewards. Trips progress while you play and at your offline rate while away; critters are consumed when a trip finishes.',
+    'Unlock a second expedition slot for 3 acorns and a third for 5. Reroll an offer for 1 acorn. Welcome Back now shows expedition progress and rewards.'
+  ] },
   { id:'2026-10-06-update-log-navigation', date:'October 6, 2026', title:'Update log is easier to browse', notes:[
     'The update log now opens at the newest entry every time. Tap outside it to close it.'
   ] },
@@ -1052,7 +1084,7 @@ const UPDATE_LOG = [
     'You can revisit every update from Settings → Update log.'
   ] }
 ];
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -1179,6 +1211,11 @@ function loadMeta() {
   if (!META.critterHub || typeof META.critterHub !== 'object') META.critterHub = { bugs: 0, extra: 0, x: null, y: null, minimized: false };
   META.critterHub.extra = clamp(Math.floor(Number(META.critterHub.extra) || 0), 0, 10);
   META.critterHub.bugs = clamp(Math.floor(Number(META.critterHub.bugs) || 0), 0, 2 + META.critterHub.extra);
+  if (!META.expeditions || typeof META.expeditions !== 'object') META.expeditions = { slots: 1, entries: [], lastTickAt: Date.now() };
+  META.expeditions.slots = clamp(Math.floor(Number(META.expeditions.slots) || 1), 1, 3);
+  if (!Array.isArray(META.expeditions.entries)) META.expeditions.entries = [];
+  META.expeditions.entries.length = Math.min(META.expeditions.entries.length, META.expeditions.slots);
+  if (!Number.isFinite(META.expeditions.lastTickAt)) META.expeditions.lastTickAt = Date.now();
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (typeof META.lifetimeResin !== 'number') META.lifetimeResin = 0;
   // Before production had its own counters, lifetime totals counted production only.
@@ -1469,6 +1506,7 @@ const BLOOMS = {
   verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>goldBloomMult(1+0.08*S.counts.leaf), descOf:()=>`each leaf boosts production (×${goldBloomMult(1+0.08*S.counts.leaf).toFixed(1)})` },
   refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>goldBloomMult(2),  relevant:()=>(S.counts.ref||0)>0, descOf:()=>`refineries ×${goldBloomMult(2).toFixed(1)} yield` },
   overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>goldBloomMult(1.6), relevant:()=>(S.counts.cap||0)>0, descOf:()=>`capacitors burst ×${goldBloomMult(1.6).toFixed(2)}` },
+  expedition: { name:'Expedition Blessing', icon:'🧭', color:'#a8d988', dur:300, weight:0, leafMult:()=>1.25, refMult:()=>1.25, descOf:()=>'+25% leaf and refinery production' },
 };
 function pickBloom() {
   const keys = Object.keys(BLOOMS);
@@ -2531,7 +2569,7 @@ function witherAway(id) {
 // True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
 // Back) — wither pauses then so you aren't penalized for time spent in a menu.
 function overlayBlocksTree() {
-  return ['grove', 'pantheon', 'intro', 'welcome'].some(id => {
+  return ['grove', 'pantheon', 'expeditions', 'intro', 'welcome'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('open');
   });
@@ -4454,7 +4492,8 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 function creditOffline(awaySecRaw) {
   const elapsed = Math.max(0, awaySecRaw);
   const away = Math.min(elapsed, offlineCapSecNow());
-  if (away <= 30) return;
+  const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
+  if (away <= 30) { advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
@@ -4476,13 +4515,14 @@ function creditOffline(awaySecRaw) {
     tickAcorns(growthMs);
     acornsRipened = acornsRipe() - before;
   }
-  showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs });
+  const expeditionNews = advanceExpeditions(expeditionElapsed * offlineRateNow());
+  showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs, expeditionNews });
 }
 // Fill and open the Welcome Back popup. Shared by the away paths (creditOffline)
 // and the foreground-idle path, which both produce a lump summary on return.
 function showWelcomeBack(s) {
   if (!s || s.away < 30) return;
-  if (s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0) return;
+  if (s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0 && !(s.expeditionNews || []).length) return;
   const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   set('wbDur', `You were away for ${fmtAcornTimer(s.away * 1000)}.${s.credited < s.away ? ` Earnings capped at ${fmtAcornTimer(s.credited * 1000)}.` : ''}`);
   set('wbSap', fmt(s.sap));
@@ -4497,6 +4537,9 @@ function showWelcomeBack(s) {
     if (s.acornsRipened > 0) e.innerHTML = `🌰 ${s.acornsRipened} ripened <small>+${fmtAcornTimer(s.growthMs)} growth</small>`;
     else e.innerHTML = `<small>+${fmtAcornTimer(s.growthMs)} toward next 🌰</small>`;
   } else acornRow.style.display = 'none';
+  const expeditionNews = s.expeditionNews || [];
+  document.getElementById('wbExpeditionRow').style.display = expeditionNews.length ? '' : 'none';
+  document.getElementById('wbExpedition').textContent = expeditionNews.join(' · ');
   document.getElementById('welcome').classList.add('open');
 }
 function load() {
@@ -6032,6 +6075,149 @@ function tryOpenPantheon() {
 // ---------- minigame dock ----------
 const miniDock = document.getElementById('minidock');
 const pantheonBtn = document.getElementById('pantheonbtn');
+const expeditionBtn = document.getElementById('expeditionbtn');
+const expeditionPanel = document.getElementById('expeditions');
+const EXPEDITION_TYPES = [
+  { name:'Canopy Forage', critters:1, sap:[1,2], resin:[0,0], ring:false, acorn:false },
+  { name:'Resin Trail', critters:1, sap:[0.5,1], resin:[1,2], ring:false, acorn:false },
+  { name:'Hidden Clearing', critters:2, sap:[2,3], resin:[0,0], ring:true, acorn:false },
+  { name:'Old Grove', critters:2, sap:[1,2], resin:[0.5,1], ring:true, acorn:false },
+  { name:'Rare Canopy', critters:2, sap:[2,4], resin:[0,0], ring:false, acorn:true },
+];
+function expeditionBaseRates() {
+  const blooms = S.blooms, forced = S.forced, channeling = S.channeling;
+  try {
+    S.blooms = []; S.forced = false; S.channeling = false;
+    computeFlow(0);
+    return { sap: Math.max(0, S.incomeS), resin: Math.max(0, S.incomeR) };
+  } finally {
+    S.blooms = blooms; S.forced = forced; S.channeling = channeling;
+    computeFlow(0);
+  }
+}
+function newExpeditionOffer() {
+  const hasResin = expeditionBaseRates().resin > 0;
+  const pool = EXPEDITION_TYPES.filter(t => t.critters <= hubCapacity() && (!t.resin[1] || hasResin));
+  const roll = Math.random();
+  const t = pool[roll < 0.04 ? pool.length - 1 : Math.floor(Math.random() * (pool.length - 1))];
+  const rewardHours = (t.sap[0] + t.sap[1] + t.resin[0] + t.resin[1]) / 2;
+  const duration = Math.round(Math.max(1800, (rewardHours * 0.48 + (t.ring ? 0.5 : 0) + (t.acorn ? 1.5 : 0)) * 3600));
+  return { kind: EXPEDITION_TYPES.indexOf(t), duration };
+}
+function ensureExpeditionOffers() {
+  if (metaLvl('critterhub') <= 0) return;
+  const e = META.expeditions;
+  let changed = false;
+  while (e.entries.length < e.slots) { e.entries.push({ offer:newExpeditionOffer(), active:null }); changed = true; }
+  for (let i = 0; i < e.slots; i++) {
+    const slot = e.entries[i];
+    if (!slot || typeof slot !== 'object') { e.entries[i] = { offer:newExpeditionOffer(), active:null }; changed = true; }
+    else if (!slot.active && (!slot.offer || !EXPEDITION_TYPES[slot.offer.kind])) { slot.offer = newExpeditionOffer(); changed = true; }
+  }
+  if (changed) saveMeta();
+}
+function expeditionReserved() {
+  return META.expeditions.entries.reduce((n, slot) => n + (slot && slot.active ? slot.active.critters : 0), 0);
+}
+const expeditionAvailable = () => Math.max(0, META.critterHub.bugs - expeditionReserved());
+function expeditionRingRange() {
+  const total = Math.max(0, META.totalRings || 0);
+  return total < 1 ? [0,1] : [Math.max(1, Math.floor(Math.sqrt(total) * 0.5)), Math.max(2, Math.floor(Math.sqrt(total)))];
+}
+function expeditionRewardText(t, ringRange) {
+  const parts = [];
+  if (t.sap[1]) parts.push(`${t.sap[0]}–${t.sap[1]} hr sap`);
+  if (t.resin[1]) parts.push(`${t.resin[0]}–${t.resin[1]} hr resin`);
+  if (t.ring) parts.push(`${ringRange[0]}–${ringRange[1]} rings`);
+  if (t.acorn) parts.push('0–1 acorn (rare)');
+  parts.push('chance of a 5 min production boost');
+  return parts.join(' · ');
+}
+function renderExpeditions() {
+  if (metaLvl('critterhub') <= 0) return;
+  ensureExpeditionOffers();
+  const e = META.expeditions;
+  const rows = e.entries.slice(0, e.slots).map((slot, i) => {
+    const a = slot.active;
+    const o = slot.offer;
+    const t = EXPEDITION_TYPES[a ? a.kind : o.kind];
+    if (a) {
+      const left = Math.max(0, a.duration - a.progress);
+      return `<div class="expcard"><h3>${t.name}</h3><p>🪲 ${a.critters} critter${a.critters === 1 ? '' : 's'} exploring</p><p>${expeditionRewardText(t, [a.ringMin, a.ringMax])}</p><div class="expprogress"><span style="width:${Math.min(100, a.progress / a.duration * 100)}%"></span></div><p>${fmtAcornTimer(left * 1000)} left · ${Math.round(a.progress / a.duration * 100)}% done</p></div>`;
+    }
+    const enough = expeditionAvailable() >= t.critters;
+    return `<div class="expcard"><h3>${t.name}</h3><p>🪲 Needs ${t.critters} · ${fmtAcornTimer(o.duration * 1000)} trip</p><p>${expeditionRewardText(t, expeditionRingRange())}</p><button data-exp="start" data-slot="${i}" ${enough ? '' : 'disabled'}>Send critters</button><button data-exp="reroll" data-slot="${i}" ${META.acorns >= 1 ? '' : 'disabled'}>Reroll · 🌰1</button></div>`;
+  });
+  if (e.slots < 3) rows.push(`<div class="expcard"><h3>Another expedition slot</h3><p>Run one more trip at the same time.</p><button data-exp="unlock" ${META.acorns >= (e.slots === 1 ? 3 : 5) ? '' : 'disabled'}>Unlock · 🌰${e.slots === 1 ? 3 : 5}</button></div>`);
+  document.getElementById('expSlots').innerHTML = rows.join('');
+  expeditionBtn.textContent = `🧭 Expeditions${e.entries.some(x => x && x.active) ? ' · active' : ''}`;
+}
+function startExpedition(i) {
+  ensureExpeditionOffers();
+  const slot = META.expeditions.entries[i];
+  if (!slot || slot.active || !slot.offer) return;
+  const t = EXPEDITION_TYPES[slot.offer.kind];
+  if (expeditionAvailable() < t.critters) { toast(`Need ${t.critters} free critters in the hub.`); return; }
+  const { sap:baseSap, resin:baseResin } = expeditionBaseRates();
+  const [ringMin, ringMax] = expeditionRingRange();
+  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration, progress:0, critters:t.critters, baseSap, baseResin, ringMin, ringMax };
+  slot.offer = null;
+  META.expeditions.lastTickAt = Date.now();
+  saveMeta(); renderExpeditions(); sfx('buy');
+  toast(`🧭 ${t.critters} critter${t.critters === 1 ? '' : 's'} set off for ${t.name}.`);
+}
+function advanceExpeditions(seconds, now = Date.now()) {
+  const e = META && META.expeditions;
+  if (!e) return [];
+  e.lastTickAt = now;
+  if (metaLvl('critterhub') <= 0 || seconds <= 0) return [];
+  const news = [];
+  for (let i = 0; i < e.slots; i++) {
+    const slot = e.entries[i], a = slot && slot.active;
+    if (!a) continue;
+    const before = a.progress;
+    a.progress = Math.min(a.duration, a.progress + seconds);
+    if (a.progress < a.duration) {
+      if (a.progress - before >= 1) news.push(`Slot ${i + 1}: +${fmtAcornTimer((a.progress - before) * 1000)} progress`);
+      continue;
+    }
+    const t = EXPEDITION_TYPES[a.kind];
+    const between = (lo, hi) => lo + Math.random() * (hi - lo);
+    const sap = a.baseSap * 3600 * between(t.sap[0], t.sap[1]);
+    const resin = a.baseResin * 3600 * between(t.resin[0], t.resin[1]);
+    const rings = t.ring ? Math.floor(between(a.ringMin, a.ringMax + 1)) : 0;
+    const acorn = t.acorn && Math.random() < 0.2 ? 1 : 0;
+    const buff = Math.random() < 0.3;
+    S.sap += sap; S.resin += resin; recordEarned(sap, resin);
+    META.rings += rings; META.totalRings += rings; META.acorns += acorn;
+    META.critterHub.bugs = Math.max(0, META.critterHub.bugs - a.critters);
+    if (buff) applyBloom('expedition', 300);
+    recordHighestBalances();
+    const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
+    news.push(`Slot ${i + 1} complete: ${rewards || 'critters returned'}`);
+    slot.active = null; slot.offer = newExpeditionOffer();
+    renderCritterHub(); refreshAcorns(); saveMeta(); save();
+    toast(`🧭 ${t.name} complete — ${rewards}`);
+  }
+  if (expeditionPanel.classList.contains('open') && news.length) renderExpeditions();
+  return news;
+}
+expeditionBtn.addEventListener('click', () => { ensureExpeditionOffers(); renderExpeditions(); expeditionPanel.classList.add('open'); });
+expeditionPanel.addEventListener('click', e => {
+  if (e.target === expeditionPanel || e.target.id === 'expClose') { expeditionPanel.classList.remove('open'); return; }
+  const btn = e.target.closest('button[data-exp]');
+  if (!btn) return;
+  const act = btn.dataset.exp, i = Number(btn.dataset.slot);
+  if (act === 'start') { startExpedition(i); return; }
+  if (act === 'unlock') {
+    const cost = META.expeditions.slots === 1 ? 3 : 5;
+    if (META.expeditions.slots >= 3 || META.acorns < cost) return;
+    META.acorns -= cost; META.expeditions.slots++; ensureExpeditionOffers(); saveMeta(); refreshAcorns(); renderExpeditions(); sfx('buy'); return;
+  }
+  if (act === 'reroll' && META.acorns >= 1 && META.expeditions.entries[i] && !META.expeditions.entries[i].active) {
+    META.acorns--; META.expeditions.entries[i].offer = newExpeditionOffer(); saveMeta(); refreshAcorns(); renderExpeditions(); sfx('buy');
+  }
+});
 function refreshMiniDock() {
   if (!miniDock) return;
   // Show the Pantheon launcher once acorns exist; before it's woken, it reads as
@@ -6048,7 +6234,10 @@ function refreshMiniDock() {
     }
   }
   // Dock is visible whenever it holds at least one available minigame.
-  miniDock.style.display = showPantheon ? '' : 'none';
+  const showExpeditions = metaLvl('critterhub') > 0;
+  expeditionBtn.style.display = showExpeditions ? '' : 'none';
+  if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
+  miniDock.style.display = showPantheon || showExpeditions ? '' : 'none';
 }
 pantheonBtn?.addEventListener('click', tryOpenPantheon);
 pantheon?.addEventListener('click', e => {
@@ -6493,7 +6682,7 @@ let lastInput = Date.now();
 let wasIdle = false;
 // Accumulators for the foreground-idle stretch, summed into the Welcome Back
 // popup shown when input resumes.
-let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0;
+let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0, idleExpeditionNews = [], idleExpeditionStart = [];
 const markInput = () => { lastInput = Date.now(); };
 for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove']) {
   window.addEventListener(ev, markInput, { passive: true });
@@ -6528,16 +6717,27 @@ function frame(now) {
     const idle = (Date.now() - lastInput) > IDLE_AFTER_MS;
     if (idle && !wasIdle) {
       idleSap = 0; idleResin = 0; idleGrowth = 0;
+      idleExpeditionNews = [];
+      idleExpeditionStart = META.expeditions.entries.map(slot => slot && slot.active ? slot.active.progress : null);
       idleRipeStart = acornsRipe(); idleEnteredAt = Date.now();
     }
     if (!idle && wasIdle) {
+      META.expeditions.entries.forEach((slot, i) => {
+        if (slot && slot.active && idleExpeditionStart[i] != null) {
+          const gained = slot.active.progress - idleExpeditionStart[i];
+          if (gained >= 1) idleExpeditionNews.push(`Slot ${i + 1}: +${fmtAcornTimer(gained * 1000)} progress`);
+        }
+      });
       showWelcomeBack({ away: (Date.now() - idleEnteredAt) / 1000, rate: offlineRateNow(),
-        sap: idleSap, resin: idleResin, acornsRipened: acornsRipe() - idleRipeStart, growthMs: idleGrowth });
+        sap: idleSap, resin: idleResin, acornsRipened: acornsRipe() - idleRipeStart, growthMs: idleGrowth, expeditionNews: idleExpeditionNews });
     }
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
     accrueLeafSapWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), (S.leafSapRate || 0) * prod, true);
-    if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) { frame.eventHudAt = Date.now(); renderEventHud(); }
+    if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
+      frame.eventHudAt = Date.now(); renderEventHud();
+      if (expeditionPanel.classList.contains('open')) renderExpeditions();
+    }
     const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
     S.sap += sapInc;
     S.resin += resinInc;
@@ -6547,6 +6747,10 @@ function frame(now) {
     // hacker-mode refill below.
     // Per-tree production resets with each newGame() and powers one-tree challenges.
     recordProduction(sapInc, resinInc);
+    if (!document.hidden) {
+      const expeditionNews = advanceExpeditions(dt * prod);
+      if (idle) idleExpeditionNews.push(...expeditionNews);
+    }
     // Track the highest actual production reached, including active buffs.
     if (S.incomeS > (S.peakBuffS || 0)) S.peakBuffS = S.incomeS;
     if (S.incomeR > (S.peakBuffR || 0)) S.peakBuffR = S.incomeR;
