@@ -17,6 +17,10 @@
   #critterHub.minimized .hubBugs, #critterHub.minimized .hubActions { display:none; }
   #critterHub button { border:0; border-radius:5px; background:#33452c; color:#f5ddb1; font-size:10px; padding:2px 4px; cursor:pointer; }
   #critterHub .hubActions { display:flex; gap:3px; margin-top:2px; }
+  #hubPopover { position:fixed; z-index:13; display:none; width:180px; box-sizing:border-box; padding:9px; border:1px solid #9a7545; border-radius:10px; background:#19251b; color:#f5ddb1; box-shadow:0 6px 18px #0009; font-size:12px; text-align:center; }
+  #hubPopover.open { display:block; }
+  #hubPopover button { margin-top:6px; padding:5px 9px; border:1px solid #9a7545; border-radius:6px; background:#33452c; color:#f5ddb1; cursor:pointer; }
+  #hubPopover button:disabled { opacity:.5; cursor:default; }
   #carriedBug { position:fixed; z-index:30; display:none; pointer-events:none; font-size:27px; filter:drop-shadow(0 2px 3px #000); }
   #topbar { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:14px;
     flex-wrap:wrap; row-gap:8px;
@@ -648,7 +652,8 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button><button id="hubMin" title="Minimize critter hub">−</button></span></div>
+<div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubMin" title="Minimize critter hub">−</button></span></div>
+<div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
 <div id="carriedBug" aria-hidden="true">🪲</div>
 <div id="blightvignette"></div>
 <div id="intro" role="dialog" aria-labelledby="introTitle">
@@ -994,6 +999,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-critter-hub-upgrade-popover', date:'October 6, 2026', title:'Critter Hub upgrades on tap', notes:[
+    'Tap the Critter Hub to see its acorn storage upgrade beside the circle. Tap elsewhere to close it.',
+    'Critters are easier to grab and drag into the hub, including on touch screens. Clicking still swats them.'
+  ] },
   { id:'2026-10-06-grove-upgrade-panel', date:'October 6, 2026', title:'Grove upgrade panel placement', notes:[
     'Selecting a Grove upgrade now opens its purchase panel at the bottom center of the Grove view, where it stays while you pan or zoom.'
   ] },
@@ -2971,9 +2980,17 @@ function scareCritters(nodeId) {
 }
 // The hub belongs to the grove, so its occupants and position survive a cut.
 const hubEl = document.getElementById('critterHub');
+const hubPopover = document.getElementById('hubPopover');
 const carriedBugEl = document.getElementById('carriedBug');
-let bugCarry = null, hubDrag = null;
+let bugCarry = null, hubDrag = null, hubDragMoved = false;
 function hubCapacity() { return 2 + META.critterHub.extra; }
+function positionHubPopover() {
+  if (!hubPopover.classList.contains('open')) return;
+  const r = hubEl.getBoundingClientRect();
+  const w = hubPopover.offsetWidth, h = hubPopover.offsetHeight;
+  hubPopover.style.left = clamp(r.left + r.width / 2 - w / 2, 8, Math.max(8, innerWidth - w - 8)) + 'px';
+  hubPopover.style.top = (r.top >= h + 8 ? r.top - h - 6 : Math.min(innerHeight - h - 8, r.bottom + 6)) + 'px';
+}
 function placeHub() {
   const h = META.critterHub;
   const size = h.minimized ? 42 : 74 + h.extra * 5;
@@ -2984,6 +3001,7 @@ function placeHub() {
   h.y = clamp(y, 0, Math.max(0, innerHeight - size));
   hubEl.style.left = h.x + 'px'; hubEl.style.top = h.y + 'px';
   hubEl.style.right = hubEl.style.bottom = 'auto';
+  positionHubPopover();
 }
 function renderCritterHub() {
   if (!META) return;
@@ -2994,16 +3012,21 @@ function renderCritterHub() {
   const btn = document.getElementById('hubUpgrade');
   btn.textContent = h.extra >= 10 ? 'Max' : `+ 🌰${h.extra + 1}`;
   btn.disabled = h.extra >= 10;
+  hubPopover.querySelector('.hubUpgradeText').textContent = h.extra >= 10
+    ? 'All 12 critter spaces unlocked' : `Add 1 space for 🌰 ${h.extra + 1} acorn${h.extra ? 's' : ''}`;
   hubEl.title = `${h.bugs} stored bug${h.bugs === 1 ? '' : 's'} · −${h.bugs}% sap production · drag to move`;
   placeHub();
 }
 hubEl.addEventListener('pointerdown', e => {
   if (e.target.closest('button')) return;
   hubEl.setPointerCapture(e.pointerId);
+  hubDragMoved = false;
   hubDrag = { id:e.pointerId, x:e.clientX, y:e.clientY, left:META.critterHub.x, top:META.critterHub.y };
 });
 hubEl.addEventListener('pointermove', e => {
   if (!hubDrag || hubDrag.id !== e.pointerId) return;
+  if (Math.hypot(e.clientX - hubDrag.x, e.clientY - hubDrag.y) > 6) hubDragMoved = true;
+  if (!hubDragMoved) return;
   META.critterHub.x = hubDrag.left + e.clientX - hubDrag.x;
   META.critterHub.y = hubDrag.top + e.clientY - hubDrag.y;
   placeHub();
@@ -3013,13 +3036,20 @@ hubEl.addEventListener('pointerup', finishHubDrag);
 hubEl.addEventListener('pointercancel', finishHubDrag);
 window.addEventListener('resize', () => { if (META) { placeHub(); saveMeta(); } });
 document.getElementById('hubMin').addEventListener('click', () => {
+  hubPopover.classList.remove('open');
   META.critterHub.minimized = !META.critterHub.minimized;
   document.getElementById('hubMin').textContent = META.critterHub.minimized ? '+' : '−';
   renderCritterHub(); saveMeta();
 });
 hubEl.addEventListener('click', e => {
   if (e.target.closest('button')) return;
+  if (hubDragMoved) { hubDragMoved = false; return; }
   if (META.critterHub.minimized) { META.critterHub.minimized = false; renderCritterHub(); saveMeta(); }
+  hubPopover.classList.toggle('open');
+  positionHubPopover();
+});
+document.addEventListener('pointerdown', e => {
+  if (!hubEl.contains(e.target) && !hubPopover.contains(e.target)) hubPopover.classList.remove('open');
 });
 document.getElementById('hubUpgrade').addEventListener('click', () => {
   const h = META.critterHub, cost = h.extra + 1;
@@ -3030,8 +3060,8 @@ document.getElementById('hubUpgrade').addEventListener('click', () => {
   toast(`Critter Hub expanded to ${hubCapacity()} spaces.`);
 });
 function pickBug(x, y) {
-  return critters.find(c => c.type === 'bug' && c.state === 'sitting' &&
-    Math.hypot(x - sx(c.x), y - (sy(c.y) - 8 * cam.scale)) < 22 * cam.scale);
+  return critters.find(c => c.state === 'sitting' &&
+    Math.hypot(x - sx(c.x), y - (sy(c.y) - (c.type === 'bird' ? 10 : 8) * cam.scale)) < Math.max(28, 22 * cam.scale));
 }
 function showCarriedBug(x, y) {
   carriedBugEl.style.display = 'block';
@@ -3668,14 +3698,17 @@ cv.addEventListener('pointerdown', e => {
   if (isFirstPointer) {
     if (metaLvl('critterhub') > 0 && META.critterHub.bugs < hubCapacity()) {
       const bug = pickBug(e.clientX, e.clientY);
-      if (bug) bugCarry = { critter:bug, id:e.pointerId, x:e.clientX, y:e.clientY, moved:false, travel:0 };
+      if (bug) {
+        bugCarry = { critter:bug, id:e.pointerId, startX:e.clientX, startY:e.clientY, x:e.clientX, y:e.clientY, moved:false, travel:0 };
+        carriedBugEl.textContent = bug.type === 'bird' ? '🐦' : '🪲';
+      }
     }
     downHitRoot = pickRoot(e.clientX, e.clientY);
     downHit = downHitRoot ?? pickCore(e.clientX, e.clientY) ?? pickBranch(e.clientX, e.clientY);
     // Defer applying the selection until pointerup, so dragging from empty
     // space (or from a node) doesn't clobber the existing selection.
     // Press-and-hold on a leaf begins a Verdant Touch channel.
-    if (downHit != null && N(downHit) && N(downHit).type === 'leaf' && touchOwned()) {
+    if (!bugCarry && downHit != null && N(downHit) && N(downHit).type === 'leaf' && touchOwned()) {
       const leafId = downHit;
       channelTimer = setTimeout(() => { channelTimer = null; beginChannel(leafId); }, 180);
     }
@@ -3701,7 +3734,7 @@ cv.addEventListener('pointermove', e => {
   if (bugCarry && bugCarry.id === e.pointerId) {
     const b = bugCarry;
     const step = Math.hypot(e.clientX - b.x, e.clientY - b.y);
-    if (step > 7) b.moved = true;
+    if (Math.hypot(e.clientX - b.startX, e.clientY - b.startY) > 7) b.moved = true;
     if (b.moved) {
       b.critter.state = 'carried';
       b.travel += step;
