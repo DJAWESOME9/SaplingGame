@@ -54,6 +54,12 @@ create table if not exists public.leaderboard_names (
   player_id uuid primary key,
   display_name text not null check (char_length(display_name) between 1 and 20)
 );
+create table if not exists public.deleted_players (
+  player_id uuid primary key,
+  deleted_at timestamptz not null default now()
+);
+alter table public.deleted_players enable row level security;
+revoke all on public.deleted_players from anon, authenticated;
 create unique index if not exists leaderboard_names_lower_name_idx on public.leaderboard_names (lower(display_name));
 alter table public.leaderboard_names enable row level security;
 revoke all on public.leaderboard_names from anon, authenticated;
@@ -264,6 +270,9 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare clean_name text;
 begin
   clean_name := regexp_replace(btrim(coalesce(p_display_name, '')), '[[:space:]]+', ' ', 'g');
+  if exists (select 1 from public.deleted_players where player_id = p_player_id) then
+    raise exception 'Player account deleted';
+  end if;
   if p_player_id is null or char_length(clean_name) not between 1 and 20
     or clean_name !~ '^[[:alnum:] _.-]+$' then
     raise exception 'Invalid username';
@@ -284,6 +293,9 @@ create or replace function public.submit_leaderboard_fresh(
 )
 returns void language plpgsql security definer set search_path = '' as $$
 begin
+  if exists (select 1 from public.deleted_players where player_id = p_player_id) then
+    raise exception 'Player account deleted';
+  end if;
   if p_player_id is null or p_lifetime_sap is null or p_lifetime_resin is null
     or p_current_sap is null or p_current_resin is null or p_sap_rate is null
     or p_resin_rate is null or p_gold_leaves is null or p_is_blight is null
@@ -351,7 +363,7 @@ insert into public.admin_emails(email) values ('djdavidfreeman@gmail.com') on co
 create table if not exists public.admin_actions (
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null,
-  action_type text not null check (action_type in ('balance', 'reset')),
+  action_type text not null check (action_type in ('balance', 'reset', 'delete')),
   sap_delta double precision not null default 0,
   resin_delta double precision not null default 0,
   message text not null default '',
@@ -359,6 +371,9 @@ create table if not exists public.admin_actions (
   acknowledged_at timestamptz
 );
 alter table public.admin_actions add column if not exists message text not null default '';
+alter table public.admin_actions drop constraint if exists admin_actions_action_type_check;
+alter table public.admin_actions add constraint admin_actions_action_type_check
+  check (action_type in ('balance', 'reset', 'delete'));
 create index if not exists admin_actions_pending_player_idx
   on public.admin_actions (player_id, created_at) where acknowledged_at is null;
 
@@ -391,6 +406,9 @@ begin
     or p_gold_leaves < 0 or p_play_ms < 0
     or p_offline_ms < 0 or p_trees_felled < 0 or p_rings < 0 or p_node_count < 0 then
     raise exception 'Invalid player snapshot';
+  end if;
+  if exists (select 1 from public.deleted_players where player_id = p_player_id) then
+    raise exception 'Player account deleted';
   end if;
   clean_name := left(regexp_replace(coalesce(p_display_name, ''), '[^[:alnum:] _.-]', '', 'g'), 20);
   if clean_name = '' then clean_name := 'Sapling'; end if;
@@ -481,6 +499,43 @@ begin
   end if;
   return new_id;
 end; $$;
+
+create or replace function public.admin_delete_player(p_player_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_sapling_admin() then raise exception 'Administrator access required'; end if;
+  if p_player_id is null or not exists (select 1 from public.player_profiles where player_id = p_player_id) then
+    raise exception 'Player account not found';
+  end if;
+  insert into public.deleted_players (player_id) values (p_player_id) on conflict do nothing;
+  delete from public.admin_actions where player_id = p_player_id;
+  insert into public.admin_actions (player_id, action_type) values (p_player_id, 'delete');
+  if to_regclass('public.live_challenge_completions') is not null then
+    execute 'delete from public.live_challenge_completions where player_id = $1' using p_player_id;
+  end if;
+  delete from public.leaderboard_names where player_id = p_player_id;
+  delete from public.leaderboard where player_id = p_player_id;
+  delete from public.player_profiles where player_id = p_player_id;
+end; $$;
+revoke all on function public.admin_delete_player(uuid) from public, anon, authenticated;
+grant execute on function public.admin_delete_player(uuid) to authenticated;
+
+create or replace function public.reject_deleted_challenge_player()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from public.deleted_players where player_id = new.player_id) then
+    raise exception 'Player account deleted';
+  end if;
+  return new;
+end; $$;
+revoke all on function public.reject_deleted_challenge_player() from public, anon, authenticated;
+do $$ begin
+  if to_regclass('public.live_challenge_completions') is not null then
+    drop trigger if exists reject_deleted_challenge_player on public.live_challenge_completions;
+    create trigger reject_deleted_challenge_player before insert or update on public.live_challenge_completions
+      for each row execute function public.reject_deleted_challenge_player();
+  end if;
+end $$;
 
 revoke all on function public.submit_player_snapshot(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, bigint, double precision, double precision, integer, double precision, text, integer) from public;
 grant execute on function public.submit_player_snapshot(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, bigint, double precision, double precision, integer, double precision, text, integer) to anon, authenticated;

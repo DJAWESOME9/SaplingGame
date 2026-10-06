@@ -48,7 +48,8 @@
   #gear { margin-left:auto; pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #gear:hover, #gear.open { border-color:#6a8a6e; color:#cfe3d1; }
-  #settings { position:fixed; top:52px; right:16px; width:220px; display:none;
+  #settings { position:fixed; z-index:56; top:52px; right:16px; width:220px; display:none;
+    box-sizing:border-box; max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain;
     background:rgba(16,24,18,.96); border:1px solid #2e3f31; border-radius:12px; padding:12px 14px;
     backdrop-filter:blur(6px); }
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
@@ -608,7 +609,7 @@
     #topbar .statrate { font-size:10.5px; }
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
-    #settings { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
+    #settings { right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
     #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(328px, calc(100vw - 20px)); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
     #leaderboard ol { max-height:none; overflow:visible; }
     #settings .srow, #restore { font-size:14px; }
@@ -1038,6 +1039,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-settings-panel-fix', date:'October 6, 2026', title:'Settings panel fix', notes:[
+    'Settings now opens beside its button and scrolls when the screen is short, so its controls stay reachable on phones and small windows.'
+  ] },
+  { id:'2026-10-06-admin-delete-account', date:'October 6, 2026', title:'Account deletion for admins', notes:[
+    'Admins can delete a player account from the dashboard. Its leaderboard and challenge records are removed, and that browser’s game progress is cleared at its next online check-in.'
+  ] },
   { id:'2026-10-06-admin-settings-link', date:'October 6, 2026', title:'Settings cleanup', notes:[
     'The admin dashboard link has been removed from Settings.'
   ] },
@@ -4682,6 +4689,20 @@ function toast(msg) {
 }
 const gear = document.getElementById('gear'), settings = document.getElementById('settings'),
       volSlider = document.getElementById('vol');
+function placeSettings() {
+  const rect = gear.getBoundingClientRect();
+  const gap = 8;
+  const below = rect.bottom + gap;
+  const roomBelow = innerHeight - below - gap;
+  const roomAbove = rect.top - gap * 2;
+  if (roomAbove > roomBelow) {
+    settings.style.top = `${gap}px`;
+    settings.style.maxHeight = `${Math.max(0, roomAbove)}px`;
+  } else {
+    settings.style.top = `${below}px`;
+    settings.style.maxHeight = `${Math.max(0, roomBelow)}px`;
+  }
+}
 const rightClickAction = document.getElementById('rightClickAction');
 try { rightClickAction.value = localStorage.getItem('sapling-right-click-action') || (localStorage.getItem('sapling-right-click-polish') === 'false' ? 'off' : 'polish'); }
 catch (e) { rightClickAction.value = 'polish'; }
@@ -5088,15 +5109,18 @@ async function processAdminActions() {
         localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
         recordHighestBalances();
         save();
-      } else if (!alreadyDone && action.action_type === 'reset') {
+      } else if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) {
         window.__SAPLING_WIPED = true;
         for (const key of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);
+        if (action.action_type === 'delete') {
+          for (const key of [LB_PLAYER_KEY, LB_CLAIM_KEY, 'sapling-leaderboard-name-v1', ADMIN_NOTICES_KEY, ADMIN_ACTIONS_KEY]) localStorage.removeItem(key);
+        }
       }
       if (!alreadyDone) rememberAdminAction(action.id);
       await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_ack_admin_action`, {
         method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_action_id: action.id })
       });
-      if (!alreadyDone && action.action_type === 'reset') { location.reload(); return true; }
+      if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) { location.reload(); return true; }
     }
     showAdminNotice();
     if (actions && actions.length) { buildPanel(); computeFlow(0); }
@@ -5301,6 +5325,7 @@ function restoreLockedUtilityDrawers() {
   });
 }
 window.addEventListener('resize', () => {
+  if (settings.classList.contains('open')) placeSettings();
   if (lbSavedHeight !== null) setLeaderboardHeight(lbSavedHeight);
   utilityDrawers.forEach(([buttonId, panelId]) => {
     for (const id of [buttonId, panelId]) {
@@ -5338,6 +5363,7 @@ gear.addEventListener('click', () => {
   const open = settings.classList.toggle('open');
   gear.classList.toggle('open', open);
   if (open) {
+    placeSettings();
     closeOtherDrawers();
   }
 });
