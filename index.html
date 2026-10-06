@@ -909,6 +909,8 @@ const GROVE = {
   borncharged:{ name:'Born Charged',   glyph:'🔋', tier:3, parent:'resonant',  max:4, cost:l=>4+l*2,  desc:'New capacitors begin +1 level higher per level' },
   // Other eternal boons.
   goldenbough:{ name:'Golden Bough',   glyph:'🍯', tier:3, parent:'sunray',    max:4, cost:l=>5+l*3,  desc:'Gold leaves pay +25% more sap per level' },
+  bloomcraft:{ name:'Bloomcraft',      glyph:'✨', tier:4, parent:'goldenbough', max:4, cost:l=>65+l*35, desc:'Buffs from big gold leaves are 15% stronger per level' },
+  gildedcanopy:{ name:'Gilded Canopy', glyph:'🌟', tier:5, parent:'bloomcraft', max:3, cost:l=>1900+l*1200, desc:'Big gold leaves appear 3 percentage points more often per level (base 9%)' },
   forcedbloom:{ name:'Forced Bloom',   glyph:'🌺', tier:4, parent:'goldenbough', max:1, cost:_=>180,  desc:'Unlocks the Forced Bloom toggle: pay 1h of sap to arm, then all production ×3 — but no gold leaves appear while it burns' },
   frugalbloom:{ name:'Frugal Bloom',   glyph:'🌷', tier:5, parent:'forcedbloom', max:1, cost:_=>2200, desc:'Forced Bloom costs only 30min of sap to arm instead of 1h' },
   amberheart:{ name:'Amber Heart',     glyph:'🧡', tier:4, parent:'crescent',  max:4, cost:l=>45+l*24,  desc:'Pruning yields +25% more amber per level' },
@@ -1357,13 +1359,14 @@ const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * (1 + 0.15 * metaLv
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
 // Bloom variants — picked at random when a big gold leaf is harvested.
+const goldBloomMult = base => 1 + (base - 1) * (1 + 0.15 * metaLvl('bloomcraft'));
 const BLOOMS = {
-  bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>3, descOf:()=>'×3 leaf production' },
-  surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>5, descOf:()=>'×5 leaf production (short)' },
-  resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>1+0.2*S.counts.amp, relevant:()=>(S.counts.amp||0)>0, descOf:()=>`each amp adds +20% leaf production (×${(1+0.2*S.counts.amp).toFixed(1)})` },
-  verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>1+0.08*S.counts.leaf, descOf:()=>`each leaf adds +8% production (×${(1+0.08*S.counts.leaf).toFixed(1)})` },
-  refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>2,  relevant:()=>(S.counts.ref||0)>0, descOf:()=>'refineries ×2 yield' },
-  overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>1.6, relevant:()=>(S.counts.cap||0)>0, descOf:()=>'capacitors burst ×1.6' },
+  bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>goldBloomMult(3), descOf:()=>`×${goldBloomMult(3).toFixed(1)} leaf production` },
+  surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>goldBloomMult(5), descOf:()=>`×${goldBloomMult(5).toFixed(1)} leaf production (short)` },
+  resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>goldBloomMult(1+0.2*S.counts.amp), relevant:()=>(S.counts.amp||0)>0, descOf:()=>`each amp boosts leaf production (×${goldBloomMult(1+0.2*S.counts.amp).toFixed(1)})` },
+  verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>goldBloomMult(1+0.08*S.counts.leaf), descOf:()=>`each leaf boosts production (×${goldBloomMult(1+0.08*S.counts.leaf).toFixed(1)})` },
+  refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>goldBloomMult(2),  relevant:()=>(S.counts.ref||0)>0, descOf:()=>`refineries ×${goldBloomMult(2).toFixed(1)} yield` },
+  overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>goldBloomMult(1.6), relevant:()=>(S.counts.cap||0)>0, descOf:()=>`capacitors burst ×${goldBloomMult(1.6).toFixed(2)}` },
 };
 function pickBloom() {
   const keys = Object.keys(BLOOMS);
@@ -1898,7 +1901,7 @@ function computeFlow(dt) {
           goldShown++;
           n.giftAge = 0;
           n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
-          n.giftBig = Math.random() < 0.09;
+          n.giftBig = Math.random() < 0.09 + 0.03 * metaLvl('gildedcanopy');
           if (n.giftBig) n.giftLife *= 1.6;
           let goldBase = (S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.01 + leafRate(n) * 7;
           // Late game these income terms run away; leave early/mid payouts intact
