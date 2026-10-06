@@ -140,6 +140,8 @@
   #eventHudTitle { flex:1; overflow:hidden; color:#d8e9b6; font-size:12px; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
   #eventHudTime { color:#f0d9a0; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
   #eventHudMin { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
+  #eventHudNext { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
+  #eventHudNext[hidden] { display:none; }
   #eventHudBody { padding:0 11px 10px; }
   #eventHudProgress { display:flex; justify-content:space-between; gap:8px; margin:0 0 6px; color:#cbd8be; font-size:11px; font-variant-numeric:tabular-nums; }
   #eventHud.minimized { width:auto; min-width:185px; }
@@ -783,8 +785,8 @@
   </div>
 </div>
 <section id="eventHud" aria-label="Live event progress" aria-live="polite">
-  <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
-  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span>from leaves</span></div></div>
+  <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudNext" type="button" aria-label="Show next live challenge" title="Show next challenge">›</button><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
+  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span id="eventHudMetric">from leaves</span></div></div>
 </section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
@@ -1039,6 +1041,13 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-leaderboard-refresh-fix', date:'October 6, 2026', title:'Leaderboard refresh fix', notes:[
+    'The leaderboard Refresh button now fetches the latest rankings instead of showing a cached result.'
+  ] },
+  { id:'2026-10-06-live-challenge-goals', date:'October 6, 2026', title:'More live challenge goals', notes:[
+    'Live challenges can now ask you to make sap, leaf sap, resin, refinery resin, amber, or rings, complete expeditions, or defeat bugs. Several challenges can run together; use the arrow on the event bar to view each one.',
+    'Challenge and first-finisher rewards can now include sap, resin, acorns, rings, and amber.'
+  ] },
   { id:'2026-10-06-settings-panel-fix', date:'October 6, 2026', title:'Settings panel fix', notes:[
     'Settings now opens beside its button and scrolls when the screen is short, so its controls stay reachable on phones and small windows.'
   ] },
@@ -1131,7 +1140,7 @@ const UPDATE_LOG = [
     'You can revisit every update from Settings → Update log.'
   ] }
 ];
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
+const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], pendingChallengeEvents: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -1252,6 +1261,7 @@ function loadMeta() {
   META.liveChallengeProgress = META.liveChallengeProgress || {};
   META.liveChallengeUi = META.liveChallengeUi || {};
   META.pendingLeafSapWindows = Array.isArray(META.pendingLeafSapWindows) ? META.pendingLeafSapWindows : [];
+  META.pendingChallengeEvents = Array.isArray(META.pendingChallengeEvents) ? META.pendingChallengeEvents : [];
   if (typeof META.hacks !== 'boolean') META.hacks = false;
   if (typeof META.hardMode !== 'boolean') META.hardMode = false;
   if (typeof META.acorns !== 'number') META.acorns = 0;
@@ -2081,7 +2091,7 @@ function prepareEdgeCache() {
 // ---------- economy: typed flow {sap, resin} from leaves to core ----------
 function computeFlow(dt) {
   S.waste = 0; S.wasteSap = 0; S.wasteResin = 0; S.maxLife = 0;
-  let leafSapRate = 0;
+  let leafSapRate = 0, refineryResinRate = 0;
   // How many gold leaves are already showing — ripe leaves past the cap hold their
   // timer at the ready instead of materialising, so the screen never floods.
   let goldShown = (dt > 0) ? goldOnScreen() : 0;
@@ -2116,7 +2126,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; r += (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * Math.pow(1.2, rootLvl('raincatcher')) * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; const made = (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * Math.pow(1.2, rootLvl('raincatcher')) * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); r += made; refineryResinRate += made; s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -2178,6 +2188,7 @@ function computeFlow(dt) {
   const o = rec(N(S.rootId));
   S.incomeS = o.s * (1 - Math.min(0.12, ((META && META.critterHub && META.critterHub.bugs) || 0) * 0.01)); S.incomeR = o.r;
   S.leafSapRate = leafSapRate;
+  S.refineryResinRate = refineryResinRate;
 }
 
 // ---------- actions ----------
@@ -2545,6 +2556,7 @@ const c = edgeCurve(n);
     delete S.nodes[d];
   }
   S.amber += gain;
+  recordChallengeEvent('amber', gain);
   S.ms.pruned = true;
   sfx('prune');
   spawnFloaty(n.x, n.y, `+${fmt(gain)} amber`, '#f0a050');
@@ -3066,6 +3078,7 @@ function scareCritters(nodeId) {
         c.leaveX = c.x + (Math.random() - 0.5) * 220;
         c.leaveY = c.y - 180 - Math.random() * 100;
         META.crittersScared = (META.crittersScared || 0) + 1;
+        if (c.type === 'bug') recordChallengeEvent('bugs', 1);
         if (META.crittersScared >= 10) grantAchievement('scare10');
         if (META.crittersScared >= 100) grantAchievement('scare100');
         if (META.crittersScared >= 500) grantAchievement('scare500');
@@ -4572,7 +4585,7 @@ function creditOffline(awaySecRaw) {
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
-  accrueLeafSapWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), S.leafSapRate * rate, true);
+  accrueChallengeWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), {sap:S.incomeS * rate, leaf_sap:S.leafSapRate * rate, resin:S.incomeR * rate, refinery_resin:S.refineryResinRate * rate}, true);
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
   recordProduction(sap, resin);
   if (sap + resin > 0) {
@@ -4754,7 +4767,7 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
     if (loadId !== leaderboardLoadId) return;
     if (res.status === 400) {
       lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
@@ -4791,19 +4804,22 @@ function clampEventHud() {
 }
 function renderEventHud() {
   if (!eventHud) return;
-  const challenge = liveChallenges.find(c => c.target_type === 'leaf_sap');
+  const prefs = META.liveChallengeUi || {};
+  const index = Math.max(0, Math.min(liveChallenges.length - 1, Number(prefs.index) || 0));
+  const challenge = liveChallenges[index];
   if (!challenge) { eventHud.classList.remove('visible'); return; }
   eventHud.classList.add('visible');
-  const prefs = META.liveChallengeUi || {};
   eventHud.classList.toggle('minimized', !!prefs.minimized);
   eventHudMin.textContent = prefs.minimized ? '+' : '−';
   eventHudMin.setAttribute('aria-label', prefs.minimized ? 'Expand event bar' : 'Minimize event bar');
   eventHudMin.title = prefs.minimized ? 'Expand' : 'Minimize';
-  document.getElementById('eventHudTitle').textContent = `🌿 ${challenge.title}`;
+  document.getElementById('eventHudNext').hidden = liveChallenges.length < 2;
+  document.getElementById('eventHudTitle').textContent = `🏆 ${challenge.title}${liveChallenges.length > 1 ? ` (${index + 1}/${liveChallenges.length})` : ''}`;
   document.getElementById('eventHudTime').textContent = liveChallengeTime(challenge.closes_at);
   const target = Number(challenge.target_sap) || 100000;
-  const progress = Math.min(target, Number(META.liveChallengeProgress?.[challenge.id]) || 0);
-  document.getElementById('eventHudCount').textContent = `${fmt(progress)} / ${fmt(target)} sap`;
+  const progress = Math.min(target, challengeProgress(challenge.id));
+  document.getElementById('eventHudCount').textContent = `${fmt(progress)} / ${fmt(target)} ${CHALLENGE_UNITS[challenge.target_type] || 'sap'}`;
+  document.getElementById('eventHudMetric').textContent = challenge.player_completed ? 'Completed ✓' : CHALLENGE_LABELS[challenge.target_type] || 'Progress';
   if (!eventHud.style.left) {
     try {
       const saved = JSON.parse(localStorage.getItem(eventHudPosKey) || 'null');
@@ -4821,6 +4837,11 @@ eventHudMin?.addEventListener('click', () => {
   META.liveChallengeUi = META.liveChallengeUi || {};
   META.liveChallengeUi.minimized = !META.liveChallengeUi.minimized;
   saveMeta(); renderEventHud(); clampEventHud();
+});
+document.getElementById('eventHudNext')?.addEventListener('click', () => {
+  META.liveChallengeUi = META.liveChallengeUi || {};
+  META.liveChallengeUi.index = ((Number(META.liveChallengeUi.index) || 0) + 1) % liveChallenges.length;
+  saveMeta(); renderEventHud();
 });
 {
   const head = document.getElementById('eventHudHead');
@@ -4844,46 +4865,67 @@ eventHudMin?.addEventListener('click', () => {
   head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
 }
 window.addEventListener('resize', clampEventHud);
-function accrueLeafSapWindow(startMs, endMs, rate, queueIfUnavailable = false) {
-  if (!(endMs > startMs) || !(rate > 0)) return;
-  if (!liveChallenges.length) {
-    if (queueIfUnavailable && lbConfigured && lbPlayerId) {
-      META.pendingLeafSapWindows = META.pendingLeafSapWindows || [];
-      const last = META.pendingLeafSapWindows[META.pendingLeafSapWindows.length - 1];
-      if (last && last.localTime && last.rate === rate && startMs - last.endMs < 100) last.endMs = endMs;
-      else META.pendingLeafSapWindows.push({ startMs, endMs, rate, localTime:true });
-      if (META.pendingLeafSapWindows.length > 200) META.pendingLeafSapWindows.splice(0, META.pendingLeafSapWindows.length - 200);
-      peakMetaDirty = true;
-    }
-    return;
-  }
+const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', resin:'resin', refinery_resin:'resin', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
+const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', resin:'Resin made', refinery_resin:'Resin made by refineries', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
+function addChallengeProgress(challenge, amount) {
+  if (!(amount > 0) || challenge.player_completed) return;
+  META.liveChallengeProgress = META.liveChallengeProgress || {};
+  META.liveChallengeProgress[challenge.id] = Math.min(Number(challenge.target_sap), (Number(META.liveChallengeProgress[challenge.id]) || 0) + amount);
+  peakMetaDirty = true;
+}
+function accrueChallengeWindow(startMs, endMs, rates, queue = false, appliedIds = []) {
+  if (!(endMs > startMs)) return;
+  const applied = new Set(appliedIds);
   for (const challenge of liveChallenges) {
-    if (challenge.target_type !== 'leaf_sap' || challenge.player_completed) continue;
+    if (applied.has(challenge.id) || !(rates[challenge.target_type] > 0)) continue;
     const a = Math.max(startMs, Date.parse(challenge.opens_at));
     const b = Math.min(endMs, Date.parse(challenge.closes_at));
-    if (b <= a) continue;
-    META.liveChallengeProgress = META.liveChallengeProgress || {};
-    META.liveChallengeProgress[challenge.id] = Math.min(Number(challenge.target_sap), (Number(META.liveChallengeProgress[challenge.id]) || 0) + (b - a) / 1000 * rate);
+    if (b > a) addChallengeProgress(challenge, (b - a) / 1000 * rates[challenge.target_type]);
+    applied.add(challenge.id);
+  }
+  if (queue && lbConfigured && lbPlayerId && Object.values(rates).some(v => v > 0)) {
+    const events = META.pendingChallengeEvents = META.pendingChallengeEvents || [];
+    const last = events[events.length - 1];
+    if (last?.rates && last.endMs === startMs && endMs - last.startMs < 10000 && JSON.stringify(last.appliedIds) === JSON.stringify([...applied])) {
+      const oldMs = last.endMs - last.startMs, newMs = endMs - startMs;
+      for (const key of Object.keys(rates)) last.rates[key] = ((last.rates[key] || 0) * oldMs + (rates[key] || 0) * newMs) / (oldMs + newMs);
+      last.endMs = endMs;
+    }
+    else events.push({startMs, endMs, rates, appliedIds:[...applied], offsetAtCapture:liveChallengeClockOffsetMs});
+    if (events.length > 2000) events.splice(0, events.length - 2000);
     peakMetaDirty = true;
   }
 }
-function liveRewardText(sap, resin) {
-  return [Number(sap) ? `${fmt(Number(sap))} sap` : '', Number(resin) ? `${fmt(Number(resin))} resin` : ''].filter(Boolean).join(' + ') || 'achievement';
+function recordChallengeEvent(type, amount) {
+  if (!(amount > 0) || !META || !lbConfigured || !lbPlayerId) return;
+  const at = liveChallengeNow(), appliedIds = [];
+  for (const challenge of liveChallenges) {
+    if (challenge.target_type !== type) continue;
+    if (at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, amount);
+    appliedIds.push(challenge.id);
+  }
+  const events = META.pendingChallengeEvents = META.pendingChallengeEvents || [];
+  events.push({at, type, amount, appliedIds, offsetAtCapture:liveChallengeClockOffsetMs});
+  if (events.length > 2000) events.splice(0, events.length - 2000);
+  peakMetaDirty = true;
+}
+function liveRewardText(challenge, prefix) {
+  return ['sap','resin','acorns','rings','amber'].map(k => Number(challenge[`${prefix}_${k}`]) ? `${fmt(Number(challenge[`${prefix}_${k}`]))} ${k}` : '').filter(Boolean).join(' + ') || 'achievement';
 }
 function renderLiveChallenges() {
   if (!liveChallengesPanel) return;
   liveChallengeRows.innerHTML = liveChallenges.map(c => {
     const claimed = c.player_completed;
     const restricted = !!META.hacks;
-    const current = c.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[c.id]) || 0 : S.sap;
+    const current = challengeProgress(c.id);
     const ready = current >= Number(c.target_sap);
     const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
-    const reward = liveRewardText(c.reward_sap, c.reward_resin);
-    const bonus = liveRewardText(c.first_bonus_sap, c.first_bonus_resin);
+    const reward = liveRewardText(c, 'reward');
+    const bonus = liveRewardText(c, 'first_bonus');
     const action = claimed
       ? '<small class="live-complete">Completed ✓</small>'
-      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button>`;
-    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
+      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more ${CHALLENGE_UNITS[c.target_type] || 'sap'}`}</button>`;
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>${escapeHtml(CHALLENGE_LABELS[c.target_type] || 'Goal')}: ${fmt(Number(c.target_sap))} ${CHALLENGE_UNITS[c.target_type] || 'sap'} · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
   }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
@@ -4905,9 +4947,19 @@ async function loadLiveChallenges() {
     META.pendingLeafSapWindows = [];
     for (const w of pending) {
       const offset = w.localTime ? liveChallengeClockOffsetMs : 0;
-      accrueLeafSapWindow(Number(w.startMs) + offset, Number(w.endMs) + offset, Number(w.rate));
+      accrueChallengeWindow(Number(w.startMs) + offset, Number(w.endMs) + offset, {leaf_sap:Number(w.rate)});
     }
-    if (pending.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
+    const events = META.pendingChallengeEvents || [];
+    META.pendingChallengeEvents = [];
+    for (const event of events) {
+      const offset = liveChallengeClockOffsetMs - (Number(event.offsetAtCapture) || 0);
+      if (event.rates) accrueChallengeWindow(event.startMs + offset, event.endMs + offset, event.rates, false, event.appliedIds);
+      else for (const challenge of liveChallenges) {
+        const at = event.at + offset;
+        if (!event.appliedIds?.includes(challenge.id) && challenge.target_type === event.type && at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, event.amount);
+      }
+    }
+    if (pending.length || events.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
     renderLiveChallenges();
     renderEventHud();
     liveChallengeStatus.textContent = liveChallenges.length ? 'Updated just now' : '';
@@ -4937,10 +4989,16 @@ async function claimLiveChallenge(id, button) {
     if (!result) throw new Error('The server returned no completion result.');
     if (!result.already_completed) {
       const rewardSap = Number(result.reward_sap)||0, rewardResin = Number(result.reward_resin)||0;
+      const rewardAcorns = Number(result.reward_acorns)||0, rewardRings = Number(result.reward_rings)||0, rewardAmber = Number(result.reward_amber)||0;
       S.sap += rewardSap;
       S.resin += rewardResin;
+      S.amber += rewardAmber;
+      META.acorns += rewardAcorns;
+      META.rings += rewardRings;
+      META.totalRings = (META.totalRings || 0) + rewardRings;
       recordEarned(rewardSap, rewardResin);
       recordHighestBalances();
+      refreshAcorns();
       const challenge = liveChallenges.find(c => c.id === id);
       const achievementKey = `liveChallenge:${id}`;
       META.liveChallengeAchievements = META.liveChallengeAchievements || {};
@@ -4962,7 +5020,7 @@ async function claimLiveChallenge(id, button) {
 }
 function challengeProgress(id) {
   const c = liveChallenges.find(x => x.id === id);
-  return c?.target_type === 'leaf_sap' ? Number(META.liveChallengeProgress?.[id]) || 0 : Number(S.sap) || 0;
+  return c?.target_type === 'banked_sap' ? Number(S.sap) || 0 : Number(META.liveChallengeProgress?.[id]) || 0;
 }
 function checkLiveChallengeClaims() {
   if (!lbConfigured || !lbPlayerId || META.hacks) return;
@@ -5786,6 +5844,7 @@ function finalizeCut() {
   if (cur) localStorage.setItem(KEY + '-prereset', cur);
   META.rings += gain;
   META.totalRings = (META.totalRings || 0) + gain;
+  recordChallengeEvent('rings', gain);
   META.treesCut++;
   grantAchievement('firstCut');
   if (META.treesCut >= 5) grantAchievement('cut5');
@@ -6311,6 +6370,8 @@ function advanceExpeditions(seconds, now = Date.now()) {
     const buff = Math.random() < 0.3;
     S.sap += sap; S.resin += resin; recordEarned(sap, resin);
     META.rings += rings; META.totalRings += rings; META.acorns += acorn;
+    recordChallengeEvent('expeditions', 1);
+    recordChallengeEvent('rings', rings);
     if (buff) applyBloom('expedition', 300);
     recordHighestBalances();
     const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
@@ -6853,7 +6914,7 @@ function frame(now) {
     }
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
-    accrueLeafSapWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), (S.leafSapRate || 0) * prod, true);
+    accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), {sap:S.incomeS * prod, leaf_sap:S.leafSapRate * prod, resin:S.incomeR * prod, refinery_resin:S.refineryResinRate * prod}, true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
       frame.eventHudAt = Date.now(); renderEventHud();
       if (expeditionPanel.classList.contains('open')) renderExpeditions();

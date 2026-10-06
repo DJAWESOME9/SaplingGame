@@ -4,7 +4,7 @@ This is a code map for the intentionally single-file game. Exact formulas and UI
 
 ## Runtime shape
 
-`index.html` contains the game document, styles, and one inline strict-mode JavaScript script. `admin.html` is the separate Supabase-authenticated player support dashboard and live challenge publisher; `leaderboard-config.js` holds the browser-safe project URL/public key. `supabase/leaderboard.sql` defines leaderboard/admin storage and RPCs, while `supabase/live_challenges.sql` defines the challenge catalog, completion records, and challenge RPCs; `supabase/live_challenge_leaf_sap.sql` adds leaf-production goals, and `supabase/live_challenge_server_clock.sql` returns database time for countdown alignment. The game script initializes progression, loads local run/meta state, installs handlers, then starts `requestAnimationFrame(frame)`.
+`index.html` contains the game document, styles, and one inline strict-mode JavaScript script. `admin.html` is the separate Supabase-authenticated player support dashboard and live challenge publisher; `leaderboard-config.js` holds the browser-safe project URL/public key. `supabase/leaderboard.sql` defines leaderboard/admin storage and RPCs, while `supabase/live_challenges.sql` defines the challenge catalog, completion records, and challenge RPCs; `supabase/live_challenge_leaf_sap.sql` adds leaf-production goals, `supabase/live_challenge_server_clock.sql` returns database time for countdown alignment, and `supabase/live_challenge_goals.sql` adds the other goal types and rewards. The game script initializes progression, loads local run/meta state, installs handlers, then starts `requestAnimationFrame(frame)`.
 
 The main frame loop advances the simulation, updates production, time-based systems, and node positions, prepares branch geometry, updates critters/withering/particles, draws the canvas, and refreshes the HUD and selected-node panel. A frame-level catch logs errors and the loop schedules its next frame after the catch, so one exception should not permanently stop animation.
 
@@ -48,7 +48,7 @@ The Critter Hub and expedition slots also live in `META`, so stored critters, of
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |
 | Release notes and update popup | `UPDATE_LOG`, `newMeta().seenUpdateId`, `openUpdates`, `showUnseenUpdates` |
 | Optional online leaderboard | Top-bar leaderboard drawer and `submitLeaderboardScore` / `loadLeaderboard`; SQL setup in `supabase/leaderboard.sql` |
-| Live challenges | Settings challenge panel and draggable event HUD, `loadLiveChallenges`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql`, `supabase/live_challenge_leaf_sap.sql`, and `supabase/live_challenge_server_clock.sql` |
+| Live challenges | Settings challenge panel and draggable event HUD, `loadLiveChallenges`, `accrueChallengeWindow`, `recordChallengeEvent`, `checkLiveChallengeClaims`, `claimLiveChallenge`; admin publishing in `admin.html`; SQL setup in `supabase/live_challenges.sql`, `supabase/live_challenge_leaf_sap.sql`, `supabase/live_challenge_server_clock.sql`, and `supabase/live_challenge_goals.sql` |
 | Main runtime and boot | `frame`, listeners near the end, final load/intro/bootstrap calls |
 
 ## Persistence and compatibility
