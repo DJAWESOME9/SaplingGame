@@ -42,11 +42,16 @@
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
   #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
-    box-sizing:border-box; width:328px; max-height:70vh; overflow-y:auto; overscroll-behavior:contain;
+    box-sizing:border-box; width:328px; height:min(70vh, 640px); min-height:190px; max-height:calc(100dvh - 16px); overflow:hidden;
     display:none; margin:0; padding:16px; border:1px solid #617349; border-radius:14px;
     color:var(--lb-cream); background:radial-gradient(circle at 90% -10%, rgba(138,155,77,.22), transparent 42%),
       linear-gradient(145deg,#1d3022,#14241c 65%,#102019); box-shadow:0 18px 46px rgba(0,0,0,.48),inset 0 1px rgba(242,219,145,.13); }
-  #leaderboard.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
+  #leaderboard.open { display:flex; flex-direction:column; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
+  #leaderboard .lb-content { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-color:#667a4e transparent; }
+  #leaderboard .lb-resize { flex:none; align-self:center; width:76px; height:18px; margin:8px 0 -9px; padding:0; border:0; border-radius:8px;
+    background:transparent; color:#b4c5a9; cursor:ns-resize; touch-action:none; }
+  #leaderboard .lb-resize::before { content:''; display:block; width:42px; height:4px; margin:auto; border-radius:4px; background:#819466; }
+  #leaderboard .lb-resize:hover::before, #leaderboard .lb-resize:focus-visible::before { background:var(--lb-gold); }
   #leaderboard .drawer-heading { padding-bottom:9px; border-bottom:1px solid rgba(228,186,105,.26); }
   #leaderboard h3 { margin:0; color:var(--lb-cream); font-size:16px; line-height:1.2; letter-spacing:.01em; }
   #leaderboard .lb-kicker { display:block; margin-bottom:3px; color:var(--lb-gold); font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
@@ -533,7 +538,7 @@
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
     #settings { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
-    #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(328px, calc(100vw - 20px)); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px); }
+    #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(328px, calc(100vw - 20px)); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
     #leaderboard ol { max-height:none; overflow:visible; }
     #settings .srow, #restore { font-size:14px; }
     #restore { padding:11px 10px; }
@@ -691,6 +696,7 @@
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
   <section id="leaderboard" aria-label="Leaderboard">
+  <div class="lb-content">
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
   <p class="lb-note">See the growers who have gathered the most, held the most, and found the gold.</p>
   <label class="lb-label" for="lbName">Your display name</label>
@@ -706,6 +712,8 @@
   <div class="lb-results-heading"><div><h4 id="lbCurrentRecord">Lifetime sap</h4><small>Top growers · all time</small></div><button id="lbRefresh" type="button" aria-label="Refresh leaderboard">↻ Refresh</button></div>
   <ol id="lbRows" aria-live="polite"></ol>
     <div class="lb-status" id="lbStatus" role="status">Leaderboard is not configured.</div>
+  </div>
+  <button class="lb-resize" id="lbResize" type="button" aria-label="Resize leaderboard height" title="Drag to resize · arrow keys also work"></button>
   </section>
   <section id="liveChallenges" aria-label="Live challenges">
     <h3>🏆 Live Challenges</h3>
@@ -4285,6 +4293,11 @@ async function loadLeaderboard() {
   lbStatus.textContent = 'Loading…';
   try {
     const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
+    if (res.status === 400 && board.column.startsWith('highest_held_')) {
+      lbRows.innerHTML = '<li class="lb-empty"><strong>Balance rankings are on their way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
+      lbStatus.textContent = 'Other records are available now.';
+      return;
+    }
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
     lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>';
@@ -4397,7 +4410,7 @@ async function submitLeaderboardScore() {
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
+    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
       method: 'POST', headers: lbHeaders(),
       body: JSON.stringify({
         p_player_id: lbPlayerId,
@@ -4410,9 +4423,26 @@ async function submitLeaderboardScore() {
         p_is_blight: !!META.hardMode
       })
     });
+    const legacy = res.status === 404;
+    if (legacy) {
+      // Keep lifetime and gold-leaf boards updating until the balance-score RPC is installed.
+      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_score`, {
+        method: 'POST', headers: lbHeaders(),
+        body: JSON.stringify({
+          p_player_id: lbPlayerId,
+          p_display_name: displayName,
+          p_lifetime_sap: META.lifetimeSap || 0,
+          p_lifetime_resin: META.lifetimeResin || 0,
+          p_highest_sap: META.peakBuffS || 0,
+          p_highest_resin: META.peakBuffR || 0,
+          p_gold_leaves: META.goldClicked || 0,
+          p_is_blight: !!META.hardMode
+        })
+      });
+    }
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
-    lbStatus.textContent = 'Score submitted';
-    loadLeaderboard();
+    await loadLeaderboard();
+    if (legacy && !selectedLeaderboard.startsWith('highest_')) lbStatus.textContent = 'Lifetime scores updated · balance records await a database update';
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
@@ -4583,8 +4613,44 @@ utilityDrawers.forEach(([buttonId, panelId]) => {
   initDrawerHeading(panel);
   try { const p = JSON.parse(localStorage.getItem(`sapling-position-${panelId}`)); if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) placeFloating(panel, p.x, p.y); } catch (_) {}
   new ResizeObserver(() => {
-    if (panel.classList.contains('open')) placeDrawerByButton(button, panel);
+    if (panel !== leaderboard && panel.classList.contains('open')) placeDrawerByButton(button, panel);
   }).observe(panel);
+});
+const lbResize = document.getElementById('lbResize');
+const LB_HEIGHT_KEY = 'sapling-leaderboard-height-v1';
+let lbSavedHeight = null;
+try { const h = Number(localStorage.getItem(LB_HEIGHT_KEY)); if (Number.isFinite(h) && h >= 190) lbSavedHeight = h; } catch (_) {}
+function setLeaderboardHeight(height) {
+  const top = leaderboard.classList.contains('open') ? leaderboard.getBoundingClientRect().top : 8;
+  const max = Math.max(190, innerHeight - top - 8);
+  leaderboard.style.height = `${Math.max(190, Math.min(height, max))}px`;
+}
+if (lbSavedHeight !== null) setLeaderboardHeight(lbSavedHeight);
+let lbResizeDrag = null;
+lbResize.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  lbResizeDrag = { id:e.pointerId, y:e.clientY, height:leaderboard.offsetHeight };
+  lbResize.setPointerCapture(e.pointerId);
+});
+lbResize.addEventListener('pointermove', e => {
+  if (!lbResizeDrag || e.pointerId !== lbResizeDrag.id) return;
+  setLeaderboardHeight(lbResizeDrag.height + e.clientY - lbResizeDrag.y);
+});
+function finishLeaderboardResize(e) {
+  if (!lbResizeDrag || e.pointerId !== lbResizeDrag.id) return;
+  lbResizeDrag = null;
+  lbSavedHeight = leaderboard.offsetHeight;
+  try { localStorage.setItem(LB_HEIGHT_KEY, String(lbSavedHeight)); } catch (_) {}
+}
+lbResize.addEventListener('pointerup', finishLeaderboardResize);
+lbResize.addEventListener('pointercancel', finishLeaderboardResize);
+lbResize.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  setLeaderboardHeight(leaderboard.offsetHeight + (e.key === 'ArrowDown' ? 1 : -1) * (e.shiftKey ? 40 : 20));
+  lbSavedHeight = leaderboard.offsetHeight;
+  try { localStorage.setItem(LB_HEIGHT_KEY, String(lbSavedHeight)); } catch (_) {}
 });
 document.getElementById('resetMenuPositions').addEventListener('click', () => {
   utilityDrawers.forEach(([buttonId, panelId]) => {
@@ -4614,6 +4680,7 @@ function restoreLockedUtilityDrawers() {
   });
 }
 window.addEventListener('resize', () => {
+  if (lbSavedHeight !== null) setLeaderboardHeight(lbSavedHeight);
   utilityDrawers.forEach(([buttonId, panelId]) => {
     for (const id of [buttonId, panelId]) {
       const el = document.getElementById(id);
