@@ -129,6 +129,7 @@
   .live-challenge small { color:#a7b695; font-size:10px; }
   .live-challenge button { display:block; width:100%; margin-top:6px; cursor:pointer; background:#293923; border:1px solid #526d43; color:#e0edce; border-radius:7px; padding:7px; font-size:11px; }
   .live-challenge button:disabled { opacity:.55; cursor:default; }
+  .live-challenge .live-complete { display:inline-block; margin-top:6px; padding:3px 7px; border:1px solid #526d43; border-radius:6px; color:#cce1b7; background:#1b2b1c; }
   #settings input[type=range] { flex:1; accent-color:#9fd9a8; }
   #restore { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
@@ -958,6 +959,18 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-05-feature-overview', date:'October 5, 2026', title:'Sapling feature guide', notes:[
+    'Grow a tree of leaves, amplifiers, refineries, capacitors, and funnels. Graft new branches, upgrade nodes, and thicken or polish connections to move more sap and resin.',
+    'Prune branches for amber and spend it in the Roots advancement tree. Lock nodes to protect them from accidental changes.',
+    'Harvest gold leaves for sap windfalls. Rare big gold leaves grant temporary Blooms with different boosts.',
+    'Cut down a grown tree to earn rings, then spend them on lasting Grove upgrades and new tree species with distinct strengths and tradeoffs.',
+    'Unlock Blueprint to copy a branch and graft a paid clone elsewhere. Later Grove upgrades add Channel surges, Stasis, and Forced Bloom.',
+    'Bank acorns and use the Pantheon to equip deities, each with a perk and a drawback.',
+    'Swat visiting critters before they slow production. Optional Blight mode adds tougher critters and branches that need tending.',
+    'Track achievements and lifetime stats, and join leaderboards and live challenges when online features are available.',
+    'Your tree saves automatically and earns capped offline progress. Settings also lets you export or import a save code and restore a backup.',
+    'Pan and zoom the tree with mouse or touch; movable drawers keep achievements, stats, and leaderboards close at hand.'
+  ] },
   { id:'2026-10-05-update-log', date:'October 5, 2026', title:'Update notes', notes:[
     'New updates now appear in a popup when you return to Sapling.',
     'You can revisit every update from Settings → Update log.'
@@ -4471,7 +4484,10 @@ function renderLiveChallenges() {
     const first = c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)} · ${Number(c.completion_count).toLocaleString()} completed` : `${Number(c.completion_count).toLocaleString()} completed · first finisher bonus still available`;
     const reward = liveRewardText(c.reward_sap, c.reward_resin);
     const bonus = liveRewardText(c.first_bonus_sap, c.first_bonus_resin);
-    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small><button type="button" data-live-claim="${escapeHtml(c.id)}" ${claimed || !ready || restricted ? 'disabled' : ''}>${claimed ? 'Completed ✓' : restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button></article>`;
+    const action = claimed
+      ? '<small class="live-complete">Completed ✓</small>'
+      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${fmt(Math.max(0, Number(c.target_sap) - current))} more sap`}</button>`;
+    return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>Goal: ${fmt(Number(c.target_sap))} sap · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
   }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
