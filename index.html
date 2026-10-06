@@ -63,6 +63,14 @@
   .update-entry time { color:#9db89f; font-size:11px; }
   .update-entry ul { margin:8px 0 10px; padding-left:20px; color:#cad9c8; font-size:13px; line-height:1.5; }
   #updatesClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
+  #usernamePrompt { position:fixed; inset:0; display:none; z-index:70; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.88); backdrop-filter:blur(5px); }
+  #usernamePrompt.open { display:flex; }
+  .usernamebox { box-sizing:border-box; width:min(420px,100%); background:#101a12; border:1px solid #63876a; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
+  .usernamebox h2 { margin:0 0 8px; color:#e7ddc4; font-size:21px; }
+  .usernamebox p { color:#b9c7a6; font-size:13px; line-height:1.5; }
+  .usernamebox input { box-sizing:border-box; width:100%; padding:10px 12px; border:1px solid #536747; border-radius:8px; background:#101f18; color:#f3e9cf; font-size:14px; }
+  .usernamebox button { width:100%; margin-top:10px; padding:10px; border:1px solid #63876a; border-radius:8px; background:#25402b; color:#edf6e9; font-size:14px; cursor:pointer; }
+  #usernameStatus { min-height:18px; color:#f0bb8e; }
   #adminNotice { position:fixed; inset:0; display:none; z-index:66; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
   #adminNotice.open { display:flex; animation:overlayIn .22s ease-out both; }
   .adminnoticebox { box-sizing:border-box; width:min(420px,100%); max-height:calc(100dvh - 40px); overflow:auto; background:#101a12; border:1px solid #63876a; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
@@ -695,6 +703,17 @@
     <button id="introBegin">Begin growing 🌱</button>
   </div>
 </div>
+<div id="usernamePrompt" role="dialog" aria-modal="true" aria-labelledby="usernameTitle">
+  <div class="usernamebox">
+    <h2 id="usernameTitle">Choose a leaderboard username</h2>
+    <p>The leaderboards have been reset. Choose an available name to report your current scores. Your game progress is unchanged.</p>
+    <form id="usernameForm">
+      <input id="usernameChoice" maxlength="20" autocomplete="nickname" aria-label="Leaderboard username" required>
+      <button id="usernameClaim" type="submit">Use this name</button>
+    </form>
+    <p id="usernameStatus" role="status"></p>
+  </div>
+</div>
 <div id="updates" role="dialog" aria-modal="true" aria-labelledby="updatesTitle">
   <div class="updatesbox">
     <h2 id="updatesTitle">🌱 What's new</h2>
@@ -1021,6 +1040,10 @@ const MKEY = 'sapling-meta-v1';
 const UPDATE_LOG = [
   { id:'2026-10-06-admin-settings-link', date:'October 6, 2026', title:'Settings cleanup', notes:[
     'The admin dashboard link has been removed from Settings.'
+  ] },
+  { id:'2026-10-06-leaderboard-reset-names', date:'October 6, 2026', title:'Fresh leaderboard start', notes:[
+    'All seven leaderboards have been reset. Open the updated game to report fresh scores from your existing save.',
+    'Choose a unique leaderboard username in the new popup. A name already taken by another player cannot be claimed.'
   ] },
   { id:'2026-10-06-shortcut-success-feedback', date:'October 6, 2026', title:'Right-click success feedback', notes:[
     'Successful right-click polishing and branch thickening now show a small message at the upgraded node.'
@@ -4710,12 +4733,9 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const currentRateBoard = selectedLeaderboard.startsWith('production_');
-    const currentBalanceBoard = selectedLeaderboard.startsWith('highest_');
-    const verifiedFilter = currentRateBoard ? '&current_rate_reported_at=not.is.null' : currentBalanceBoard ? '&current_balance_reported_at=not.is.null' : '';
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc${verifiedFilter}&limit=25`, { headers: lbHeaders() });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
     if (loadId !== leaderboardLoadId) return;
-    if (res.status === 400 && board.column.startsWith('current_')) {
+    if (res.status === 400) {
       lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
       lbStatus.textContent = 'Other records are available now.';
       return;
@@ -4723,9 +4743,7 @@ async function loadLeaderboard() {
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
     if (loadId !== leaderboardLoadId) return;
-    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || (currentRateBoard || currentBalanceBoard
-      ? '<li class="lb-empty"><strong>No current scores yet.</strong>Scores appear as players open the updated game.</li>'
-      : '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>');
+    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
     lbStatus.textContent = 'Updated just now';
   } catch (err) { if (loadId === leaderboardLoadId) lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
 }
@@ -4941,79 +4959,80 @@ liveChallengeRows?.addEventListener('click', e => {
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch]);
 }
+const LB_CLAIM_KEY = 'sapling-leaderboard-claimed-name-v2';
+let claimedUsername = (() => { try { return localStorage.getItem(LB_CLAIM_KEY) || ''; } catch (e) { return ''; } })();
+let leaderboardSubmitBusy = false;
+function showUsernamePrompt() {
+  if (!lbConfigured || !lbPlayerId) return;
+  const prompt = document.getElementById('usernamePrompt');
+  const choice = document.getElementById('usernameChoice');
+  choice.value = lbName.value || claimedUsername;
+  document.getElementById('usernameStatus').textContent = '';
+  prompt.classList.add('open');
+  choice.focus();
+}
+async function claimUsername(name) {
+  const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/claim_leaderboard_name`, {
+    method:'POST', headers:lbHeaders(), body:JSON.stringify({ p_player_id:lbPlayerId, p_display_name:name })
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    if (res.status === 409 || error.code === '23505') throw new Error('That username is already in use. Choose another.');
+    throw new Error(error.message || `Could not claim username (${res.status})`);
+  }
+  claimedUsername = name;
+  lbName.value = name;
+  try {
+    localStorage.setItem(LB_CLAIM_KEY, name);
+    localStorage.setItem('sapling-leaderboard-name-v1', name);
+  } catch (e) {}
+  document.getElementById('usernamePrompt').classList.remove('open');
+  submitLeaderboardScore();
+}
+document.getElementById('usernameForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const choice = document.getElementById('usernameChoice');
+  const button = document.getElementById('usernameClaim');
+  const status = document.getElementById('usernameStatus');
+  const name = choice.value.trim().replace(/[^\w\u00C0-\u024F _.-]/g, '').replace(/\s+/g, ' ').slice(0, 20);
+  if (!name) { status.textContent = 'Enter a username using letters, numbers, spaces, or _ . -'; choice.focus(); return; }
+  button.disabled = true;
+  status.textContent = 'Checking username…';
+  try { await claimUsername(name); }
+  catch (err) { status.textContent = err.message; choice.focus(); }
+  finally { button.disabled = false; }
+});
 async function submitLeaderboardScore() {
-  if (!lbConfigured || !lbPlayerId || META.hacks) return;
+  if (!lbConfigured || !lbPlayerId || META.hacks || leaderboardSubmitBusy) return;
+  if (!claimedUsername) { if (META.seenIntro) showUsernamePrompt(); return; }
+  leaderboardSubmitBusy = true;
   recordHighestBalances();
   if (peakMetaDirty) { saveMeta(); peakMetaDirty = false; }
-  const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_live`, {
-      method: 'POST', headers: lbHeaders(),
-      body: JSON.stringify({
-        p_player_id: lbPlayerId,
-        p_display_name: displayName,
-        p_lifetime_sap: META.lifetimeSap || 0,
-        p_lifetime_resin: META.lifetimeResin || 0,
-        p_production_sap: S.incomeS || 0,
-        p_production_resin: S.incomeR || 0,
-        p_current_sap: S.sap || 0,
-        p_current_resin: S.resin || 0,
-        p_highest_held_sap: META.highestHeldSap || 0,
-        p_highest_held_resin: META.highestHeldResin || 0,
-        p_gold_leaves: META.goldClicked || 0,
-        p_is_blight: !!META.hardMode
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_fresh`, {
+      method:'POST', headers:lbHeaders(), body:JSON.stringify({
+        p_player_id:lbPlayerId,
+        p_lifetime_sap:META.lifetimeSap || 0, p_lifetime_resin:META.lifetimeResin || 0,
+        p_current_sap:S.sap || 0, p_current_resin:S.resin || 0,
+        p_sap_rate:S.incomeS || 0, p_resin_rate:S.incomeR || 0,
+        p_gold_leaves:META.goldClicked || 0, p_is_blight:!!META.hardMode
       })
     });
-    const balanceLegacy = res.status === 404;
-    if (balanceLegacy) {
-      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_current`, {
-        method: 'POST', headers: lbHeaders(),
-        body: JSON.stringify({
-          p_player_id: lbPlayerId, p_display_name: displayName,
-          p_lifetime_sap: META.lifetimeSap || 0, p_lifetime_resin: META.lifetimeResin || 0,
-          p_production_sap: S.incomeS || 0, p_production_resin: S.incomeR || 0,
-          p_highest_held_sap: META.highestHeldSap || 0, p_highest_held_resin: META.highestHeldResin || 0,
-          p_gold_leaves: META.goldClicked || 0, p_is_blight: !!META.hardMode
-        })
-      });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      if (error.message === 'Claim username first') {
+        claimedUsername = '';
+        try { localStorage.removeItem(LB_CLAIM_KEY); } catch (e) {}
+        showUsernamePrompt();
+      }
+      throw new Error(error.message || `Request failed (${res.status})`);
     }
-    const productionLegacy = res.status === 404;
-    if (productionLegacy) {
-      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
-        method: 'POST', headers: lbHeaders(),
-        body: JSON.stringify({
-          p_player_id: lbPlayerId, p_display_name: displayName,
-          p_lifetime_sap: META.lifetimeSap || 0, p_lifetime_resin: META.lifetimeResin || 0,
-          p_highest_held_sap: META.highestHeldSap || 0, p_highest_held_resin: META.highestHeldResin || 0,
-          p_gold_leaves: META.goldClicked || 0, p_is_blight: !!META.hardMode
-        })
-      });
-    }
-    const legacy = res.status === 404;
-    if (legacy) {
-      // Keep lifetime and gold-leaf boards updating until the balance-score RPC is installed.
-      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_score`, {
-        method: 'POST', headers: lbHeaders(),
-        body: JSON.stringify({
-          p_player_id: lbPlayerId,
-          p_display_name: displayName,
-          p_lifetime_sap: META.lifetimeSap || 0,
-          p_lifetime_resin: META.lifetimeResin || 0,
-          p_highest_sap: META.peakBuffS || 0,
-          p_highest_resin: META.peakBuffR || 0,
-          p_gold_leaves: META.goldClicked || 0,
-          p_is_blight: !!META.hardMode
-        })
-      });
-    }
-    if (!res.ok) throw new Error(`Request failed (${res.status})`);
     await loadLeaderboard();
-    if (legacy) lbStatus.textContent = 'Some records await a database update';
-    else if (productionLegacy) lbStatus.textContent = 'Production records await a database update';
-    else if (balanceLegacy) lbStatus.textContent = 'Current bank records await a database update';
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
+  finally { leaderboardSubmitBusy = false; }
 }
+
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
 const ADMIN_NOTICES_KEY = 'sapling-admin-notices-v1';
 function adminNotices() {
@@ -5114,7 +5133,10 @@ setInterval(() => {
 setInterval(loadLiveChallenges, 60000);
 window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
-lbName.addEventListener('change', () => { try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value.trim().slice(0, 20)); } catch (e) {} });
+lbName.addEventListener('change', () => {
+  if (lbName.value.trim() === claimedUsername) return;
+  showUsernamePrompt();
+});
 // The three utility drawers can be pinned and placed independently of the top bar.
 const utilityDrawers = [
   ['lbbtn', 'leaderboard'], ['trophy', 'achievements'], ['statsbtn', 'statspanel']
@@ -7023,6 +7045,7 @@ function beginRun() {
   }
   META.seenIntro = true; saveMeta();
   closeIntro();
+  if (!claimedUsername) showUsernamePrompt();
   showUnseenUpdates();
   showAdminNotice();
   return true;

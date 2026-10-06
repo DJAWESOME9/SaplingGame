@@ -14,6 +14,7 @@ create table if not exists public.leaderboard (
   current_sap double precision not null default 0 check (current_sap >= 0),
   current_resin double precision not null default 0 check (current_resin >= 0),
   current_balance_reported_at timestamptz,
+  fresh_score_reported_at timestamptz,
   highest_sap double precision not null default 0 check (highest_sap >= 0),
   highest_resin double precision not null default 0 check (highest_resin >= 0),
   highest_held_sap double precision not null default 0 check (highest_held_sap >= 0),
@@ -34,6 +35,7 @@ alter table public.leaderboard add column if not exists current_rate_reported_at
 alter table public.leaderboard add column if not exists current_sap double precision not null default 0;
 alter table public.leaderboard add column if not exists current_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists current_balance_reported_at timestamptz;
+alter table public.leaderboard add column if not exists fresh_score_reported_at timestamptz;
 alter table public.leaderboard add column if not exists highest_sap double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_held_sap double precision not null default 0;
@@ -46,6 +48,15 @@ alter table public.leaderboard add column if not exists is_blight boolean not nu
 alter table public.leaderboard enable row level security;
 revoke all on public.leaderboard from anon, authenticated;
 grant select on public.leaderboard to anon, authenticated;
+
+-- Only server functions can reserve names; the index makes claims atomic and case-insensitive.
+create table if not exists public.leaderboard_names (
+  player_id uuid primary key,
+  display_name text not null check (char_length(display_name) between 1 and 20)
+);
+create unique index if not exists leaderboard_names_lower_name_idx on public.leaderboard_names (lower(display_name));
+alter table public.leaderboard_names enable row level security;
+revoke all on public.leaderboard_names from anon, authenticated;
 
 drop policy if exists "Leaderboard is public to read" on public.leaderboard;
 create policy "Leaderboard is public to read"
@@ -248,6 +259,63 @@ end; $$;
 revoke all on function public.submit_leaderboard_live(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) from public;
 grant execute on function public.submit_leaderboard_live(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
 
+create or replace function public.claim_leaderboard_name(p_player_id uuid, p_display_name text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare clean_name text;
+begin
+  clean_name := regexp_replace(btrim(coalesce(p_display_name, '')), '[[:space:]]+', ' ', 'g');
+  if p_player_id is null or char_length(clean_name) not between 1 and 20
+    or clean_name !~ '^[[:alnum:] _.-]+$' then
+    raise exception 'Invalid username';
+  end if;
+  insert into public.leaderboard_names (player_id, display_name) values (p_player_id, clean_name)
+    on conflict (player_id) do update set display_name = excluded.display_name;
+  insert into public.leaderboard (player_id, display_name) values (p_player_id, clean_name)
+    on conflict (player_id) do update set display_name = excluded.display_name;
+end; $$;
+revoke all on function public.claim_leaderboard_name(uuid, text) from public;
+grant execute on function public.claim_leaderboard_name(uuid, text) to anon, authenticated;
+
+create or replace function public.submit_leaderboard_fresh(
+  p_player_id uuid, p_lifetime_sap double precision, p_lifetime_resin double precision,
+  p_current_sap double precision, p_current_resin double precision,
+  p_sap_rate double precision, p_resin_rate double precision,
+  p_gold_leaves bigint, p_is_blight boolean
+)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_player_id is null or p_lifetime_sap is null or p_lifetime_resin is null
+    or p_current_sap is null or p_current_resin is null or p_sap_rate is null
+    or p_resin_rate is null or p_gold_leaves is null or p_is_blight is null
+    or p_lifetime_sap < 0 or p_lifetime_resin < 0 or p_current_sap < 0
+    or p_current_resin < 0 or p_sap_rate < 0 or p_resin_rate < 0
+    or p_gold_leaves < 0 then raise exception 'Invalid score'; end if;
+  update public.leaderboard set
+    lifetime_sap = p_lifetime_sap, lifetime_resin = p_lifetime_resin,
+    current_sap = p_current_sap, current_resin = p_current_resin,
+    current_sap_production = p_sap_rate, current_resin_production = p_resin_rate,
+    gold_leaves = p_gold_leaves, is_blight = p_is_blight,
+    fresh_score_reported_at = now(), current_rate_reported_at = now(),
+    current_balance_reported_at = now(), updated_at = now()
+    where player_id = p_player_id
+      and exists (select 1 from public.leaderboard_names where player_id = p_player_id);
+  if not found then raise exception 'Claim username first'; end if;
+end; $$;
+revoke all on function public.submit_leaderboard_fresh(uuid, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) from public;
+grant execute on function public.submit_leaderboard_fresh(uuid, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
+
+-- Older open tabs must not repopulate the reset boards or bypass name claims.
+do $$ declare fn record; begin
+  for fn in select p.oid::regprocedure as signature from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname in (
+      'submit_leaderboard_score', 'submit_leaderboard_balance_score',
+      'submit_leaderboard_totals', 'submit_leaderboard_current', 'submit_leaderboard_live')
+  loop
+    execute format('revoke execute on function %s from public, anon, authenticated', fn.signature);
+  end loop;
+end $$;
+
 -- Private player telemetry and administrator action queue.
 create table if not exists public.player_profiles (
   player_id uuid primary key,
@@ -403,6 +471,7 @@ begin
       current_sap_production = 0, current_resin_production = 0,
       current_rate_reported_at = null,
       current_sap = 0, current_resin = 0, current_balance_reported_at = null,
+      fresh_score_reported_at = null,
       gold_leaves = 0, trees_felled = 0, total_rings = 0,
       updated_at = now() where player_id = p_player_id;
   else
