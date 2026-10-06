@@ -795,17 +795,17 @@
   <section id="leaderboard" aria-label="Leaderboard">
   <div class="lb-content">
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
-  <p class="lb-note">Lifetime records count all sap and resin gained. Production records count tree output, including offline growth.</p>
+  <p class="lb-note">Lifetime records count all sap and resin gained. Highest records track your biggest bank balance. Production records show your current rate per second.</p>
   <label class="lb-label" for="lbName">Your display name</label>
   <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Up to 20 characters">
   <div class="lb-section-label">Choose a record</div>
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
     <button type="button" data-lb="lifetime_sap" class="active" aria-pressed="true">Lifetime sap</button>
     <button type="button" data-lb="lifetime_resin" aria-pressed="false">Lifetime resin</button>
-    <button type="button" data-lb="production_sap" aria-pressed="false">Sap production</button>
-    <button type="button" data-lb="production_resin" aria-pressed="false">Resin production</button>
     <button type="button" data-lb="highest_sap" aria-pressed="false">Highest sap</button>
     <button type="button" data-lb="highest_resin" aria-pressed="false">Highest resin</button>
+    <button type="button" data-lb="production_sap" aria-pressed="false">Sap production</button>
+    <button type="button" data-lb="production_resin" aria-pressed="false">Resin production</button>
     <button type="button" data-lb="gold_leaves" aria-pressed="false">Gold leaves</button>
   </div>
   <div class="lb-results-heading"><div><h4 id="lbCurrentRecord">Lifetime sap</h4><small>Top growers · all time</small></div><button id="lbRefresh" type="button" aria-label="Refresh leaderboard">↻ Refresh</button></div>
@@ -1030,6 +1030,11 @@ const MKEY = 'sapling-meta-v1';
 const UPDATE_LOG = [
   { id:'2026-10-06-right-click-polish', date:'October 6, 2026', title:'Quick polish', notes:[
     'Right-click a leaf, amplifier, or capacitor to polish it. In Settings, you can switch the shortcut to thicken branches or turn it off.'
+  ] },
+  { id:'2026-10-06-current-production-leaderboards', date:'October 6, 2026', title:'Leaderboard records clarified', notes:[
+    'Sap and Resin production leaderboards now show each player’s current production per second, including active boosts, instead of total output over time.',
+    'Lifetime records count all resources earned, Highest records track the biggest bank balances held, and Gold leaves counts leaves clicked.',
+    'Production rankings now wait for a fresh rate report from the updated game, so old accumulated totals no longer appear as impossible rates.'
   ] },
   { id:'2026-10-06-expedition-departure', date:'October 6, 2026', title:'Critters leave when sent', notes:[
     'Sending critters on an expedition now removes them from the hub immediately, freeing storage and ending their sap drain while they travel.'
@@ -4661,13 +4666,14 @@ const lbStatus = document.getElementById('lbStatus');
 const LB_BOARDS = {
   lifetime_sap: { column: 'lifetime_sap', format: value => fmt(Number(value) || 0) },
   lifetime_resin: { column: 'lifetime_resin', format: value => fmt(Number(value) || 0) },
-  production_sap: { column: 'production_sap', format: value => fmt(Number(value) || 0) },
-  production_resin: { column: 'production_resin', format: value => fmt(Number(value) || 0) },
+  production_sap: { column: 'current_sap_production', format: value => `${fmt(Number(value) || 0)}/s` },
+  production_resin: { column: 'current_resin_production', format: value => `${fmt(Number(value) || 0)}/s` },
   highest_sap: { column: 'highest_held_sap', format: value => fmt(Number(value) || 0) },
   highest_resin: { column: 'highest_held_resin', format: value => fmt(Number(value) || 0) },
   gold_leaves: { column: 'gold_leaves', format: value => (Number(value) || 0).toLocaleString() }
 };
 let selectedLeaderboard = 'lifetime_sap';
+let leaderboardLoadId = 0;
 const lbConfigured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(LEADERBOARD_CONFIG.url || '') &&
   /^[a-z0-9._-]+$/i.test(LEADERBOARD_CONFIG.anonKey || '');
 const LB_PLAYER_KEY = 'sapling-leaderboard-player-v1';
@@ -4689,19 +4695,26 @@ async function loadLeaderboard() {
   if (!lbConfigured) return;
   const board = LB_BOARDS[selectedLeaderboard];
   if (!board) return;
+  const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
-    if (res.status === 400 && (board.column.startsWith('highest_held_') || board.column.startsWith('production_'))) {
+    const currentRateBoard = selectedLeaderboard.startsWith('production_');
+    const verifiedRateFilter = currentRateBoard ? '&current_rate_reported_at=not.is.null' : '';
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc${verifiedRateFilter}&limit=25`, { headers: lbHeaders() });
+    if (loadId !== leaderboardLoadId) return;
+    if (res.status === 400 && (board.column.startsWith('highest_held_') || board.column.startsWith('current_'))) {
       lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
       lbStatus.textContent = 'Other records are available now.';
       return;
     }
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
-    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>';
+    if (loadId !== leaderboardLoadId) return;
+    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || (currentRateBoard
+      ? '<li class="lb-empty"><strong>No current rates yet.</strong>Rates appear as players open the updated game.</li>'
+      : '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>');
     lbStatus.textContent = 'Updated just now';
-  } catch (err) { lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
+  } catch (err) { if (loadId === leaderboardLoadId) lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
 }
 let liveChallenges = [];
 const liveChallengeClaimsInFlight = new Set();
@@ -4922,15 +4935,15 @@ async function submitLeaderboardScore() {
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_totals`, {
+    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_current`, {
       method: 'POST', headers: lbHeaders(),
       body: JSON.stringify({
         p_player_id: lbPlayerId,
         p_display_name: displayName,
         p_lifetime_sap: META.lifetimeSap || 0,
         p_lifetime_resin: META.lifetimeResin || 0,
-        p_production_sap: META.productionSap || 0,
-        p_production_resin: META.productionResin || 0,
+        p_production_sap: S.incomeS || 0,
+        p_production_resin: S.incomeR || 0,
         p_highest_held_sap: META.highestHeldSap || 0,
         p_highest_held_resin: META.highestHeldResin || 0,
         p_gold_leaves: META.goldClicked || 0,
@@ -4968,8 +4981,8 @@ async function submitLeaderboardScore() {
     }
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     await loadLeaderboard();
-    if (legacy && !selectedLeaderboard.startsWith('highest_')) lbStatus.textContent = 'Lifetime scores updated · balance records await a database update';
-    else if (productionLegacy && !selectedLeaderboard.startsWith('production_')) lbStatus.textContent = 'Score updated · production records await a database update';
+    if (legacy) lbStatus.textContent = 'Some records await a database update';
+    else if (productionLegacy) lbStatus.textContent = 'Production records await a database update';
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
@@ -6874,6 +6887,7 @@ function frame(now) {
 resize();
 loadMeta();
 load();
+computeFlow(0);
 renderCritterHub();
 restoreLockedUtilityDrawers();
 requestAnimationFrame(() => {

@@ -8,6 +8,9 @@ create table if not exists public.leaderboard (
   lifetime_resin double precision not null default 0 check (lifetime_resin >= 0),
   production_sap double precision not null default 0 check (production_sap >= 0),
   production_resin double precision not null default 0 check (production_resin >= 0),
+  current_sap_production double precision not null default 0 check (current_sap_production >= 0),
+  current_resin_production double precision not null default 0 check (current_resin_production >= 0),
+  current_rate_reported_at timestamptz,
   highest_sap double precision not null default 0 check (highest_sap >= 0),
   highest_resin double precision not null default 0 check (highest_resin >= 0),
   highest_held_sap double precision not null default 0 check (highest_held_sap >= 0),
@@ -22,6 +25,9 @@ alter table public.leaderboard add column if not exists lifetime_sap double prec
 alter table public.leaderboard add column if not exists lifetime_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists production_sap double precision not null default 0;
 alter table public.leaderboard add column if not exists production_resin double precision not null default 0;
+alter table public.leaderboard add column if not exists current_sap_production double precision not null default 0;
+alter table public.leaderboard add column if not exists current_resin_production double precision not null default 0;
+alter table public.leaderboard add column if not exists current_rate_reported_at timestamptz;
 alter table public.leaderboard add column if not exists highest_sap double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_held_sap double precision not null default 0;
@@ -90,7 +96,7 @@ $$;
 revoke all on function public.submit_leaderboard_balance_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) from public;
 grant execute on function public.submit_leaderboard_balance_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
 
--- The lifetime boards count every resource gain; production boards count tree output only.
+-- The lifetime boards count every resource gain; current production is a rate per second.
 create or replace function public.submit_leaderboard_totals(
   p_player_id uuid, p_display_name text,
   p_lifetime_sap double precision, p_lifetime_resin double precision,
@@ -134,6 +140,53 @@ begin
 end; $$;
 revoke all on function public.submit_leaderboard_totals(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) from public;
 grant execute on function public.submit_leaderboard_totals(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
+
+
+-- Current production rates use a separate RPC so older clients cannot submit totals as rates.
+create or replace function public.submit_leaderboard_current(
+  p_player_id uuid, p_display_name text,
+  p_lifetime_sap double precision, p_lifetime_resin double precision,
+  p_production_sap double precision, p_production_resin double precision,
+  p_highest_held_sap double precision, p_highest_held_resin double precision,
+  p_gold_leaves bigint, p_is_blight boolean default false
+)
+returns void language plpgsql security definer set search_path = '' as $$
+declare clean_name text;
+begin
+  if p_player_id is null or p_lifetime_sap is null or p_lifetime_resin is null
+    or p_production_sap is null or p_production_resin is null
+    or p_highest_held_sap is null or p_highest_held_resin is null
+    or p_gold_leaves is null or p_is_blight is null
+    or p_lifetime_sap < 0 or p_lifetime_resin < 0
+    or p_production_sap < 0 or p_production_resin < 0
+    or p_highest_held_sap < 0 or p_highest_held_resin < 0 or p_gold_leaves < 0 then
+    raise exception 'Invalid score';
+  end if;
+  clean_name := left(regexp_replace(coalesce(p_display_name, ''), '[^[:alnum:] _.-]', '', 'g'), 20);
+  if clean_name = '' then clean_name := 'Sapling'; end if;
+  insert into public.leaderboard (
+    player_id, display_name, lifetime_sap, lifetime_resin,
+    current_sap_production, current_resin_production, current_rate_reported_at, highest_held_sap, highest_held_resin,
+    gold_leaves, is_blight
+  ) values (
+    p_player_id, clean_name, p_lifetime_sap, p_lifetime_resin,
+    p_production_sap, p_production_resin, now(), p_highest_held_sap, p_highest_held_resin,
+    p_gold_leaves, p_is_blight
+  ) on conflict (player_id) do update set
+    display_name = excluded.display_name,
+    lifetime_sap = greatest(public.leaderboard.lifetime_sap, excluded.lifetime_sap),
+    lifetime_resin = greatest(public.leaderboard.lifetime_resin, excluded.lifetime_resin),
+    current_sap_production = excluded.current_sap_production,
+    current_resin_production = excluded.current_resin_production,
+    current_rate_reported_at = now(),
+    highest_held_sap = greatest(public.leaderboard.highest_held_sap, excluded.highest_held_sap),
+    highest_held_resin = greatest(public.leaderboard.highest_held_resin, excluded.highest_held_resin),
+    gold_leaves = greatest(public.leaderboard.gold_leaves, excluded.gold_leaves),
+    is_blight = excluded.is_blight,
+    updated_at = now();
+end; $$;
+revoke all on function public.submit_leaderboard_current(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) from public;
+grant execute on function public.submit_leaderboard_current(uuid, text, double precision, double precision, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
 
 -- Private player telemetry and administrator action queue.
 create table if not exists public.player_profiles (
@@ -287,6 +340,8 @@ begin
     update public.leaderboard set
       lifetime_sap = 0, lifetime_resin = 0, highest_sap = 0,
       highest_resin = 0, highest_held_sap = 0, highest_held_resin = 0,
+      current_sap_production = 0, current_resin_production = 0,
+      current_rate_reported_at = null,
       gold_leaves = 0, trees_felled = 0, total_rings = 0,
       updated_at = now() where player_id = p_player_id;
   else
