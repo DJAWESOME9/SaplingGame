@@ -795,7 +795,7 @@
   <section id="leaderboard" aria-label="Leaderboard">
   <div class="lb-content">
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
-  <p class="lb-note">Lifetime records count all sap and resin gained. Highest records track your biggest bank balance. Production records show your current rate per second.</p>
+  <p class="lb-note">Lifetime records count all sap and resin gained. Highest records show your current bank balance. Production records show your current rate per second.</p>
   <label class="lb-label" for="lbName">Your display name</label>
   <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Up to 20 characters">
   <div class="lb-section-label">Choose a record</div>
@@ -1028,6 +1028,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-06-current-bank-leaderboards', date:'October 6, 2026', title:'Bank balances on the leaderboard', notes:[
+    'Highest sap and Highest resin now rank the sap and resin currently in each player’s bank. Scores can rise or fall as resources are earned and spent.',
+    'Players appear on these two boards after opening the updated game and reporting their current balances.'
+  ] },
   { id:'2026-10-06-shortcut-feedback', date:'October 6, 2026', title:'Clearer right-click upgrades', notes:[
     'Right-click shortcuts now show when polish is maxed or locked, or when you need more sap or resin.'
   ] },
@@ -4678,8 +4682,8 @@ const LB_BOARDS = {
   lifetime_resin: { column: 'lifetime_resin', format: value => fmt(Number(value) || 0) },
   production_sap: { column: 'current_sap_production', format: value => `${fmt(Number(value) || 0)}/s` },
   production_resin: { column: 'current_resin_production', format: value => `${fmt(Number(value) || 0)}/s` },
-  highest_sap: { column: 'highest_held_sap', format: value => fmt(Number(value) || 0) },
-  highest_resin: { column: 'highest_held_resin', format: value => fmt(Number(value) || 0) },
+  highest_sap: { column: 'current_sap', format: value => fmt(Number(value) || 0) },
+  highest_resin: { column: 'current_resin', format: value => fmt(Number(value) || 0) },
   gold_leaves: { column: 'gold_leaves', format: value => (Number(value) || 0).toLocaleString() }
 };
 let selectedLeaderboard = 'lifetime_sap';
@@ -4709,10 +4713,11 @@ async function loadLeaderboard() {
   lbStatus.textContent = 'Loading…';
   try {
     const currentRateBoard = selectedLeaderboard.startsWith('production_');
-    const verifiedRateFilter = currentRateBoard ? '&current_rate_reported_at=not.is.null' : '';
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc${verifiedRateFilter}&limit=25`, { headers: lbHeaders() });
+    const currentBalanceBoard = selectedLeaderboard.startsWith('highest_');
+    const verifiedFilter = currentRateBoard ? '&current_rate_reported_at=not.is.null' : currentBalanceBoard ? '&current_balance_reported_at=not.is.null' : '';
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc${verifiedFilter}&limit=25`, { headers: lbHeaders() });
     if (loadId !== leaderboardLoadId) return;
-    if (res.status === 400 && (board.column.startsWith('highest_held_') || board.column.startsWith('current_'))) {
+    if (res.status === 400 && board.column.startsWith('current_')) {
       lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
       lbStatus.textContent = 'Other records are available now.';
       return;
@@ -4720,8 +4725,8 @@ async function loadLeaderboard() {
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
     if (loadId !== leaderboardLoadId) return;
-    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || (currentRateBoard
-      ? '<li class="lb-empty"><strong>No current rates yet.</strong>Rates appear as players open the updated game.</li>'
+    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || (currentRateBoard || currentBalanceBoard
+      ? '<li class="lb-empty"><strong>No current scores yet.</strong>Scores appear as players open the updated game.</li>'
       : '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>');
     lbStatus.textContent = 'Updated just now';
   } catch (err) { if (loadId === leaderboardLoadId) lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
@@ -4945,7 +4950,7 @@ async function submitLeaderboardScore() {
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_current`, {
+    let res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_live`, {
       method: 'POST', headers: lbHeaders(),
       body: JSON.stringify({
         p_player_id: lbPlayerId,
@@ -4954,12 +4959,27 @@ async function submitLeaderboardScore() {
         p_lifetime_resin: META.lifetimeResin || 0,
         p_production_sap: S.incomeS || 0,
         p_production_resin: S.incomeR || 0,
+        p_current_sap: S.sap || 0,
+        p_current_resin: S.resin || 0,
         p_highest_held_sap: META.highestHeldSap || 0,
         p_highest_held_resin: META.highestHeldResin || 0,
         p_gold_leaves: META.goldClicked || 0,
         p_is_blight: !!META.hardMode
       })
     });
+    const balanceLegacy = res.status === 404;
+    if (balanceLegacy) {
+      res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_current`, {
+        method: 'POST', headers: lbHeaders(),
+        body: JSON.stringify({
+          p_player_id: lbPlayerId, p_display_name: displayName,
+          p_lifetime_sap: META.lifetimeSap || 0, p_lifetime_resin: META.lifetimeResin || 0,
+          p_production_sap: S.incomeS || 0, p_production_resin: S.incomeR || 0,
+          p_highest_held_sap: META.highestHeldSap || 0, p_highest_held_resin: META.highestHeldResin || 0,
+          p_gold_leaves: META.goldClicked || 0, p_is_blight: !!META.hardMode
+        })
+      });
+    }
     const productionLegacy = res.status === 404;
     if (productionLegacy) {
       res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
@@ -4993,6 +5013,7 @@ async function submitLeaderboardScore() {
     await loadLeaderboard();
     if (legacy) lbStatus.textContent = 'Some records await a database update';
     else if (productionLegacy) lbStatus.textContent = 'Production records await a database update';
+    else if (balanceLegacy) lbStatus.textContent = 'Current bank records await a database update';
   } catch (err) { lbStatus.textContent = `Could not submit score: ${err.message}`; }
 }
 const ADMIN_ACTIONS_KEY = 'sapling-admin-actions-done-v1';
