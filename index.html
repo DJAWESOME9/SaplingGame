@@ -536,7 +536,7 @@
   @keyframes groveCore { 0%,100% { opacity:.85; transform:scale(1); } 50% { opacity:1; transform:scale(1.09); } }
   .gn-glyph { font-size:30px; pointer-events:none; }
   .gn-lvl { font-size:14px; fill:#cdbf9a; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums; }
-  #grovepopover { position:absolute; left:50%; bottom:12px; translate:-50% 0; display:none; width:min(360px, calc(100% - 16px)); background:rgba(14,21,15,.98);
+  #grovepopover { position:absolute; display:none; box-sizing:border-box; width:min(360px, calc(100% - 16px)); background:rgba(14,21,15,.98);
     border:1px solid #6f9a75; border-radius:11px; padding:11px 13px 12px; z-index:70;
     box-shadow:0 -4px 24px rgba(0,0,0,.55); }
   #grovepopover.open { display:block; animation:grovePopIn .18s ease-out; }
@@ -1002,6 +1002,9 @@ const UPDATE_LOG = [
   { id:'2026-10-06-critter-hub-upgrade-popover', date:'October 6, 2026', title:'Critter Hub upgrades on tap', notes:[
     'Tap the Critter Hub to see its acorn storage upgrade beside the circle. Tap elsewhere to close it.',
     'Critters are easier to grab and drag into the hub, including on touch screens. Clicking still swats them.'
+  ] },
+  { id:'2026-10-06-grove-upgrade-near-node', date:'October 6, 2026', title:'Grove upgrade panel follows your selection', notes:[
+    'The Grove purchase panel now opens just below or above the upgrade you select and follows it as you pan or zoom.'
   ] },
   { id:'2026-10-06-grove-upgrade-panel', date:'October 6, 2026', title:'Grove upgrade panel placement', notes:[
     'Selecting a Grove upgrade now opens its purchase panel at the bottom center of the Grove view, where it stays while you pan or zoom.'
@@ -5512,25 +5515,21 @@ function showGrovePopover(k) {
   positionGrovePopover(k);
 }
 function positionGrovePopover(k) {
-  // Keep the purchase panel beside the selected upgrade so the action reads in
-  // context and the player does not have to look away from the Grove tree.
   const pop = document.getElementById('grovepopover');
-  if (!pop) return;
+  const wrap = document.getElementById('grovetreewrap');
+  if (!pop || !wrap) return;
   const node = document.querySelector(`#grovesvg .gnode[data-up="${k}"]`);
   const nodeRect = node?.getBoundingClientRect();
-  const w = pop.offsetWidth || Math.min(360, window.innerWidth - 16);
+  if (!nodeRect) return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const w = pop.offsetWidth;
   const h = pop.offsetHeight || 120;
-  if (!nodeRect) {
-    pop.style.left = `${Math.max(8, (window.innerWidth - w) / 2)}px`;
-    pop.style.top = `${Math.max(8, (window.innerHeight - h) / 2)}px`;
-    pop.style.bottom = 'auto';
-    return;
-  }
-  const gap = 12;
-  const leftOfNode = nodeRect.left + nodeRect.width / 2 > window.innerWidth / 2;
-  const preferredLeft = leftOfNode ? nodeRect.left - w - gap : nodeRect.right + gap;
-  const left = clamp(preferredLeft, 8, Math.max(8, window.innerWidth - w - 8));
-  const top = clamp(nodeRect.top + nodeRect.height / 2 - h / 2, 8, Math.max(8, window.innerHeight - h - 8));
+  const gap = 8;
+  const left = clamp(nodeRect.left + nodeRect.width / 2 - wrapRect.left - w / 2, 8, Math.max(8, wrapRect.width - w - 8));
+  const below = nodeRect.bottom - wrapRect.top + gap;
+  const above = nodeRect.top - wrapRect.top - h - gap;
+  const preferredTop = below + h <= wrapRect.height - 8 ? below : above;
+  const top = clamp(preferredTop, 8, Math.max(8, wrapRect.height - h - 8));
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
   pop.style.bottom = 'auto';
