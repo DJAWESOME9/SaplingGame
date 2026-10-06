@@ -41,29 +41,53 @@
     backdrop-filter:blur(6px); }
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
-  #leaderboard { position:fixed; z-index:55; top:52px; right:16px; width:300px; max-height:64vh; overflow-y:auto;
-    display:none; margin:0; padding:12px 14px; border:1px solid #2e3f31; border-radius:12px;
-    background:rgba(16,24,18,.96); backdrop-filter:blur(6px); }
+  #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
+    box-sizing:border-box; width:328px; max-height:70vh; overflow-y:auto; overscroll-behavior:contain;
+    display:none; margin:0; padding:16px; border:1px solid #617349; border-radius:14px;
+    color:var(--lb-cream); background:radial-gradient(circle at 90% -10%, rgba(138,155,77,.22), transparent 42%),
+      linear-gradient(145deg,#1d3022,#14241c 65%,#102019); box-shadow:0 18px 46px rgba(0,0,0,.48),inset 0 1px rgba(242,219,145,.13); }
   #leaderboard.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
-  #leaderboard h3 { margin:0 0 5px; color:#cfe0cf; font-size:13px; }
-  #leaderboard .lb-note { margin:0 0 8px; color:#8fa891; font-size:11px; line-height:1.4; }
-  #leaderboard input { box-sizing:border-box; width:100%; margin-top:6px; background:#0f1611; border:1px solid #3c5340; color:#dceade; border-radius:7px; padding:7px 8px; font-size:12px; }
-  #leaderboard button { cursor:pointer; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:7px; padding:7px 8px; font-size:12px; }
-  #leaderboard button:hover { border-color:#6f9a75; }
-  #leaderboard .lb-tabs { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
-  #leaderboard .lb-tabs button { color:#9db89f; }
-  #leaderboard .lb-tabs button.active { border-color:#8fc299; color:#dceade; background:#263a29; }
-  #leaderboard .lb-status { min-height:15px; margin-top:6px; color:#9db89f; font-size:11px; }
+  #leaderboard .drawer-heading { padding-bottom:9px; border-bottom:1px solid rgba(228,186,105,.26); }
+  #leaderboard h3 { margin:0; color:var(--lb-cream); font-size:16px; line-height:1.2; letter-spacing:.01em; }
+  #leaderboard .lb-kicker { display:block; margin-bottom:3px; color:var(--lb-gold); font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+  #leaderboard .lb-note { margin:10px 0 14px; color:var(--lb-muted); font-size:11px; line-height:1.45; }
+  #leaderboard .lb-label { display:block; margin-bottom:5px; color:#d8dcbf; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  #leaderboard input { box-sizing:border-box; width:100%; background:#101f18; border:1px solid #536747; color:var(--lb-cream); border-radius:7px; padding:9px 10px; font-size:12px; }
+  #leaderboard input::placeholder { color:#a6b49b; }
+  #leaderboard button { cursor:pointer; background:#233a29; border:1px solid #536747; color:#e1e8d2; border-radius:7px; padding:8px 9px; font-size:12px; font-weight:600; transition:background .15s ease,border-color .15s ease,color .15s ease; }
+  #leaderboard button:hover { background:#304831; border-color:#c9a95f; }
+  #leaderboard button:focus-visible, #leaderboard input:focus-visible { outline:2px solid var(--lb-gold); outline-offset:2px; }
+  #leaderboard .lb-section-label { margin:15px 0 7px; color:var(--lb-gold); font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+  #leaderboard .lb-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  #leaderboard .lb-tabs button { min-height:38px; color:#c2d0b4; text-align:left; }
+  #leaderboard .lb-tabs button:last-child { grid-column:1 / -1; }
+  #leaderboard .lb-tabs button.active { border-color:var(--lb-gold); color:#fff2cc; background:#3a492d; box-shadow:inset 3px 0 var(--lb-gold); }
+  #leaderboard .lb-results-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:16px;
+    padding:11px 0 9px; border-top:1px solid rgba(228,186,105,.26); border-bottom:1px solid rgba(228,186,105,.26); }
+  #leaderboard .lb-results-heading h4 { margin:0; color:#f6dfaa; font-size:16px; line-height:1.15; }
+  #leaderboard .lb-results-heading small { display:block; margin-top:3px; color:var(--lb-muted); font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+  #leaderboard #lbRefresh { flex:none; padding:7px 9px; border-color:#8d8552; color:#f4deb0; background:#37452b; }
+  #leaderboard #lbRefresh:hover { background:#485a35; }
+  #leaderboard .lb-status { min-height:15px; margin-top:8px; color:var(--lb-muted); font-size:11px; line-height:1.4; }
   #adminTools { margin:0 0 10px; padding:10px; border:1px solid #4a3e2e; border-radius:10px; background:rgba(32,26,18,.7); }
   #adminTools h3 { margin:0 0 5px; font-size:13px; color:#f0d9a0; }
   #adminTools p { margin:0; color:#b9a98d; font-size:11px; line-height:1.4; }
   #adminTools a { display:block; margin-top:8px; color:#f0d9a0; font-size:12px; }
-  #leaderboard ol { list-style:none; padding:0; margin:7px 0 0; max-height:190px; overflow:auto; }
-  #leaderboard li { display:flex; gap:8px; padding:5px 0; border-top:1px solid #25302e; font-size:11px; }
-  #leaderboard li.blight-entry { color:#e0c8ff; background:rgba(91,48,130,.22); border-top-color:#67428a; }
-  #leaderboard li.blight-entry span:last-child { color:#d7b5ff; }
-  #leaderboard li span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; }
-  #leaderboard li span:last-child { color:#f0d9a0; white-space:nowrap; }
+  #leaderboard ol { list-style:none; padding:0; margin:5px 0 0; max-height:330px; overflow:auto; scrollbar-color:#667a4e transparent; }
+  #leaderboard li { display:grid; grid-template-columns:25px minmax(0,1fr) auto; align-items:center; gap:8px; min-height:31px;
+    padding:7px; border-top:1px solid rgba(171,193,145,.14); color:#e1e9d5; font-size:12px; }
+  #leaderboard li:first-child { border-top:0; }
+  #leaderboard li.lb-top { background:rgba(208,174,96,.08); }
+  #leaderboard li.blight-entry { color:#f0d3b8; background:rgba(142,78,46,.18); border-top-color:rgba(205,129,78,.28); }
+  #leaderboard li.blight-entry .lb-score { color:#f0bb8e; }
+  #leaderboard .lb-rank { display:grid; place-items:center; width:23px; height:23px; border:1px solid #506347; border-radius:50%; color:#b4c5a9; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+  #leaderboard li:nth-child(1) .lb-rank { color:#2c2718; border-color:#f2d17f; background:#e8bd62; }
+  #leaderboard li:nth-child(2) .lb-rank { color:#26302b; border-color:#dce2d0; background:#becbbd; }
+  #leaderboard li:nth-child(3) .lb-rank { color:#30231d; border-color:#dcaa81; background:#bf8e69; }
+  #leaderboard .lb-player { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #leaderboard .lb-score { color:#f5d997; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+  #leaderboard li.lb-empty { display:block; padding:22px 12px; border:1px dashed #65744f; border-radius:8px; color:#c8d4b6; text-align:center; line-height:1.5; }
+  #leaderboard li.lb-empty strong { display:block; margin-bottom:3px; color:#f0d393; font-size:12px; }
   #liveChallenges { margin:0 0 10px; padding:10px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
   #liveChallenges h3 { margin:0 0 5px; color:#d5e7bd; font-size:13px; }
   #liveChallenges .live-note { margin:0 0 8px; color:#9eae91; font-size:11px; line-height:1.4; }
@@ -130,6 +154,7 @@
   #lbbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#9fc78f;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #lbbtn:hover, #lbbtn.open { border-color:#8fc299; color:#dceade; }
+  #trophy, #statsbtn, #lbbtn { touch-action:none; }
   .floating-drawer-button { position:fixed; z-index:60; margin:0; touch-action:none; cursor:grab !important; }
   .floating-drawer-button.dragging { cursor:grabbing !important; }
   .drawer-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:move; touch-action:none; }
@@ -508,7 +533,8 @@
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
     #settings { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
-    #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(300px, calc(100vw - 48px)); max-height:70vh; }
+    #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(328px, calc(100vw - 20px)); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 64px); }
+    #leaderboard ol { max-height:none; overflow:visible; }
     #settings .srow, #restore { font-size:14px; }
     #restore { padding:11px 10px; }
     #reset { padding:7px 9px; font-size:13px; }
@@ -656,6 +682,7 @@
   </section>
   <button id="restore">Restore backup</button>
   <button id="showintro" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">📖 Show intro</button>
+  <button id="resetMenuPositions" type="button" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">Reset menu positions</button>
   <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
   <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
   <div class="savehint">Export to copy your save out, paste a code in and Import to load it (current save is stashed to backup).</div>
@@ -664,17 +691,19 @@
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
   <section id="leaderboard" aria-label="Leaderboard">
-  <div class="drawer-heading"><h3>🌿 Grove leaderboards</h3><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
-  <p class="lb-note">Separate rankings for lifetime production, highest balances ever held, and gold leaves clicked.</p>
-  <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Display name (optional)">
+  <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
+  <p class="lb-note">See the growers who have gathered the most, held the most, and found the gold.</p>
+  <label class="lb-label" for="lbName">Your display name</label>
+  <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Optional · up to 20 characters">
+  <div class="lb-section-label">Choose a record</div>
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
-    <button type="button" data-lb="lifetime_sap" class="active">Lifetime sap</button>
-    <button type="button" data-lb="lifetime_resin">Lifetime resin</button>
-    <button type="button" data-lb="highest_sap">Highest sap</button>
-    <button type="button" data-lb="highest_resin">Highest resin</button>
-    <button type="button" data-lb="gold_leaves">Gold leaves</button>
+    <button type="button" data-lb="lifetime_sap" class="active" aria-pressed="true">Lifetime sap</button>
+    <button type="button" data-lb="lifetime_resin" aria-pressed="false">Lifetime resin</button>
+    <button type="button" data-lb="highest_sap" aria-pressed="false">Highest sap</button>
+    <button type="button" data-lb="highest_resin" aria-pressed="false">Highest resin</button>
+    <button type="button" data-lb="gold_leaves" aria-pressed="false">Gold leaves</button>
   </div>
-  <button id="lbRefresh" type="button" style="width:100%;margin-top:6px">Refresh leaderboard</button>
+  <div class="lb-results-heading"><div><h4 id="lbCurrentRecord">Lifetime sap</h4><small>Top growers · all time</small></div><button id="lbRefresh" type="button" aria-label="Refresh leaderboard">↻ Refresh</button></div>
   <ol id="lbRows" aria-live="polite"></ol>
     <div class="lb-status" id="lbStatus" role="status">Leaderboard is not configured.</div>
   </section>
@@ -1049,6 +1078,11 @@ function saveMeta() {
     }
     localStorage.setItem(MKEY, JSON.stringify(META));
   } catch (e) {}
+}
+function recordHighestBalances() {
+  if (!META || !S || META.hacks) return;
+  if (S.sap > META.highestHeldSap) { META.highestHeldSap = S.sap; peakMetaDirty = true; }
+  if (S.resin > META.highestHeldResin) { META.highestHeldResin = S.resin; peakMetaDirty = true; }
 }
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
@@ -4108,6 +4142,7 @@ function creditOffline(awaySecRaw) {
   if (sap + resin > 0) {
     S.sap += sap;
     S.resin += resin;
+    recordHighestBalances();
     grantAchievement('offline');
   }
   // Offline acorn ripening — 10% of the away time counts toward growth.
@@ -4221,8 +4256,8 @@ const lbStatus = document.getElementById('lbStatus');
 const LB_BOARDS = {
   lifetime_sap: { column: 'lifetime_sap', format: value => fmt(Number(value) || 0) },
   lifetime_resin: { column: 'lifetime_resin', format: value => fmt(Number(value) || 0) },
-  highest_sap: { column: 'highest_sap', format: value => `${fmt(Number(value) || 0)}/s` },
-  highest_resin: { column: 'highest_resin', format: value => `${fmt(Number(value) || 0)}/s` },
+  highest_sap: { column: 'highest_held_sap', format: value => fmt(Number(value) || 0) },
+  highest_resin: { column: 'highest_held_resin', format: value => fmt(Number(value) || 0) },
   gold_leaves: { column: 'gold_leaves', format: value => (Number(value) || 0).toLocaleString() }
 };
 let selectedLeaderboard = 'lifetime_sap';
@@ -4252,7 +4287,7 @@ async function loadLeaderboard() {
     const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&order=${board.column}.desc&limit=25`, { headers: lbHeaders() });
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
-    lbRows.innerHTML = rows.map((row, i) => `<li class="${row.is_blight ? 'blight-entry' : ''}"><span>${i + 1}. ${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span>${board.format(row[board.column])}</span></li>`).join('') || '<li><span>No scores yet</span></li>';
+    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>The grove is quiet.</strong>Be the first name on this record.</li>';
     lbStatus.textContent = 'Updated just now';
   } catch (err) { lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
 }
@@ -4319,6 +4354,7 @@ async function claimLiveChallenge(id, button) {
     if (!result.already_completed) {
       S.sap += Number(result.reward_sap)||0;
       S.resin += Number(result.reward_resin)||0;
+      recordHighestBalances();
       const challenge = liveChallenges.find(c => c.id === id);
       const achievementKey = `liveChallenge:${id}`;
       META.liveChallengeAchievements = META.liveChallengeAchievements || {};
@@ -4356,18 +4392,20 @@ function escapeHtml(value) {
 }
 async function submitLeaderboardScore() {
   if (!lbConfigured || !lbPlayerId || META.hacks) return;
+  recordHighestBalances();
+  if (peakMetaDirty) { saveMeta(); peakMetaDirty = false; }
   const displayName = (lbName.value.trim() || 'Sapling').replace(/[^\w\u00C0-\u024F _.-]/g, '').slice(0, 20) || 'Sapling';
   lbStatus.textContent = 'Submitting score…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_score`, {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_leaderboard_balance_score`, {
       method: 'POST', headers: lbHeaders(),
       body: JSON.stringify({
         p_player_id: lbPlayerId,
         p_display_name: displayName,
         p_lifetime_sap: META.lifetimeSap || 0,
         p_lifetime_resin: META.lifetimeResin || 0,
-        p_highest_sap: META.peakBuffS || 0,
-        p_highest_resin: META.peakBuffR || 0,
+        p_highest_held_sap: META.highestHeldSap || 0,
+        p_highest_held_resin: META.highestHeldResin || 0,
         p_gold_leaves: META.goldClicked || 0,
         p_is_blight: !!META.hardMode
       })
@@ -4401,6 +4439,7 @@ async function processAdminActions() {
       if (action.action_type === 'balance') {
         if (Number.isFinite(action.sap_delta)) S.sap = Math.max(0, S.sap + action.sap_delta);
         if (Number.isFinite(action.resin_delta)) S.resin = Math.max(0, S.resin + action.resin_delta);
+        recordHighestBalances();
         save();
       } else if (action.action_type === 'reset') {
         window.__SAPLING_WIPED = true;
@@ -4468,6 +4507,22 @@ function placeFloating(el, x, y) {
   el.style.right = 'auto';
   el.classList.add(el.matches('button') ? 'floating-drawer-button' : 'moved');
 }
+function placeDrawerByButton(button, panel) {
+  const buttonRect = button.getBoundingClientRect();
+  const width = panel.offsetWidth, height = panel.offsetHeight;
+  const gap = 8, margin = 8;
+  const x = Math.max(margin, Math.min(buttonRect.left, innerWidth - width - margin));
+  if (buttonRect.bottom + gap + height <= innerHeight - margin) {
+    placeFloating(panel, x, buttonRect.bottom + gap);
+  } else if (buttonRect.top - gap - height >= margin) {
+    placeFloating(panel, x, buttonRect.top - gap - height);
+  } else {
+    const y = Math.max(margin, Math.min(buttonRect.top, innerHeight - height - margin));
+    const sideX = buttonRect.right + gap + width <= innerWidth - margin
+      ? buttonRect.right + gap : buttonRect.left - gap - width;
+    placeFloating(panel, sideX, y);
+  }
+}
 function enableDrag(handle, item, storageKey) {
   let drag = null;
   handle.addEventListener('pointerdown', e => {
@@ -4483,6 +4538,9 @@ function enableDrag(handle, item, storageKey) {
     drag.moved = true;
     item.classList.add('dragging');
     placeFloating(item, drag.left + dx, drag.top + dy);
+    const linkedPanelId = utilityDrawers.find(([buttonId]) => buttonId === item.id)?.[1];
+    const linkedPanel = linkedPanelId && document.getElementById(linkedPanelId);
+    if (linkedPanel?.classList.contains('open')) placeDrawerByButton(item, linkedPanel);
   });
   const finish = e => {
     if (!drag || e.pointerId !== drag.id) return;
@@ -4511,6 +4569,7 @@ utilityDrawers.forEach(([buttonId, panelId]) => {
   const button = document.getElementById(buttonId), panel = document.getElementById(panelId);
   const key = `sapling-position-${buttonId}`;
   try { const p = JSON.parse(localStorage.getItem(key)); if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) placeFloating(button, p.x, p.y); } catch (_) {}
+  try { panel.dataset.locked = localStorage.getItem(`sapling-locked-${panelId}`) === 'true' ? 'true' : 'false'; } catch (_) {}
   enableDrag(button, button, key);
   panel.addEventListener('click', e => {
     const lock = e.target.closest('.drawer-lock');
@@ -4519,16 +4578,49 @@ utilityDrawers.forEach(([buttonId, panelId]) => {
     lock.setAttribute('aria-pressed', panel.dataset.locked);
     lock.textContent = panel.dataset.locked === 'true' ? '🔒' : '🔓';
     lock.setAttribute('aria-label', panel.dataset.locked === 'true' ? 'Unlock panel' : 'Lock panel open');
+    try { localStorage.setItem(`sapling-locked-${panelId}`, panel.dataset.locked); } catch (_) {}
   });
   initDrawerHeading(panel);
   try { const p = JSON.parse(localStorage.getItem(`sapling-position-${panelId}`)); if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) placeFloating(panel, p.x, p.y); } catch (_) {}
+  new ResizeObserver(() => {
+    if (panel.classList.contains('open')) placeDrawerByButton(button, panel);
+  }).observe(panel);
 });
+document.getElementById('resetMenuPositions').addEventListener('click', () => {
+  utilityDrawers.forEach(([buttonId, panelId]) => {
+    for (const id of [buttonId, panelId]) {
+      const el = document.getElementById(id);
+      el.style.left = '';
+      el.style.top = '';
+      el.style.right = '';
+      el.classList.remove('floating-drawer-button', 'moved');
+      try { localStorage.removeItem(`sapling-position-${id}`); } catch (_) {}
+    }
+    const panel = document.getElementById(panelId);
+    if (panel.classList.contains('open')) placeDrawerByButton(document.getElementById(buttonId), panel);
+  });
+  toast('Menu positions reset.');
+});
+function restoreLockedUtilityDrawers() {
+  utilityDrawers.forEach(([buttonId, panelId]) => {
+    const panel = document.getElementById(panelId);
+    if (panel.dataset.locked !== 'true') return;
+    panel.classList.add('open');
+    const button = document.getElementById(buttonId);
+    button.classList.add('open');
+    if (panelId === 'achievements') renderAchievements();
+    if (panelId === 'statspanel') renderStats();
+    placeDrawerByButton(button, panel);
+  });
+}
 window.addEventListener('resize', () => {
   utilityDrawers.forEach(([buttonId, panelId]) => {
     for (const id of [buttonId, panelId]) {
       const el = document.getElementById(id);
       if (el.style.left) placeFloating(el, parseFloat(el.style.left), parseFloat(el.style.top));
     }
+    const panel = document.getElementById(panelId);
+    if (panel.classList.contains('open')) placeDrawerByButton(document.getElementById(buttonId), panel);
   });
 });
 document.getElementById('lbRefresh').addEventListener('click', loadLeaderboard);
@@ -4536,7 +4628,8 @@ document.getElementById('lbTabs').addEventListener('click', e => {
   const tab = e.target.closest('button[data-lb]');
   if (!tab || !LB_BOARDS[tab.dataset.lb]) return;
   selectedLeaderboard = tab.dataset.lb;
-  document.querySelectorAll('#lbTabs button').forEach(button => button.classList.toggle('active', button === tab));
+  document.getElementById('lbCurrentRecord').textContent = tab.textContent;
+  document.querySelectorAll('#lbTabs button').forEach(button => { button.classList.toggle('active', button === tab); button.setAttribute('aria-pressed', button === tab ? 'true' : 'false'); });
   loadLeaderboard();
 });
 if (lbConfigured) { lbStatus.textContent = 'Ready'; loadLeaderboard(); loadLiveChallenges(); }
@@ -4545,6 +4638,7 @@ lbButton.addEventListener('click', () => {
   const open = leaderboard.classList.toggle('open');
   lbButton.classList.toggle('open', open);
   if (open) {
+    placeDrawerByButton(lbButton, leaderboard);
     loadLiveChallenges();
     if (lbConfigured) loadLeaderboard();
     settings.classList.remove('open'); gear.classList.remove('open');
@@ -5690,11 +5784,13 @@ function renderAchievements() {
   }
   achPanel.innerHTML = html;
   initDrawerHeading(achPanel);
+  if (achPanel.classList.contains('open')) placeDrawerByButton(trophy, achPanel);
 }
 trophy?.addEventListener('click', () => {
   const open = achPanel.classList.toggle('open');
   if (open) {
     renderAchievements();
+    placeDrawerByButton(trophy, achPanel);
     settings.classList.remove('open'); gear.classList.remove('open');
     closeOtherDrawers('achievements');
     trophy.classList.add('open');
@@ -5764,6 +5860,7 @@ statsBtn?.addEventListener('click', () => {
   const open = statsPanel.classList.toggle('open');
   if (open) {
     renderStats();
+    placeDrawerByButton(statsBtn, statsPanel);
     settings.classList.remove('open'); gear.classList.remove('open');
     closeOtherDrawers('statspanel');
     statsBtn.classList.add('open');
@@ -5891,6 +5988,7 @@ function frame(now) {
     const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
     S.sap += sapInc;
     S.resin += resinInc;
+    recordHighestBalances();
     if (idle) { idleSap += sapInc; idleResin += resinInc; }
     // Lifetime sap drives the acorn unlock — accumulate raw income, never the
     // hacker-mode refill below.
@@ -5996,6 +6094,13 @@ function frame(now) {
 resize();
 loadMeta();
 load();
+restoreLockedUtilityDrawers();
+requestAnimationFrame(() => {
+  utilityDrawers.forEach(([buttonId, panelId]) => {
+    const panel = document.getElementById(panelId);
+    if (panel.classList.contains('open')) placeDrawerByButton(document.getElementById(buttonId), panel);
+  });
+});
 submitPlayerSnapshot();
 submitLeaderboardScore();
 refreshCheatBadges();

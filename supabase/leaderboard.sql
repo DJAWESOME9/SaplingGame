@@ -8,6 +8,8 @@ create table if not exists public.leaderboard (
   lifetime_resin double precision not null default 0 check (lifetime_resin >= 0),
   highest_sap double precision not null default 0 check (highest_sap >= 0),
   highest_resin double precision not null default 0 check (highest_resin >= 0),
+  highest_held_sap double precision not null default 0 check (highest_held_sap >= 0),
+  highest_held_resin double precision not null default 0 check (highest_held_resin >= 0),
   gold_leaves bigint not null default 0 check (gold_leaves >= 0),
   is_blight boolean not null default false,
   updated_at timestamptz not null default now()
@@ -18,6 +20,8 @@ alter table public.leaderboard add column if not exists lifetime_sap double prec
 alter table public.leaderboard add column if not exists lifetime_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_sap double precision not null default 0;
 alter table public.leaderboard add column if not exists highest_resin double precision not null default 0;
+alter table public.leaderboard add column if not exists highest_held_sap double precision not null default 0;
+alter table public.leaderboard add column if not exists highest_held_resin double precision not null default 0;
 alter table public.leaderboard add column if not exists gold_leaves bigint not null default 0;
 alter table public.leaderboard add column if not exists trees_felled integer not null default 0;
 alter table public.leaderboard add column if not exists total_rings bigint not null default 0;
@@ -33,13 +37,13 @@ create policy "Leaderboard is public to read"
 
 drop function if exists public.submit_leaderboard_score(uuid, text, integer, bigint);
 drop function if exists public.submit_leaderboard_score(uuid, text, double precision, double precision, double precision, double precision, bigint);
-create or replace function public.submit_leaderboard_score(
+create or replace function public.submit_leaderboard_balance_score(
   p_player_id uuid,
   p_display_name text,
   p_lifetime_sap double precision,
   p_lifetime_resin double precision,
-  p_highest_sap double precision,
-  p_highest_resin double precision,
+  p_highest_held_sap double precision,
+  p_highest_held_resin double precision,
   p_gold_leaves bigint,
   p_is_blight boolean default false
 )
@@ -52,9 +56,9 @@ declare
   clean_name text;
 begin
   if p_player_id is null or p_lifetime_sap is null or p_lifetime_resin is null
-     or p_highest_sap is null or p_highest_resin is null or p_gold_leaves is null
-     or p_lifetime_sap < 0 or p_lifetime_resin < 0 or p_highest_sap < 0
-     or p_highest_resin < 0 or p_gold_leaves < 0 or p_is_blight is null then
+     or p_highest_held_sap is null or p_highest_held_resin is null or p_gold_leaves is null
+     or p_lifetime_sap < 0 or p_lifetime_resin < 0 or p_highest_held_sap < 0
+     or p_highest_held_resin < 0 or p_gold_leaves < 0 or p_is_blight is null then
     raise exception 'Invalid score';
   end if;
   clean_name := left(regexp_replace(coalesce(p_display_name, ''), '[^[:alnum:] _.-]', '', 'g'), 20);
@@ -62,25 +66,25 @@ begin
 
   insert into public.leaderboard (
     player_id, display_name, lifetime_sap, lifetime_resin,
-    highest_sap, highest_resin, gold_leaves, is_blight
+    highest_held_sap, highest_held_resin, gold_leaves, is_blight
   ) values (
     p_player_id, clean_name, p_lifetime_sap, p_lifetime_resin,
-    p_highest_sap, p_highest_resin, p_gold_leaves, p_is_blight
+    p_highest_held_sap, p_highest_held_resin, p_gold_leaves, p_is_blight
   )
   on conflict (player_id) do update
     set display_name = excluded.display_name,
         lifetime_sap = greatest(public.leaderboard.lifetime_sap, excluded.lifetime_sap),
         lifetime_resin = greatest(public.leaderboard.lifetime_resin, excluded.lifetime_resin),
-        highest_sap = greatest(public.leaderboard.highest_sap, excluded.highest_sap),
-        highest_resin = greatest(public.leaderboard.highest_resin, excluded.highest_resin),
+        highest_held_sap = greatest(public.leaderboard.highest_held_sap, excluded.highest_held_sap),
+        highest_held_resin = greatest(public.leaderboard.highest_held_resin, excluded.highest_held_resin),
         gold_leaves = greatest(public.leaderboard.gold_leaves, excluded.gold_leaves),
         is_blight = excluded.is_blight,
         updated_at = now();
 end;
 $$;
 
-revoke all on function public.submit_leaderboard_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) from public;
-grant execute on function public.submit_leaderboard_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
+revoke all on function public.submit_leaderboard_balance_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) from public;
+grant execute on function public.submit_leaderboard_balance_score(uuid, text, double precision, double precision, double precision, double precision, bigint, boolean) to anon, authenticated;
 
 -- Private player telemetry and administrator action queue.
 create table if not exists public.player_profiles (
@@ -227,7 +231,8 @@ begin
       where player_id = p_player_id;
     update public.leaderboard set
       lifetime_sap = 0, lifetime_resin = 0, highest_sap = 0,
-      highest_resin = 0, gold_leaves = 0, trees_felled = 0, total_rings = 0,
+      highest_resin = 0, highest_held_sap = 0, highest_held_resin = 0,
+      gold_leaves = 0, trees_felled = 0, total_rings = 0,
       updated_at = now() where player_id = p_player_id;
   else
     if abs(p_sap_delta) > 1e100 or abs(p_resin_delta) > 1e100 then raise exception 'Amount too large'; end if;

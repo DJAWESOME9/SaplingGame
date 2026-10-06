@@ -10,9 +10,9 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 4. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 5. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.
 6. The migration allowlists `djdavidfreeman@gmail.com` for admin access. Open `admin.html`, create/sign in to a Supabase Auth account with that email, and confirm the email if Supabase prompts you.
-7. Publish the repository root to GitHub Pages. Players enter a display name and select a category. The five boards rank lifetime sap made, lifetime resin made, highest sap production, highest resin production, and gold leaves clicked. Scores submit when the game opens, periodically during play, and after a tree is cut. Blight saves can compete and appear with a purple tint; hacked saves are excluded.
+7. Publish the repository root to GitHub Pages. Players enter a display name and select a category. The five boards rank lifetime sap made, lifetime resin made, highest sap balance ever held, highest resin balance ever held, and gold leaves clicked. Scores submit when the game opens, periodically during play, and after a tree is cut. Blight saves can compete and appear with a copper tint; hacked saves are excluded.
 
-Each browser receives a random local player ID. The client hides leaderboard submissions for saves marked as hacked. The database function keeps each submitted personal best from decreasing. Peak production values are measured per second and shown as rates.
+Each browser receives a random local player ID. The client hides leaderboard submissions for saves marked as hacked. The database function keeps each submitted personal best from decreasing. Highest balance records persist across tree cuts. Existing saves start their highest balance record from their current balance; older peak production scores remain in separate legacy columns. Run the updated SQL setup before publishing the updated game so the new balance columns and submission function exist. The prior submission function remains available to older game clients during rollout.
 
 ## Admin player controls
 
