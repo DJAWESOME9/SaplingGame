@@ -18,7 +18,7 @@ Each browser receives a random local player ID. The client hides leaderboard sub
 
 ## Admin player controls
 
-Open `admin.html` and sign in with the Supabase Auth account you allowlisted. Admins can search and inspect player profiles, including current balances, per-tree and lifetime production, peak rates, gold leaves, playtime, offline time, tree count, rings, species, node count, and last check-in. The dashboard can queue sap/resin grants or deductions and reset a player's progress.
+Open `admin.html` and sign in with the Supabase Auth account you allowlisted. Admins can search and inspect player profiles, including current balances, per-tree and lifetime production, peak rates, gold leaves, playtime, offline time, tree count, rings, species, node count, and last online. Last online is the most recent successful game check-in, separate from the profile's account update time. Existing profiles show “Not recorded yet” until their next check-in after the SQL update. The dashboard can queue sap/resin grants or deductions and reset a player's progress.
 
 Sapling has no account system or cloud saves today. The player ID is stored in that browser's local storage, so a row represents a browser profile, not a verified person or a synced cross-device account. Online play reports a profile roughly once per minute. Balance changes and resets are picked up on the next check-in; the player must have the game open and online. A reset clears that browser's run and meta progression and zeros its recorded leaderboard/profile metrics. It cannot erase other browsers' local saves for the same person.
 

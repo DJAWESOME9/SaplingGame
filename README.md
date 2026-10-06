@@ -20,6 +20,7 @@ A single HTML file. Open `index.html` in a browser — no build step, no server.
 - **🏆 Achievements** → progress tracker in the topbar
 - **📊 Stats** → drawer of run + lifetime figures: peak production, total sap/resin, gold leaves, play time, offline time, and buildings owned
 - **⚙ Settings** → volume, restore backup, save code, intro, hard reset, cheat codes, leaderboards, and live challenges
+- **📋 Update log** in Settings → read all release notes; new notes appear in a popup after the intro or Welcome Back screen
 - **Click the hint banner** to dismiss tutorial nudges for the current tree
 
 ## Resources
@@ -192,6 +193,8 @@ Allowlisted admins publish and end challenges from [`admin.html`](admin.html). S
 ## Building from source
 
 There is no build. Edit `index.html`, refresh the browser. The codebase is one file, with comments marking each subsystem (state, flow, render, critters, grove, etc.).
+
+For each player-facing update or fix, add a new entry at the front of `UPDATE_LOG` in `index.html` with a unique ID, date, title, and notes covering all important changes. The newest entry triggers the popup for players who have not seen it. Keep prior entries for the Settings update log; see [AGENTS.md](AGENTS.md) for the full release-note workflow.
 
 ## License
 

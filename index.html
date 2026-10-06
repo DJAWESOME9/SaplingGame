@@ -959,6 +959,13 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-05-last-online', date:'October 5, 2026', title:'Last online in admin', notes:[
+    'The admin dashboard now shows each player’s last successful game check-in separately from the account update time.'
+  ] },
+  { id:'2026-10-05-offline-records', date:'October 5, 2026', title:'Offline time and records', notes:[
+    'Offline time now shows how long you were away, while the Welcome Back popup explains when the earnings cap applies.',
+    'Offline sap and resin now count toward tree and lifetime production. The admin dashboard now shows the same lifetime and highest-balance records as the leaderboard.'
+  ] },
   { id:'2026-10-05-feature-overview', date:'October 5, 2026', title:'Sapling feature guide', notes:[
     'Grow a tree of leaves, amplifiers, refineries, capacitors, and funnels. Graft new branches, upgrade nodes, and thicken or polish connections to move more sap and resin.',
     'Prune branches for amber and spend it in the Roots advancement tree. Lock nodes to protect them from accidental changes.',
@@ -4207,14 +4214,19 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 // reload (laptop asleep, tab backgrounded) — those paths never re-run load(),
 // so without this the tree earned nothing while the JS clock was frozen.
 function creditOffline(awaySecRaw) {
-  const away = clamp(awaySecRaw, 0, offlineCapSecNow());
+  const elapsed = Math.max(0, awaySecRaw);
+  const away = Math.min(elapsed, offlineCapSecNow());
   if (away <= 30) return;
-  S.treeOfflineMs = (S.treeOfflineMs || 0) + away * 1000;
-  if (META) META.offlineMs = (META.offlineMs || 0) + away * 1000;
+  S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
+  if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
   accrueLeafSapWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), S.leafSapRate * rate, true);
   const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
+  META.lifetimeSap = (META.lifetimeSap || 0) + sap;
+  META.lifetimeResin = (META.lifetimeResin || 0) + resin;
+  S.treeSap = (S.treeSap || 0) + sap;
+  S.treeResin = (S.treeResin || 0) + resin;
   if (sap + resin > 0) {
     S.sap += sap;
     S.resin += resin;
@@ -4229,7 +4241,7 @@ function creditOffline(awaySecRaw) {
     tickAcorns(growthMs);
     acornsRipened = acornsRipe() - before;
   }
-  showWelcomeBack({ away, rate, sap, resin, acornsRipened, growthMs });
+  showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs });
 }
 // Fill and open the Welcome Back popup. Shared by the away paths (creditOffline)
 // and the foreground-idle path, which both produce a lump summary on return.
@@ -4237,7 +4249,7 @@ function showWelcomeBack(s) {
   if (!s || s.away < 30) return;
   if (s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0) return;
   const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  set('wbDur', `You were away for ${fmtAcornTimer(s.away * 1000)}.`);
+  set('wbDur', `You were away for ${fmtAcornTimer(s.away * 1000)}.${s.credited < s.away ? ` Earnings capped at ${fmtAcornTimer(s.credited * 1000)}.` : ''}`);
   set('wbSap', fmt(s.sap));
   set('wbRate', `${Math.round(s.rate * 100)}%`);
   const resinRow = document.getElementById('wbResinRow');
@@ -6208,7 +6220,7 @@ function frame(now) {
     const wallNow = Date.now();
     const wallGap = (wallNow - wallLast) / 1000;
     wallLast = wallNow;
-    if (wallGap > 30) creditOffline(wallGap);
+    if (wallGap > 30 && !document.hidden && !hiddenAt) creditOffline(wallGap);
     const dt = clamp((now - last) / 1000, 0, 0.1);
     last = now;
     // Active play time: real foreground seconds the loop runs (dt is clamped, so a

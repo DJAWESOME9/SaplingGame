@@ -107,10 +107,12 @@ create table if not exists public.player_profiles (
   rings double precision not null default 0,
   species text not null default 'oak',
   node_count integer not null default 0,
+  last_online_at timestamptz,
   updated_at timestamptz not null default now()
 );
 alter table public.player_profiles add column if not exists peak_base_sap double precision not null default 0;
 alter table public.player_profiles add column if not exists peak_base_resin double precision not null default 0;
+alter table public.player_profiles add column if not exists last_online_at timestamptz;
 create table if not exists public.admin_emails (
   email text primary key check (email = lower(email)),
   added_at timestamptz not null default now()
@@ -163,11 +165,11 @@ begin
   insert into public.player_profiles (
     player_id, display_name, tree_sap, tree_resin, lifetime_sap, lifetime_resin,
     current_sap, current_resin, peak_sap, peak_resin, peak_base_sap, peak_base_resin, gold_leaves, play_ms,
-    offline_ms, trees_felled, rings, species, node_count
+    offline_ms, trees_felled, rings, species, node_count, last_online_at
   ) values (
     p_player_id, clean_name, p_tree_sap, p_tree_resin, p_lifetime_sap, p_lifetime_resin,
     p_current_sap, p_current_resin, p_peak_sap, p_peak_resin, p_peak_base_sap, p_peak_base_resin, p_gold_leaves, p_play_ms,
-    p_offline_ms, p_trees_felled, p_rings, left(coalesce(p_species, 'oak'), 20), p_node_count
+    p_offline_ms, p_trees_felled, p_rings, left(coalesce(p_species, 'oak'), 20), p_node_count, now()
   ) on conflict (player_id) do update set
     display_name = excluded.display_name, tree_sap = excluded.tree_sap, tree_resin = excluded.tree_resin,
     lifetime_sap = greatest(public.player_profiles.lifetime_sap, excluded.lifetime_sap),
@@ -182,7 +184,8 @@ begin
     offline_ms = greatest(public.player_profiles.offline_ms, excluded.offline_ms),
     trees_felled = greatest(public.player_profiles.trees_felled, excluded.trees_felled),
     rings = greatest(public.player_profiles.rings, excluded.rings),
-    species = excluded.species, node_count = excluded.node_count, updated_at = now();
+    species = excluded.species, node_count = excluded.node_count,
+    last_online_at = now(), updated_at = now();
 end; $$;
 
 create or replace function public.player_pending_actions(p_player_id uuid)

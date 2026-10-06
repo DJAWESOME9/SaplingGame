@@ -19,6 +19,7 @@ Sapling is a single-page idle/incremental browser game. The full game implementa
 | Achievements, stats, settings | `ACHIEVEMENTS`, `renderAchievements`, `renderStats`, settings event handlers |
 | Save/load/offline progress/import-export | `save`, `load`, `creditOffline`, `saveMeta`, `makeSaveCode`, `applySaveCode` |
 | Intro, animation loop, boot | `beginRun`, `frame`; final initialization block at end of script |
+| Player update log and popup | `UPDATE_LOG`, `newMeta().seenUpdateId`, `openUpdates`, `showUnseenUpdates` |
 | Visual asset for easter egg | `sethatubby.png` and the Sethatubby overlay markup/styles in `index.html` |
 
 All subsystem boundaries are comments within the large inline script. Use `rg -n 'function NAME|const NAME|section comment' index.html` to jump to the relevant code. Most DOM references are cached near their subsystem; preserve the existing style of local helpers and event handlers.
@@ -30,6 +31,13 @@ All subsystem boundaries are comments within the large inline script. Use `rg -n
 - For a documentation-only change, verify referenced paths and links exist and inspect the diff.
 - For a gameplay change, manually exercise the affected flow in a browser when available. For UI changes, check a narrow/mobile viewport as well as desktop because the game supports touch and safe-area insets.
 - GitHub Pages deploys the repository root when `main` is pushed or the workflow is manually dispatched; workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+## Release notes for every change
+
+- For every change that ships to players, including gameplay, UI, balance, online features, and bug fixes, add a plain-language note to the `UPDATE_LOG` array in `index.html`. Summarize all important player-facing changes; do not leave features or fixes out of the popup.
+- Add a new entry at the front with a unique `id`, date, title, and `notes`. Group related changes in one entry, put the most important changes first, and keep older entries so Settings → Update log remains a history. `UPDATE_LOG` is the project's changelog; do not maintain a conflicting list elsewhere.
+- The first entry's `id` controls the unseen-update popup. Keep `newMeta().seenUpdateId` unset for new players, and preserve `showUnseenUpdates()` after the intro and Welcome Back overlays so everyone sees new notes once. Closing the popup records the latest seen ID.
+- For a documentation-only or internal maintenance change with no player-visible effect, update the relevant docs; do not interrupt players with an empty or misleading popup.
 
 ## Editing constraints and risks
 

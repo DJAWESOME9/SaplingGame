@@ -70,7 +70,7 @@
       </form>
       <div id="challengeList" aria-live="polite"></div>
     </div>
-    <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">A player's profile appears after the game reports in. Playtime and profile stats refresh about once a minute while they are online.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last seen</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
+    <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
     <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="resetPlayer" class="danger" type="button">Reset account</button></div><p class="muted">Balance changes and resets are queued for the player's game. They take effect the next time that browser checks in. A reset clears their local run and meta progress.</p></div>
   </section>
   <div id="message" role="status"></div>
@@ -81,7 +81,7 @@ const CONFIG = window.SAPLING_LEADERBOARD || { url:'', anonKey:'' };
 const base = (CONFIG.url || '').replace(/\/$/, '');
 const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONFIG.anonKey;
 const $ = id => document.getElementById(id);
-let token = '', players = [], selected = null;
+let token = '', players = [], selected = null, leaderboardRecords = new Map();
 function say(text) { $('message').textContent = text; }
 function headers() { return { apikey:CONFIG.anonKey, Authorization:`Bearer ${token || CONFIG.anonKey}`, 'Content-Type':'application/json' }; }
 async function rpc(name, body = {}) {
@@ -91,19 +91,27 @@ async function rpc(name, body = {}) {
 }
 function n(value) { const x=Number(value)||0; return x.toLocaleString(undefined,{maximumFractionDigits:2}); }
 function duration(ms) { let s=Math.floor((Number(ms)||0)/1000); const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); return `${d}d ${h}h ${m}m`; }
+function when(value) { return value ? new Date(value).toLocaleString() : 'Not recorded yet'; }
+function record(player, key) { return leaderboardRecords.get(player.player_id)?.[key] ?? player[key]; }
 function render() {
   const q=$('search').value.trim().toLowerCase();
   const shown=players.filter(p => !q || `${p.display_name} ${p.player_id}`.toLowerCase().includes(q));
   $('playerCount').textContent=`(${players.length})`;
-  $('players').innerHTML=shown.map(p=>`<tr data-id="${p.player_id}" class="${selected?.player_id===p.player_id?'selected':''}"><td>${escapeHtml(p.display_name)}</td><td>${new Date(p.updated_at).toLocaleString()}</td><td>${duration(p.play_ms)}</td><td>${n(p.current_sap)}</td><td>${n(p.current_resin)}</td><td>${n(p.lifetime_sap)}</td><td>${n(p.lifetime_resin)}</td><td>${n(p.gold_leaves)}</td><td>${n(p.trees_felled)}</td><td>${escapeHtml(p.species)}</td></tr>`).join('');
+  $('players').innerHTML=shown.map(p=>`<tr data-id="${p.player_id}" class="${selected?.player_id===p.player_id?'selected':''}"><td>${escapeHtml(p.display_name)}</td><td>${when(p.last_online_at)}</td><td>${duration(p.play_ms)}</td><td>${n(p.current_sap)}</td><td>${n(p.current_resin)}</td><td>${n(record(p,'lifetime_sap'))}</td><td>${n(record(p,'lifetime_resin'))}</td><td>${n(record(p,'gold_leaves'))}</td><td>${n(p.trees_felled)}</td><td>${escapeHtml(p.species)}</td></tr>`).join('');
   if (!selected) { $('selectedTitle').textContent='Select a player'; $('details').innerHTML=''; return; }
   $('selectedTitle').textContent=`${selected.display_name} · ${selected.player_id}`;
-  const metrics=[['Playtime online',duration(selected.play_ms)],['Offline time',duration(selected.offline_ms)],['Current tree sap',n(selected.tree_sap)],['Current tree resin',n(selected.tree_resin)],['Peak sap / sec',n(selected.peak_sap)],['Peak resin / sec',n(selected.peak_resin)],['Highest sap base rate / sec',n(selected.peak_base_sap)],['Highest resin base rate / sec',n(selected.peak_base_resin)],['Lifetime sap',n(selected.lifetime_sap)],['Lifetime resin',n(selected.lifetime_resin)],['Current sap balance',n(selected.current_sap)],['Current resin balance',n(selected.current_resin)],['Gold leaves clicked',n(selected.gold_leaves)],['Trees felled',n(selected.trees_felled)],['Lifetime rings',n(selected.rings)],['Current tree nodes',n(selected.node_count)],['Species',selected.species],['Account last seen',new Date(selected.updated_at).toLocaleString()]];
+  const metrics=[['Last online',when(selected.last_online_at)],['Playtime online',duration(selected.play_ms)],['Offline time',duration(selected.offline_ms)],['Current tree sap',n(selected.tree_sap)],['Current tree resin',n(selected.tree_resin)],['Peak sap / sec',n(selected.peak_sap)],['Peak resin / sec',n(selected.peak_resin)],['Highest sap base rate / sec',n(selected.peak_base_sap)],['Highest resin base rate / sec',n(selected.peak_base_resin)],['Lifetime sap (leaderboard)',n(record(selected,'lifetime_sap'))],['Lifetime resin (leaderboard)',n(record(selected,'lifetime_resin'))],['Highest sap held (leaderboard)',n(record(selected,'highest_held_sap'))],['Highest resin held (leaderboard)',n(record(selected,'highest_held_resin'))],['Current sap balance',n(selected.current_sap)],['Current resin balance',n(selected.current_resin)],['Gold leaves clicked (leaderboard)',n(record(selected,'gold_leaves'))],['Trees felled',n(selected.trees_felled)],['Lifetime rings',n(selected.rings)],['Current tree nodes',n(selected.node_count)],['Species',selected.species],['Account last seen',when(selected.updated_at)]];
   $('details').innerHTML=metrics.map(([k,v])=>`<div class="metric"><span>${k}</span><b>${escapeHtml(v)}</b></div>`).join('');
 }
 async function refreshPlayers() {
   say('Loading player profiles…');
-  try { players=await rpc('admin_list_players') || []; selected=players.find(p=>p.player_id===selected?.player_id)||null; render(); say(`Loaded ${players.length} player profiles.`); }
+  try {
+    players=await rpc('admin_list_players') || [];
+    const res=await fetch(`${base}/rest/v1/leaderboard?select=player_id,lifetime_sap,lifetime_resin,highest_held_sap,highest_held_resin,gold_leaves`,{headers:headers()});
+    if (!res.ok) throw new Error(`Leaderboard request failed (${res.status})`);
+    leaderboardRecords=new Map((await res.json()).map(row=>[row.player_id,row]));
+    selected=players.find(p=>p.player_id===selected?.player_id)||null; render(); say(`Loaded ${players.length} player profiles and leaderboard records.`);
+  }
   catch(e) { say(`Could not load players: ${e.message}`); }
 }
 async function refreshChallenges() {
