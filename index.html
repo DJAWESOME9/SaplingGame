@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-spell-prices', date:'October 7, 2026', title:'Spell prices increased', notes:[
+    'All spells now cost more mana to cast.'
+  ] },
   { id:'2026-10-07-acorn-spend-confirmations', date:'October 7, 2026', title:'Confirm acorn purchases', notes:[
     'Pantheon, Spellbook, and expedition purchases that spend acorns now ask you to confirm the action and cost before spending.'
   ] },
@@ -6390,18 +6393,18 @@ cheat?.addEventListener('input', () => {
 
 // ---------- spellbook: persistent mana, run-local spells ----------
 const SPELLS = {
-  sunlight: { name:'Call Sunlight', icon:'☀️', cost:20, study:0, good:'Ripen one gold leaf immediately.', bad:'Delay unripe gold leaves by 60 seconds.' },
-  sapdraw: { name:'Sap Draw', icon:'💧', cost:25, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
-  surge: { name:'Sap Surge', icon:'🌿', cost:35, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
-  roots: { name:'Deepen Roots', icon:'🌱', cost:30, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
-  growth: { name:'Wild Growth', icon:'🍃', cost:45, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
-  amber: { name:'Amber Echo', icon:'🧡', cost:45, study:1, good:'The next prune gives ×1.5 amber.', bad:'The next prune gives half amber.' },
-  ward: { name:'Bark Ward', icon:'🛡️', cost:50, study:1, good:'Protect the whole tree from critters and Blight for five minutes. Critters on the tree leave.', bad:'Immediately wither one random terminal node. The Core is immune.' },
-  resindraw: { name:'Resin Draw', icon:'🫙', cost:40, study:2, good:'Gain five minutes of current resin production.', bad:'Lose up to five minutes of resin, capped at 10% of your bank.' },
-  canopy: { name:'Golden Canopy', icon:'🌟', cost:65, study:2, good:'Ripen up to four gold leaves immediately (six on screen maximum).', bad:'Suppress new gold leaves for three minutes.' },
-  stillwood: { name:'Stillwood', icon:'⌛', cost:55, study:2, good:'Extend active positive blooms and timed spells by 25% (up to 60 seconds each).', bad:'Shorten those effects by 25%.' },
-  transmute: { name:'Transmutation', icon:'⚗️', cost:30, study:2, good:'Spend one minute of sap production for two minutes of resin production.', bad:'Spend the same sap for only 30 seconds of resin production.' },
-  greatsurge: { name:'Great Sap Surge', icon:'🌳', cost:80, study:3, good:'×2 leaf production for three minutes. Earlier spells remain available.', bad:'Half leaf production for three minutes.' },
+  sunlight: { name:'Call Sunlight', icon:'☀️', cost:30, study:0, good:'Ripen one gold leaf immediately.', bad:'Delay unripe gold leaves by 60 seconds.' },
+  sapdraw: { name:'Sap Draw', icon:'💧', cost:38, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
+  surge: { name:'Sap Surge', icon:'🌿', cost:53, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
+  roots: { name:'Deepen Roots', icon:'🌱', cost:45, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
+  growth: { name:'Wild Growth', icon:'🍃', cost:68, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
+  amber: { name:'Amber Echo', icon:'🧡', cost:68, study:1, good:'The next prune gives ×1.5 amber.', bad:'The next prune gives half amber.' },
+  ward: { name:'Bark Ward', icon:'🛡️', cost:75, study:1, good:'Protect the whole tree from critters and Blight for five minutes. Critters on the tree leave.', bad:'Immediately wither one random terminal node. The Core is immune.' },
+  resindraw: { name:'Resin Draw', icon:'🫙', cost:60, study:2, good:'Gain five minutes of current resin production.', bad:'Lose up to five minutes of resin, capped at 10% of your bank.' },
+  canopy: { name:'Golden Canopy', icon:'🌟', cost:98, study:2, good:'Ripen up to four gold leaves immediately (six on screen maximum).', bad:'Suppress new gold leaves for three minutes.' },
+  stillwood: { name:'Stillwood', icon:'⌛', cost:83, study:2, good:'Extend active positive blooms and timed spells by 25% (up to 60 seconds each).', bad:'Shorten those effects by 25%.' },
+  transmute: { name:'Transmutation', icon:'⚗️', cost:45, study:2, good:'Spend one minute of sap production for two minutes of resin production.', bad:'Spend the same sap for only 30 seconds of resin production.' },
+  greatsurge: { name:'Great Sap Surge', icon:'🌳', cost:120, study:3, good:'×2 leaf production for three minutes. Earlier spells remain available.', bad:'Half leaf production for three minutes.' },
 };
 const SPELL_TIMERS = ['surge','greatsurge','drought','rootward','rootblight','ward','goldblock'];
 const freshSpells = () => ({ surge:0, greatsurge:0, drought:0, rootward:0, rootblight:0, ward:0, goldblock:0, amber:1 });
