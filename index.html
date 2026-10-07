@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-boosts-save-immediately', date:'October 7, 2026', title:'Boosts save as soon as they activate', notes:[
+    'Active gold-leaf boosts are saved immediately, so reloading right after harvesting a boost leaf will not discard the effect.'
+  ] },
   { id:'2026-10-07-leaf-amp-upgrade-scaling', date:'October 7, 2026', title:'Higher leaf and amp upgrades cost more', notes:[
     'Leaf upgrade costs now double per level, up from ×1.8. Amplifier upgrade costs now triple per level, up from ×2.8.'
   ] },
@@ -1765,6 +1768,8 @@ function applyBloom(kind, dur) {
   const existing = S.blooms.find(x => x.kind === kind);
   if (existing) existing.t = Math.max(existing.t, d);
   else S.blooms.push({ kind, t: d });
+  // Do not leave a newly earned temporary boost waiting for the next autosave.
+  save();
 }
 function tickBlooms(dt) {
   if (!S.blooms || !S.blooms.length) return;
