@@ -4,6 +4,9 @@ An idle/incremental game where the tree is simultaneously the map, the productio
 
 A single HTML file. Open `index.html` in a browser — no build step, no server.
 
+A graphical TI-84 Plus CE edition is available in [`calculator/`](calculator/README.md),
+with a colored tree, amplifiers, refineries, and a transferable TI-BASIC program.
+
 ## Controls
 
 - **Click a node** to open its action panel (grow, upgrade, polish, prune, etc.)
