@@ -1073,7 +1073,7 @@ const GROVE = {
   // Other eternal boons.
   goldenbough:{ name:'Golden Bough',   glyph:'🍯', tier:3, parent:'sunray',    max:4, cost:l=>5+l*3,  desc:'Gold leaves pay +25% more sap per level' },
   bloomcraft:{ name:'Bloomcraft',      glyph:'✨', tier:4, parent:'goldenbough', max:4, cost:l=>65+l*35, desc:'Buffs from big gold leaves are 15% stronger per level' },
-  gildedcanopy:{ name:'Gilded Canopy', glyph:'🌟', tier:5, parent:'bloomcraft', max:3, cost:l=>1900+l*1200, desc:'Big gold leaves appear 3 percentage points more often per level (base 9%)' },
+  gildedcanopy:{ name:'Gilded Canopy', glyph:'🌟', tier:5, parent:'bloomcraft', max:3, cost:l=>1900+l*1200, desc:'Big gold leaves appear 3 percentage points more often per level (base 15%)' },
   forcedbloom:{ name:'Forced Bloom',   glyph:'🌺', tier:4, parent:'goldenbough', max:1, cost:_=>180,  desc:'Unlocks the Forced Bloom toggle: pay 1h of sap to arm, then all production ×3 — but no gold leaves appear while it burns' },
   frugalbloom:{ name:'Frugal Bloom',   glyph:'🌷', tier:5, parent:'forcedbloom', max:1, cost:_=>2200, desc:'Forced Bloom costs only 30min of sap to arm instead of 1h' },
   amberheart:{ name:'Amber Heart',     glyph:'🧡', tier:4, parent:'crescent',  max:4, cost:l=>45+l*24,  desc:'Pruning yields +25% more amber per level' },
@@ -1124,6 +1124,19 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-roots-lines-under-nodes', date:'October 7, 2026', title:'Root lines sit beneath their nodes', notes:[
+    'Connectors between root upgrades now draw underneath the root nodes.'
+  ] },
+  { id:'2026-10-07-call-sunlight-boost-chance', date:'October 7, 2026', title:'Call Sunlight favors boost leaves', notes:[
+    'Ordinary gold leaves now have a 15% base chance to be big boost leaves, up from 9%. Gilded Canopy still adds 3 percentage points per level.',
+    'When Call Sunlight successfully ripens a gold leaf, it has a 50% chance to be a big boost leaf that grants a Bloom.'
+  ] },
+  { id:'2026-10-07-low-cost-spells-pantheon-slots', date:'October 7, 2026', title:'Spell and Pantheon prices updated', notes:[
+    'The lower-cost spells now cost 50% more mana. The second Pantheon slot costs 3 acorns, and the third costs 5.'
+  ] },
+  { id:'2026-10-07-pantheon-slot-costs', date:'October 7, 2026', title:'Pantheon slots cost fewer acorns', notes:[
+    'Unlocking the second Pantheon slot now costs 3 acorns, and the third costs 5.'
+  ] },
   { id:'2026-10-07-spell-prices', date:'October 7, 2026', title:'Spell prices increased', notes:[
     'All spells now cost more mana to cast.'
   ] },
@@ -1290,7 +1303,7 @@ const acornInterval = () => ACORN_INTERVAL_MS * Math.pow(0.9, metaLvl('squirrelr
 const acornRipeCap  = () => ACORN_RIPE_CAP + metaLvl('canopycharm');
 const PANTHEON_SLOTS    = 3;
 const PANTHEON_OPEN_COST = 1;              // acorns spent to first unlock the panel
-const SLOT_UNLOCK_COSTS = [0, 5, 10];      // additional slot unlock costs
+const SLOT_UNLOCK_COSTS = [0, 3, 5];       // additional slot unlock costs
 const SLOT_REUSE_COST   = 1;               // acorn cost to re-slot a deity
 const PANTHEON = {
   helios:  { name:'Helios',  glyph:'☀️', cost:2,
@@ -3609,11 +3622,11 @@ function draw(time) {
   for (const k in ROOTS) {
     if (!rootVisible(k)) continue;
     const r = ROOTS[k];
-    const lvl = rootLvl(k), avail = rootAvailable(k);
     const px = sx(r.x), py = sy(r.y);
     if (!visible(px, py, 120)) continue;
     const px0 = r.parent ? sx(ROOTS[r.parent].x) : sx(0);
     const py0 = r.parent ? sy(ROOTS[r.parent].y) : sy(10);
+    const lvl = rootLvl(k), avail = rootAvailable(k);
     ctx.globalAlpha = lvl > 0 ? 0.95 : avail ? 0.6 : 0.25;
     ctx.beginPath();
     ctx.moveTo(px0, py0);
@@ -3622,6 +3635,14 @@ function draw(time) {
     ctx.lineWidth = 2 * cam.scale;
     ctx.strokeStyle = '#4a3a28';
     ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  for (const k in ROOTS) {
+    if (!rootVisible(k)) continue;
+    const r = ROOTS[k];
+    const lvl = rootLvl(k), avail = rootAvailable(k);
+    const px = sx(r.x), py = sy(r.y);
+    if (!visible(px, py, 120)) continue;
     const rad = 11 * cam.scale;
     ctx.beginPath(); ctx.arc(px, py, rad, 0, TAU);
     ctx.fillStyle = lvl > 0 ? '#6a4f2e' : '#241f17';
@@ -6393,17 +6414,17 @@ cheat?.addEventListener('input', () => {
 
 // ---------- spellbook: persistent mana, run-local spells ----------
 const SPELLS = {
-  sunlight: { name:'Call Sunlight', icon:'☀️', cost:30, study:0, good:'Ripen one gold leaf immediately.', bad:'Delay unripe gold leaves by 60 seconds.' },
-  sapdraw: { name:'Sap Draw', icon:'💧', cost:38, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
-  surge: { name:'Sap Surge', icon:'🌿', cost:53, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
-  roots: { name:'Deepen Roots', icon:'🌱', cost:45, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
+  sunlight: { name:'Call Sunlight', icon:'☀️', cost:45, study:0, good:'Ripen one gold leaf immediately, with a 50% chance it is a big boost leaf that grants a Bloom.', bad:'Delay unripe gold leaves by 60 seconds.' },
+  sapdraw: { name:'Sap Draw', icon:'💧', cost:57, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
+  surge: { name:'Sap Surge', icon:'🌿', cost:80, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
+  roots: { name:'Deepen Roots', icon:'🌱', cost:68, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
   growth: { name:'Wild Growth', icon:'🍃', cost:68, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
   amber: { name:'Amber Echo', icon:'🧡', cost:68, study:1, good:'The next prune gives ×1.5 amber.', bad:'The next prune gives half amber.' },
   ward: { name:'Bark Ward', icon:'🛡️', cost:75, study:1, good:'Protect the whole tree from critters and Blight for five minutes. Critters on the tree leave.', bad:'Immediately wither one random terminal node. The Core is immune.' },
-  resindraw: { name:'Resin Draw', icon:'🫙', cost:60, study:2, good:'Gain five minutes of current resin production.', bad:'Lose up to five minutes of resin, capped at 10% of your bank.' },
+  resindraw: { name:'Resin Draw', icon:'🫙', cost:90, study:2, good:'Gain five minutes of current resin production.', bad:'Lose up to five minutes of resin, capped at 10% of your bank.' },
   canopy: { name:'Golden Canopy', icon:'🌟', cost:98, study:2, good:'Ripen up to four gold leaves immediately (six on screen maximum).', bad:'Suppress new gold leaves for three minutes.' },
   stillwood: { name:'Stillwood', icon:'⌛', cost:83, study:2, good:'Extend active positive blooms and timed spells by 25% (up to 60 seconds each).', bad:'Shorten those effects by 25%.' },
-  transmute: { name:'Transmutation', icon:'⚗️', cost:45, study:2, good:'Spend one minute of sap production for two minutes of resin production.', bad:'Spend the same sap for only 30 seconds of resin production.' },
+  transmute: { name:'Transmutation', icon:'⚗️', cost:68, study:2, good:'Spend one minute of sap production for two minutes of resin production.', bad:'Spend the same sap for only 30 seconds of resin production.' },
   greatsurge: { name:'Great Sap Surge', icon:'🌳', cost:120, study:3, good:'×2 leaf production for three minutes. Earlier spells remain available.', bad:'Half leaf production for three minutes.' },
 };
 const SPELL_TIMERS = ['surge','greatsurge','drought','rootward','rootblight','ward','goldblock'];
@@ -6442,10 +6463,10 @@ const spellWardOn = () => !!(S && S.spells && S.spells.ward > 0);
 const spellLeafMult = () => S.spells ? ((S.spells.surge > 0 || S.spells.greatsurge > 0) ? 2 : 1) * (S.spells.drought > 0 ? 0.5 : 1) : 1;
 const spellEdgeMult = () => S.spells ? (S.spells.rootward > 0 ? 1.5 : 1) * (S.spells.rootblight > 0 ? 0.5 : 1) : 1;
 const spellProductionActive = () => !!(S.spells && ['surge','greatsurge','drought','rootward','rootblight'].some(k => S.spells[k] > 0));
-function ripenGoldLeaf(n) {
+function ripenGoldLeaf(n, bigChance = 0.15 + 0.03 * metaLvl('gildedcanopy')) {
   n.giftAge = 0;
   n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
-  n.giftBig = Math.random() < 0.09 + 0.03 * metaLvl('gildedcanopy');
+  n.giftBig = Math.random() < bigChance;
   if (n.giftBig) n.giftLife *= 1.6;
   let base = (S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.01 + leafRate(n) * 7;
   if (base > 1000) base = 1000 + (base - 1000) * 0.8;
@@ -6509,7 +6530,7 @@ function castSpell(key) {
     } else {
       const count = Math.min(key === 'canopy' ? 4 : 1, MAX_GOLD_ON_SCREEN - goldOnScreen());
       const leaves = spellTargets().sort((a,b) => a.giftT - b.giftT).slice(0,count);
-      leaves.forEach(ripenGoldLeaf);
+      leaves.forEach(n => ripenGoldLeaf(n, key === 'sunlight' ? 0.5 : undefined));
       outcome = `${leaves.length} gold leaf${leaves.length === 1 ? '' : 's'} ripened.`;
     }
   } else if (key === 'sapdraw' || key === 'resindraw') {
