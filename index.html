@@ -1050,6 +1050,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-node-upgrade-costs', date:'October 7, 2026', title:'Leaf and amplifier upgrade costs scale faster', notes:[
+    'The sap cost of enriching leaves and strengthening amplifiers now rises faster with each upgrade level.'
+  ] },
   { id:'2026-10-07-challenges-menu', date:'October 7, 2026', title:'Challenges have their own menu', notes:[
     'Live challenge details and rewards have moved out of Settings. Open them with the 🏁 button beside the leaderboard; the menu can be moved and locked open.'
   ] },
@@ -1809,8 +1812,8 @@ const growUnlocked = t =>
   (t === 'funnel' && metaLvl('funnels') > 0);
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
-  leaf: 20 * Math.pow(1.6, n.lvl - 1),
-  amp:  80 * Math.pow(2.45, n.lvl - 1),
+  leaf: 20 * Math.pow(1.8, n.lvl - 1),
+  amp:  80 * Math.pow(2.8, n.lvl - 1),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
   cap:  32 * Math.pow(2.3, n.lvl - 1),
 }[n.type] * crowdMult());
