@@ -1046,6 +1046,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-amber-leaks', date:'October 7, 2026', title:'Leaks no longer build amber', notes:[
+    'Sap and resin that leak farther down the tree no longer build pruning amber on upstream branches. Sap stored in capacitors still counts.'
+  ] },
   { id:'2026-10-07-challenge-rewards-fix', date:'October 7, 2026', title:'Challenge rewards fixed', notes:[
     'Fixed a server check that rejected rewards when all challenge tasks were complete. Completed active challenges now award their rewards on the next automatic claim attempt.'
   ] },
@@ -2111,11 +2114,12 @@ function prepareEdgeCache() {
 function computeFlow(dt) {
   S.waste = 0; S.wasteSap = 0; S.wasteResin = 0; S.maxLife = 0;
   let leafSapRate = 0, refineryResinRate = 0;
+  const retained = new Map();
   // How many gold leaves are already showing — ripe leaves past the cap hold their
   // timer at the ready instead of materialising, so the screen never floods.
   let goldShown = (dt > 0) ? goldOnScreen() : 0;
   const rec = n => {
-    let s = 0, r = 0;
+    let s = 0, r = 0, bufferRetention = 1;
     if (n.type === 'leaf') {
       s = leafRate(n);
       if (dt > 0 && !n.giftGain && SP().gold > 0 && !frozenOn() && !forcedOn()) {
@@ -2162,6 +2166,9 @@ function computeFlow(dt) {
             const leak = (tot - lim) / dt;
             const fs = tot > 0 ? n.buf.s / tot : 0;
             const fr = tot > 0 ? n.buf.r / tot : 0;
+            // Overflow is a loss; charging alone is not. Attribute the loss to
+            // incoming flow so stored sap still earns lifetime credit.
+            bufferRetention = inS + inR > 0 ? Math.max(0, 1 - leak / (inS + inR)) : 1;
             n.bufWaste = leak;
             n.bufWasteS = leak * fs;
             n.bufWasteR = leak * fr;
@@ -2200,11 +2207,26 @@ function computeFlow(dt) {
     S.waste += n.waste;
     S.wasteSap += n.wasteS;
     S.wasteResin += n.wasteR;
-    if (dt > 0) { n.life += n.out * dt; n.lifeR += n.outR * dt; }
-    S.maxLife = Math.max(S.maxLife, n.life);
+    retained.set(n.id, k * bufferRetention);
     return { s: s * k, r: r * k };
   };
   const o = rec(N(S.rootId));
+  if (dt > 0) {
+    // A node's own output has already excluded its edge leaks. Also exclude
+    // losses on the remaining path to the core, without treating storage as waste.
+    const accrue = (n, downstreamRetention) => {
+      if (n.parent != null) {
+        n.life += n.out * downstreamRetention * dt;
+        n.lifeR += n.outR * downstreamRetention * dt;
+        S.maxLife = Math.max(S.maxLife, n.life);
+      }
+      const retention = downstreamRetention * (retained.get(n.id) ?? 1);
+      for (const id of n.children) accrue(N(id), retention);
+    };
+    accrue(N(S.rootId), 1);
+  } else {
+    for (const id in S.nodes) S.maxLife = Math.max(S.maxLife, N(id).life || 0);
+  }
   S.incomeS = o.s * (1 - Math.min(0.12, ((META && META.critterHub && META.critterHub.bugs) || 0) * 0.01)); S.incomeR = o.r;
   S.leafSapRate = leafSapRate;
   S.refineryResinRate = refineryResinRate;
