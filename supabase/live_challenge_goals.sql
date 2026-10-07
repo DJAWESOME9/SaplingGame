@@ -64,7 +64,7 @@ begin
     return;
   end if;
   if c.ended_at is not null or now() < c.opens_at or now() >= c.closes_at then raise exception 'Challenge is closed'; end if;
-  if not exists (select 1 from jsonb_array_elements(case when jsonb_array_length(c.goals) > 0 then c.goals else jsonb_build_array(jsonb_build_object('type', c.target_type, 'target', c.target_sap)) end) with ordinality g(goal, idx)
+  if exists (select 1 from jsonb_array_elements(case when jsonb_array_length(c.goals) > 0 then c.goals else jsonb_build_array(jsonb_build_object('type', c.target_type, 'target', c.target_sap)) end) with ordinality g(goal, idx)
     where coalesce((p_progress -> ((g.idx - 1)::int))::double precision, 0) < (g.goal ->> 'target')::double precision) then raise exception 'Target not reached'; end if;
   first_claim := not exists(select 1 from public.live_challenge_completions x where x.challenge_id = c.id);
   clean_name := left(regexp_replace(coalesce(p_display_name, ''), '[^[:alnum:] _.-]', '', 'g'), 20);

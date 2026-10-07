@@ -1046,6 +1046,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-challenge-rewards-fix', date:'October 7, 2026', title:'Challenge rewards fixed', notes:[
+    'Fixed a server check that rejected rewards when all challenge tasks were complete. Completed active challenges now award their rewards on the next automatic claim attempt.'
+  ] },
   { id:'2026-10-07-challenge-progress-window', date:'October 7, 2026', title:'Challenge progress at a glance', notes:[
     'The draggable challenge window now shows a separate progress bar and current totals for every task in the challenge.',
     'Removed the challenge list that stretched across the screen. Challenge details and rewards are now in Settings.'
