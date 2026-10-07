@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-acorn-spend-confirmations', date:'October 7, 2026', title:'Confirm acorn purchases', notes:[
+    'Pantheon, Spellbook, and expedition purchases that spend acorns now ask you to confirm the action and cost before spending.'
+  ] },
   { id:'2026-10-07-spellbook-acorn-unlock', date:'October 7, 2026', title:'Unlock the Spellbook with an acorn', notes:[
     'The Spellbook now appears beside the other minigames when acorns unlock. Spend 1 banked acorn to open it permanently; the 5-ring Grove unlock has been removed. Spell Study and mana upgrades remain in the Grove.',
     'If you already unlocked the Spellbook, it stays unlocked with all your mana and spells preserved. You do not need to pay again.'
@@ -6575,6 +6578,7 @@ function unlockSpellbook() {
     toast('Bank 1 ripe acorn to unlock the Spellbook.');
     return false;
   }
+  if (!confirm(`Unlock the Spellbook for 🌰 ${SPELLBOOK_OPEN_COST}? This is a permanent unlock.`)) return false;
   META.acorns -= SPELLBOOK_OPEN_COST;
   META.spellbook.opened = true;
   META.spellbook.lastTickAt = Date.now();
@@ -6663,6 +6667,7 @@ function closePantheon() { pantheon.classList.remove('open'); }
 function unlockPantheon() {
   if (META.pantheonOpened) return true;
   if (acornsBanked() < PANTHEON_OPEN_COST) return false;
+  if (!confirm(`Wake the Pantheon for 🌰 ${PANTHEON_OPEN_COST}?`)) return false;
   META.acorns -= PANTHEON_OPEN_COST;
   META.pantheonOpened = true;
   saveMeta();
@@ -6815,9 +6820,11 @@ expeditionPanel.addEventListener('click', e => {
   if (act === 'unlock') {
     const cost = META.expeditions.slots === 1 ? 3 : 5;
     if (META.expeditions.slots >= 3 || META.acorns < cost) return;
+    if (!confirm(`Unlock another expedition slot for 🌰 ${cost}?`)) return;
     META.acorns -= cost; META.expeditions.slots++; ensureExpeditionOffers(); saveMeta(); refreshAcorns(); renderExpeditions(); sfx('buy'); return;
   }
   if (act === 'reroll' && META.acorns >= 1 && META.expeditions.entries[i] && !META.expeditions.entries[i].active) {
+    if (!confirm('Reroll this expedition offer for 🌰 1?')) return;
     META.acorns--; META.expeditions.entries[i].offer = newExpeditionOffer(); saveMeta(); refreshAcorns(); renderExpeditions(); sfx('buy');
   }
 });
@@ -6862,6 +6869,7 @@ pantheon?.addEventListener('click', e => {
       const cost = SLOT_UNLOCK_COSTS[nUnlocked];
       if (cost === undefined) return;
       if (META.acorns < cost) { toast(`Need 🌰 ${cost} acorns to unlock another slot.`); return; }
+      if (cost > 0 && !confirm(`Unlock another Pantheon slot for 🌰 ${cost}?`)) return;
       META.acorns -= cost;
       META.pantheonSlotsUnlocked = nUnlocked + 1;
       META.pantheonSlots.push(null);
@@ -6880,6 +6888,7 @@ pantheon?.addEventListener('click', e => {
   if (act === 'unlock') {
     const g = PANTHEON[k];
     if (META.acorns < g.cost) return;
+    if (!confirm(`Unlock ${g.name} for 🌰 ${g.cost}?`)) return;
     META.acorns -= g.cost;
     META.godsUnlocked = META.godsUnlocked || {};
     META.godsUnlocked[k] = true;
@@ -6895,6 +6904,7 @@ pantheon?.addEventListener('click', e => {
     const isFirstSlot = !META.deityFirstSlot[k];
     const cost = isFirstSlot ? 0 : SLOT_REUSE_COST;
     if (!isFirstSlot && META.acorns < cost) { toast(`Re-slotting costs 🌰 ${cost}. Bank one first.`); return; }
+    if (cost > 0 && !confirm(`Slot ${PANTHEON[k].name} for 🌰 ${cost}?`)) return;
     META.acorns -= cost;
     META.deityFirstSlot[k] = true;
     slots[idx] = k;
