@@ -128,7 +128,9 @@
   #leaderboard .lb-score { color:#f5d997; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
   #leaderboard li.lb-empty { display:block; padding:22px 12px; border:1px dashed #65744f; border-radius:8px; color:#c8d4b6; text-align:center; line-height:1.5; }
   #leaderboard li.lb-empty strong { display:block; margin-bottom:3px; color:#f0d393; font-size:12px; }
-  #liveChallenges { margin:0 0 10px; padding:10px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
+  #liveChallenges { position:fixed; z-index:56; top:52px; right:16px; display:none; box-sizing:border-box; width:min(340px, calc(100vw - 16px)); max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain; padding:14px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
+  #liveChallenges.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
+  #liveChallenges .drawer-heading { margin-bottom:8px; }
   #liveChallenges h3 { margin:0 0 5px; color:#d5e7bd; font-size:13px; }
   #liveChallenges .live-note { margin:0 0 8px; color:#9eae91; font-size:11px; line-height:1.4; }
   #liveChallenges .lb-status { min-height:15px; margin-top:6px; color:#9db89f; font-size:11px; }
@@ -212,10 +214,10 @@
   #statsbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#7fb0c4;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #statsbtn:hover, #statsbtn.open { border-color:#7fc4d9; color:#cfeaf0; }
-  #lbbtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#9fc78f;
+  #lbbtn, #challengebtn { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#9fc78f;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
-  #lbbtn:hover, #lbbtn.open { border-color:#8fc299; color:#dceade; }
-  #trophy, #statsbtn, #lbbtn { touch-action:none; }
+  #lbbtn:hover, #lbbtn.open, #challengebtn:hover, #challengebtn.open { border-color:#8fc299; color:#dceade; }
+  #trophy, #statsbtn, #lbbtn, #challengebtn { touch-action:none; }
   .floating-drawer-button { position:fixed; z-index:60; margin:0; touch-action:none; cursor:grab !important; }
   .floating-drawer-button.dragging { cursor:grabbing !important; }
   .drawer-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:move; touch-action:none; }
@@ -608,7 +610,7 @@
     #topbar { gap:7px; padding-top:max(8px, env(safe-area-inset-top)); flex-wrap:wrap; row-gap:6px; }
     #topbar .title { display:none; }
     /* Keep the action buttons (incl. settings) intact when the bar wraps */
-    #pestbtn, #acornbtn, #trophy, #statsbtn, #lbbtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
+    #pestbtn, #acornbtn, #trophy, #statsbtn, #lbbtn, #challengebtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
     #gear { margin-left:0; }
     #topbar .statcard { min-width:0; flex:1 1 0; padding:6px 8px 7px; border-radius:10px; }
     #topbar .statlabel { font-size:9.5px; letter-spacing:.03em; }
@@ -661,7 +663,7 @@
     .saverow button { padding:10px 8px; font-size:13px; }
     /* Bulk-buy buttons need extra space for the small text */
     /* Top-bar buttons stay tappable */
-    #pestbtn, #acornbtn, #trophy, #statsbtn, #reset, #gear { padding:8px 10px; min-height:36px; }
+    #pestbtn, #acornbtn, #trophy, #statsbtn, #challengebtn, #reset, #gear { padding:8px 10px; min-height:36px; }
     #pestbtn { min-width:140px; }
     #acornbtn { min-width:148px; font-size:12px; }
   }
@@ -669,7 +671,7 @@
     /* Topbar wraps so cards plus action buttons all fit on tiny screens */
     #topbar { flex-wrap:wrap; row-gap:6px; }
     #topbar .statcard { flex:1 1 30%; }
-    #pestbtn, #acornbtn, #trophy, #statsbtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
+    #pestbtn, #acornbtn, #trophy, #statsbtn, #challengebtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
     /* Pantheon slots stack vertically when even three across is too tight */
     .panslots { justify-content:flex-start; }
     .panslot { width:48%; height:106px; }
@@ -776,6 +778,7 @@
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="statsbtn" aria-label="Stats" title="Stats">📊</button>
   <button id="lbbtn" aria-label="Leaderboard" title="Leaderboard">🌿</button>
+  <button id="challengebtn" aria-label="Live challenges" title="Live challenges">🏁</button>
   <button id="gear" aria-label="Settings">⚙</button>
   <!-- Contextual items live on their own slim second row so they never break up
        the resource cards / controls when they appear. Hidden entirely when empty. -->
@@ -795,14 +798,14 @@
 </section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
-<div id="settings">
-  <div id="cheatbadges"></div>
   <section id="liveChallenges" aria-label="Live challenges">
-    <h3>🏆 Live Challenges</h3>
+    <div class="drawer-heading"><h3>🏁 Live Challenges</h3><button class="drawer-lock" type="button" aria-label="Lock panel open" aria-pressed="false">🔓</button></div>
     <p class="live-note">Limited-time community challenges. The first finisher earns the listed bonus.</p>
     <div id="liveChallengeRows"><div class="lb-status">Loading live challenges…</div></div>
     <div class="lb-status" id="liveChallengeStatus" role="status"></div>
   </section>
+<div id="settings">
+  <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
   <button id="restore">Restore backup</button>
@@ -1047,6 +1050,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-critter-stays-put', date:'October 7, 2026', title:'Critters stay put when you tap elsewhere', notes:[
+    'Tapping a tree node no longer scares critters sitting on other branches. Each critter only reacts when you tap its own node or the critter itself.'
+  ] },
+  { id:'2026-10-07-challenges-menu', date:'October 7, 2026', title:'Challenges have their own menu', notes:[
+    'Live challenge details and rewards have moved out of Settings. Open them with the 🏁 button beside the leaderboard; the menu can be moved and locked open.'
+  ] },
   { id:'2026-10-07-challenge-reward-message', date:'October 7, 2026', title:'Challenge reward messages', notes:[
     'Completing a live challenge now shows a message listing every reward received and whether the first-finisher bonus was included.'
   ] },
@@ -3116,7 +3125,10 @@ function scareCritters(nodeId) {
   touchNode(nodeId); // swatting a critter off a node counts as attending it (anti-wither)
   const dmg = 1 + (metaLvl('swatpower') > 0 ? 1 : 0);
   for (const c of critters) {
-    if (c.nodeId === nodeId && c.state === 'sitting') {
+    // A tap should only affect the critter on the tapped node. Previously,
+    // this loop sent every other critter flying whenever any node was tapped.
+    if (c.nodeId !== nodeId) continue;
+    if (c.state === 'sitting') {
       c.hp -= dmg;
       c.jolt = 1;
       if (c.hp <= 0) {
@@ -3132,6 +3144,10 @@ function scareCritters(nodeId) {
       } else {
         sfx('bug');
       }
+    } else if (c.state !== 'leaving') {
+      c.state = 'leaving';
+      c.leaveX = c.x + (Math.random() - 0.5) * 280;
+      c.leaveY = c.y - 170;
     }
   }
 }
@@ -5289,9 +5305,9 @@ lbName.addEventListener('change', () => {
   if (lbName.value.trim() === claimedUsername) return;
   showUsernamePrompt();
 });
-// The three utility drawers can be pinned and placed independently of the top bar.
+// The utility drawers can be pinned and placed independently of the top bar.
 const utilityDrawers = [
-  ['lbbtn', 'leaderboard'], ['trophy', 'achievements'], ['statsbtn', 'statspanel']
+  ['challengebtn', 'liveChallenges'], ['lbbtn', 'leaderboard'], ['trophy', 'achievements'], ['statsbtn', 'statspanel']
 ];
 function closeOtherDrawers(except) {
   utilityDrawers.forEach(([buttonId, panelId]) => {
@@ -5484,6 +5500,22 @@ lbButton.addEventListener('click', () => {
     if (lbConfigured) loadLeaderboard();
     settings.classList.remove('open'); gear.classList.remove('open');
     closeOtherDrawers('leaderboard');
+  }
+});
+const challengeButton = document.getElementById('challengebtn');
+challengeButton.addEventListener('click', () => {
+  const open = liveChallengesPanel.classList.toggle('open');
+  challengeButton.classList.toggle('open', open);
+  if (open) {
+    placeDrawerByButton(challengeButton, liveChallengesPanel);
+    loadLiveChallenges();
+    closeOtherDrawers('liveChallenges');
+    settings.classList.remove('open'); gear.classList.remove('open');
+  }
+});
+document.addEventListener('pointerdown', e => {
+  if (liveChallengesPanel.dataset.locked !== 'true' && !liveChallengesPanel.contains(e.target) && !challengeButton.contains(e.target)) {
+    liveChallengesPanel.classList.remove('open'); challengeButton.classList.remove('open');
   }
 });
 gear.addEventListener('click', () => {
