@@ -142,7 +142,11 @@
   #eventHudMin { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
   #eventHudNext { flex:none; width:26px; height:25px; padding:0; border:1px solid #62774b; border-radius:6px; background:#293b29; color:#e8edda; cursor:pointer; }
   #eventHudNext[hidden] { display:none; }
-  #eventHudBody { padding:0 11px 10px; }
+  #eventHudBody { padding:0 11px 10px; max-height:calc(100dvh - 80px); overflow-y:auto; }
+  #eventHudGoals { display:grid; gap:10px; }
+  .event-goal-label { display:flex; flex-wrap:wrap; justify-content:space-between; gap:3px 8px; margin-bottom:4px; color:#cbd8be; font-size:11px; font-variant-numeric:tabular-nums; }
+  .event-goal-track { height:8px; overflow:hidden; border-radius:6px; background:#0d1a12; }
+  .event-goal-fill { display:block; height:100%; background:#99ca79; }
   #eventHudProgress { display:flex; justify-content:space-between; gap:8px; margin:0 0 6px; color:#cbd8be; font-size:11px; font-variant-numeric:tabular-nums; }
   #eventHud.minimized { width:auto; min-width:185px; }
   #eventHud.minimized #eventHudHead { min-height:33px; }
@@ -786,12 +790,18 @@
 </div>
 <section id="eventHud" aria-label="Live event progress" aria-live="polite">
   <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudNext" type="button" aria-label="Show next live challenge" title="Show next challenge">›</button><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
-  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span id="eventHudMetric">from leaves</span></div></div>
+  <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span id="eventHudMetric"></span></div><div id="eventHudGoals"></div></div>
 </section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
 <div id="settings">
   <div id="cheatbadges"></div>
+  <section id="liveChallenges" aria-label="Live challenges">
+    <h3>🏆 Live Challenges</h3>
+    <p class="live-note">Limited-time community challenges. The first finisher earns the listed bonus.</p>
+    <div id="liveChallengeRows"><div class="lb-status">Loading live challenges…</div></div>
+    <div class="lb-status" id="liveChallengeStatus" role="status"></div>
+  </section>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
   <button id="restore">Restore backup</button>
@@ -827,12 +837,7 @@
   </div>
   <button class="lb-resize" id="lbResize" type="button" aria-label="Resize leaderboard height" title="Drag to resize · arrow keys also work"></button>
   </section>
-  <section id="liveChallenges" aria-label="Live challenges">
-    <h3>🏆 Live Challenges</h3>
-    <p class="live-note">Limited-time community challenges. The first finisher earns the listed bonus.</p>
-    <div id="liveChallengeRows"><div class="lb-status">Loading live challenges…</div></div>
-    <div class="lb-status" id="liveChallengeStatus" role="status"></div>
-  </section>
+
 <div id="achievements"></div>
 <div id="statspanel"></div>
 <div id="sethatubby">
@@ -1041,6 +1046,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-challenge-progress-window', date:'October 7, 2026', title:'Challenge progress at a glance', notes:[
+    'The draggable challenge window now shows a separate progress bar and current totals for every task in the challenge.',
+    'Removed the challenge list that stretched across the screen. Challenge details and rewards are now in Settings.'
+  ] },
   { id:'2026-10-06-staggered-wither', date:'October 6, 2026', title:'Staggered node withering', notes:[
     'In Blight mode, nodes now have slightly different grace periods, so neglected nodes are less likely to start withering all at once.'
   ] },
@@ -4826,10 +4835,16 @@ function renderEventHud() {
   document.getElementById('eventHudNext').hidden = liveChallenges.length < 2;
   document.getElementById('eventHudTitle').textContent = `🏆 ${challenge.title}${liveChallenges.length > 1 ? ` (${index + 1}/${liveChallenges.length})` : ''}`;
   document.getElementById('eventHudTime').textContent = liveChallengeTime(challenge.closes_at);
-  const target = Number(challenge.target_sap) || 100000;
   const goals = challengeGoals(challenge), values = challengeProgressValues(challenge);
   document.getElementById('eventHudCount').textContent = challengeReady(challenge) ? 'All goals complete' : `${values.filter((v, i) => v >= Number(goals[i].target)).length} / ${goals.length} goals complete`;
-  document.getElementById('eventHudMetric').textContent = challenge.player_completed ? 'Completed ✓' : goals.map(g => CHALLENGE_LABELS[g.type] || g.type).join(' + ');
+  document.getElementById('eventHudMetric').textContent = challenge.player_completed ? 'Completed ✓' : '';
+  document.getElementById('eventHudGoals').innerHTML = goals.map((goal, i) => {
+    const target = Number(goal.target), value = values[i];
+    const percent = challenge.player_completed || target <= 0 ? 100 : Math.max(0, Math.min(100, value / target * 100));
+    const label = escapeHtml(CHALLENGE_LABELS[goal.type] || goal.type);
+    const count = `${fmt(value)} / ${fmt(target)} ${CHALLENGE_UNITS[goal.type] || 'units'}`;
+    return `<div class="event-goal"><div class="event-goal-label"><span>${label}</span><span>${count}${percent >= 100 ? ' ✓' : ''}</span></div><div class="event-goal-track" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(1)}" aria-valuetext="${count}"><span class="event-goal-fill" style="width:${percent}%"></span></div></div>`;
+  }).join('');
   if (!eventHud.style.left) {
     try {
       const saved = JSON.parse(localStorage.getItem(eventHudPosKey) || 'null');
@@ -4842,6 +4857,7 @@ function renderEventHud() {
     } catch (e) { eventHud.style.left = '50%'; eventHud.style.top = '90px'; eventHud.style.transform = 'translateX(-50%)'; }
     requestAnimationFrame(clampEventHud);
   }
+  clampEventHud();
 }
 eventHudMin?.addEventListener('click', () => {
   META.liveChallengeUi = META.liveChallengeUi || {};
