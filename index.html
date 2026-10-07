@@ -1195,6 +1195,9 @@ const UPDATE_LOG = [
   { id:'2026-10-07-challenge-reward-message', date:'October 7, 2026', title:'Challenge reward messages', notes:[
     'Completing a live challenge now shows a message listing every reward received and whether the first-finisher bonus was included.'
   ] },
+  { id:'2026-10-07-wither-stagger', date:'October 7, 2026', title:'More space between wither warnings', notes:[
+    'In Blight mode, neglected nodes now start withering across a wider spread of times, so their warnings are less likely to bunch together.'
+  ] },
   { id:'2026-10-07-amber-leaks', date:'October 7, 2026', title:'Leaks no longer build amber', notes:[
     'Sap and resin that leak farther down the tree no longer build pruning amber on upstream branches. Sap stored in capacitors still counts.'
   ] },
@@ -2145,7 +2148,7 @@ function mkNode(type, parent) {
     life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false, bufWaste: 0, bufWasteS: 0, bufWasteR: 0,
     x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0, waste: 0, wasteS: 0, wasteR: 0,
     drops: [], dropT: 0, wasteT: 0, pulse: 0, idle: 0, wither: 0,
-    witherGraceOffset: Math.random() * 0.3 - 0.15,
+    witherGraceOffset: Math.random() * 0.5 - 0.25,
     giftT: type === 'leaf' ? initialGiftT({ lvl: lvl0 }) : 0,
     giftAge: 0, giftLife: 0, giftGain: 0, giftA: 0,
     fx: { pop: 0, flash: 0 } };
@@ -4881,7 +4884,7 @@ function load() {
     runStart: (typeof d.runStart === 'number') ? d.runStart : (Date.now() - 24 * 3600 * 1000) };
   for (const m of d.nodes) {
     S.nodes[m.id] = { lvl: 1, edgeLvl: 0, extraKids: 0, polish: 0, locked: false, life: 0, lifeR: 0, buf: { s: 0, r: 0 }, discharging: false,
-      witherGraceOffset: Math.random() * 0.3 - 0.15,
+      witherGraceOffset: Math.random() * 0.5 - 0.25,
       ...m, bufWaste: 0, bufWasteS: 0, bufWasteR: 0, x: 0, y: 0, tx: 0, ty: 0, inFlow: 0, through: 0, out: 0, outS: 0, outR: 0,
       waste: 0, drops: [], dropT: 0, wasteT: 0, pulse: 0,
       giftT: m.giftT || 0, giftAge: m.giftAge || 0, giftLife: m.giftLife || 0, giftGain: m.giftGain || 0, giftA: m.giftA || 0, giftBig: !!m.giftBig,
