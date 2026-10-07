@@ -329,6 +329,7 @@
   #hint:empty { opacity:0; }
   #toast { position:fixed; top:110px; left:50%; transform:translateX(-50%); background:rgba(40,32,14,.92);
     border:1px solid #6a5526; border-radius:10px; padding:10px 18px; font-size:13px; color:#f0d9a0;
+    box-sizing:border-box; width:max-content; max-width:calc(100vw - 28px); z-index:100;
     pointer-events:none; opacity:0; transition:opacity .5s; }
   #toast.pop { animation:toastPop .32s ease-out; }
   @keyframes toastPop { 0% { transform:translate(-50%,-6px) scale(.94); } 60% { transform:translate(-50%,1px) scale(1.02); } 100% { transform:translateX(-50%) scale(1); } }
@@ -1046,6 +1047,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-challenge-reward-message', date:'October 7, 2026', title:'Challenge reward messages', notes:[
+    'Completing a live challenge now shows a message listing every reward received and whether the first-finisher bonus was included.'
+  ] },
   { id:'2026-10-07-amber-leaks', date:'October 7, 2026', title:'Leaks no longer build amber', notes:[
     'Sap and resin that leak farther down the tree no longer build pruning amber on upstream branches. Sap stored in capacitors still counts.'
   ] },
@@ -4736,13 +4740,13 @@ function load() {
   creditOffline((Date.now() - d.t) / 1000);
 }
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, duration = 6000) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.style.opacity = 1;
   // Retrigger the pop-in animation on each new toast.
   el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.style.opacity = 0, 6000);
+  toastTimer = setTimeout(() => el.style.opacity = 0, duration);
 }
 const gear = document.getElementById('gear'), settings = document.getElementById('settings'),
       volSlider = document.getElementById('vol');
@@ -5075,7 +5079,8 @@ async function claimLiveChallenge(id, button) {
       META.achievements = META.achievements || {};
       META.achievements[achievementKey] = { t:Date.now(), cat:'challenge' };
       save(); saveMeta();
-      toast(result.first_finisher ? '🏆 First finisher! Challenge complete and bonus reward claimed.' : '🏆 Live challenge complete! Reward claimed.');
+      const rewards = liveRewardText(result, 'reward');
+      toast(`🏆 ${challenge.title} complete! Received: ${rewards}.${result.first_finisher ? ' First finisher bonus included!' : ''}`, 12000);
     }
     liveChallengeStatus.textContent = result.first_finisher ? 'You were the first finisher — bonus reward included!' : 'Challenge complete — reward claimed.';
     await loadLiveChallenges();
