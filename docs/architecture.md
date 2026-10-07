@@ -29,6 +29,10 @@ reload ──> loadMeta() + load() ──> offline credit ──> first frame
 
 The Critter Hub and expedition slots also live in `META`, so stored critters, offers, and active trip progress survive cuts and reloads. Starting an expedition removes its critters from the hub immediately. Older active trips are migrated once on load. Foreground progress advances in `frame`; offline elapsed time advances at `offlineRateNow()` in `creditOffline`. Resource rewards use buff-free production rates captured when a trip begins and count as earned resources, not tree production.
 
+The Spellbook unlocks through the Grove after Vitality. `spellstudy` levels unlock additional spells without replacing the earlier versions; `manawell` and `manaspring` improve mana capacity and refill speed. `META.spellbook` stores mana, a wall-clock refill timestamp, and total casts. Mana survives cuts and refills at full speed offline, with a 100 base cap and a 20-minute base refill. Freeze pauses regeneration and casting. `S.spells` stores temporary spell timers and the pending Amber Echo multiplier, so these survive reloads and save-code export but reset with a new tree. Old saves receive defaults through `ensureSpellbook` and `hydrateSpells`.
+
+Spell timers expire offline unless frozen. `creditOffline` splits income at those expiration times so short production spells cannot boost an entire offline interval. Sap and resin spell windfalls count as earned resources rather than tree production. Spell surges share a ×2 leaf multiplier; they can combine with existing blooms but do not multiply one another. Bark Ward prevents critter penalties, spawning, and Blight damage across the tree; its backfire removes one terminal node and never the Core. Amber Echo affects the prune preview and is consumed by the next actual prune. Expedition reward estimates temporarily remove spell effects along with other transient boosts.
+
 ## Subsystem landmarks
 
 | Subsystem | Main code landmarks |
@@ -43,6 +47,7 @@ The Critter Hub and expedition slots also live in `META`, so stored critters, of
 | Temporary effects, critters, Blight | `BLOOMS`, `tickBlooms`, `spawnCritter`, `updateCritters`, `updateWither` |
 | Critter Hub and expeditions | `renderCritterHub`, `EXPEDITION_TYPES`, `renderExpeditions`, `startExpedition`, `advanceExpeditions` |
 | Grove and prestige | `buyGrove`, Grove layout/render/popover functions, `cutDown`, `finalizeCut` |
+| Spellbook and mana | `SPELLS`, `castSpell`, `renderSpellbook`, `tickSpellMana`, `advanceSpellTimers`, `hydrateSpells` |
 | Acorns/Pantheon/achievement/stat drawers | `tickAcorns`, `renderPantheon`, `renderAchievements`, `renderStats` |
 | Persistence/offline recovery | `save`, `load`, `creditOffline`, `loadMeta`, `saveMeta` |
 | Save-code and settings actions | `makeSaveCode`, `applySaveCode`, settings event handlers |

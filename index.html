@@ -681,6 +681,56 @@
   @media (hover: none) {
     #topbar .statcard:hover, #panel button:hover, .scard:hover, .gcard:hover { transform:none; box-shadow:none; }
   }
+  #spellbook { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; box-sizing:border-box;
+    padding:max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    color:#e8e4d8; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
+  #spellbook.open { display:flex; animation:overlayIn .2s ease-out both; }
+  .spellbook-box { box-sizing:border-box; width:min(800px,100%); max-height:100%; overflow-y:auto; overscroll-behavior:contain;
+    padding:24px; border:1px solid #778752; border-left:5px solid #536943; border-radius:12px;
+    background:radial-gradient(ellipse at 100% 0,rgba(160,161,83,.12),transparent 45%),#142019;
+    box-shadow:0 24px 70px #0009,inset 0 1px rgba(242,219,145,.12); scrollbar-color:#637a4e #142019; }
+  .spellbook-heading { position:sticky; top:0; z-index:2; background:#142019; display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:15px; border-bottom:1px solid #536342; }
+  .spellbook-kicker { display:block; margin-bottom:4px; color:#e4ba69; font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+  #spellTitle { margin:0; color:#f3e9cf; font-size:25px; line-height:1.15; letter-spacing:.01em; }
+  #spellClose { flex:none; width:44px; height:44px; padding:0; border:1px solid #60734e; border-radius:8px; color:#dce7c9; background:#233529; font:inherit; cursor:pointer; }
+  #spellClose:hover { color:#fff2cc; background:#344831; border-color:#c9a95f; }
+  .spellbook-intro { margin:14px 0 18px; color:#bcccae; font-size:13px; line-height:1.5; }
+  .spellbook-mana { padding:14px 16px; border:1px solid #887749; border-radius:8px; background:rgba(225,179,81,.06); }
+  .spellbook-mana-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:9px; color:#eed298; font-size:13px; }
+  .spellbook-mana-heading > span { font-weight:750; letter-spacing:.04em; }
+  #spellMana { font-variant-numeric:tabular-nums; text-align:right; }
+  #spellMeter { display:block; width:100%; height:10px; overflow:hidden; appearance:none; -webkit-appearance:none; border:0; border-radius:4px; background:#0d1710; color:#e4ba69; }
+  #spellMeter::-webkit-progress-bar { background:#0d1710; border-radius:4px; }
+  #spellMeter::-webkit-progress-value { background:linear-gradient(90deg,#b59148,#f0ce82); border-radius:4px; }
+  #spellMeter::-moz-progress-bar { background:linear-gradient(90deg,#b59148,#f0ce82); border-radius:4px; }
+  .spellbook-mana p { margin:9px 0 0; color:#c2cbaa; font-size:11px; line-height:1.5; }
+  .spellbook-effects { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; color:#d9e8c3; font-size:12px; line-height:1.5; }
+  .spellbook-effects:empty { display:none; }
+  .spellbook-effects > span { padding:5px 9px; border:1px solid #61734b; border-radius:5px; background:#263b28; }
+  .spellbook-warning { margin:16px 0 0; color:#cbbca0; font-size:12px; line-height:1.5; }
+  .spellbook-warning strong { color:#f0c38e; font-weight:700; }
+  .spellbook-result { min-height:18px; margin:7px 0 15px; color:#f2d699; font-size:13px; line-height:1.5; }
+  #spellCards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .spellcard { display:flex; flex-direction:column; min-width:0; box-sizing:border-box; padding:16px; border:1px solid #465e40; border-radius:8px; background:#192b1f; }
+  .spellcard h3 { margin:0 0 7px; color:#e8ebd5; font-size:16px; line-height:1.3; }
+  .spellcard p { margin:0 0 9px; color:#c2d1b5; font-size:12px; line-height:1.5; }
+  .spellcard .spellcost { color:#f0ce82; font-weight:700; }
+  .spellcard .spellrisk { color:#dfb697; font-size:11px; }
+  .spellcard .spellunlock { color:#e6cc90; font-size:11px; }
+  .spellcard button { width:100%; min-height:44px; margin-top:auto; padding:10px 12px; border:1px solid #84915c; border-radius:6px;
+    color:#fff0c3; background:#3a4b2c; font:inherit; font-size:12px; font-weight:750; line-height:1.4; white-space:normal; overflow-wrap:anywhere; cursor:pointer;
+    transition:background .15s ease,border-color .15s ease; }
+  .spellcard button:hover:not(:disabled) { background:#4c6036; border-color:#e4ba69; }
+  .spellcard button:active:not(:disabled) { background:#2e3e23; }
+  #spellbook button:focus-visible { outline:2px solid #f0ce82; outline-offset:3px; }
+  .spellcard button:disabled { color:#aab59d; border-color:#46533d; background:#253025; cursor:default; }
+  .spellcard.locked { border-style:dashed; border-color:#42513b; background:#172019; }
+  .spellcard.locked h3 { color:#aeba9f; }
+  .spellcard.locked p { color:#a5b396; }
+  @media(max-width:560px) { .spellbook-box { padding:18px 14px; border-left-width:3px; } #spellCards { grid-template-columns:1fr; gap:10px; }
+    #spellTitle { font-size:22px; } .spellbook-mana { padding:12px; } .spellcard { padding:14px; } }
+  @media(prefers-reduced-motion:reduce) { #spellbook.open { animation:none; } .spellcard button { transition:none; } }
+
 </style>
 </head>
 <body>
@@ -857,8 +907,28 @@
 <div id="minidock" style="display:none">
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
+  <button id="spellbookbtn" title="Spend regenerating mana on tree magic" style="display:none">📖 Spellbook</button>
   <button id="expeditionbtn" title="Send stored critters on expeditions" style="display:none">🧭 Expeditions</button>
 </div>
+<div id="spellbook" role="dialog" aria-modal="true" aria-labelledby="spellTitle">
+  <div class="spellbook-box">
+    <header class="spellbook-heading">
+      <div><span class="spellbook-kicker">Grove magic</span><h2 id="spellTitle">The Spellbook</h2></div>
+      <button id="spellClose" type="button" aria-label="Close spellbook">✕</button>
+    </header>
+    <p class="spellbook-intro">A little sunlight. A little wild magic. Choose your spell, and let the tree decide.</p>
+    <section class="spellbook-mana" aria-label="Mana">
+      <div class="spellbook-mana-heading"><span>✦ Mana</span><strong id="spellMana">100 / 100</strong></div>
+      <progress id="spellMeter" max="100" value="100" aria-label="Available mana">100%</progress>
+      <p>Mana refills over time, including while offline. Cutting preserves your mana. Freeze pauses mana refill and spell timers.</p>
+    </section>
+    <div id="spellEffects" class="spellbook-effects" aria-label="Active spell effects"></div>
+    <p class="spellbook-warning"><strong>15% chance to backfire.</strong> Every cast spends mana, whichever way the magic turns.</p>
+    <p id="spellResult" class="spellbook-result" aria-live="polite" aria-atomic="true"></p>
+    <div id="spellCards"></div>
+  </div>
+</div>
+
 <div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
   <div class="expbox">
     <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
@@ -935,6 +1005,10 @@ const SPECIES = {
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
+  spellbook: { name:'Spellbook', glyph:'📖', tier:2, parent:'vitality', max:1, cost:_=>5, desc:'Unlock tree magic: 100 mana, a 20-minute refill, and three starter spells. Each cast has a 15% chance to backfire.' },
+  spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'spellbook', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
+  manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellbook', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
+  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellbook', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
   // Tier 1 — always available after first cut.
   vitality:  { name:'Vitality',        glyph:'🌿', tier:1, parent:null,     max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
   girth:     { name:'Heartgirth',      glyph:'🪵', tier:1, parent:null,     max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
@@ -1050,6 +1124,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-spellbook', date:'October 7, 2026', title:'Tree magic has arrived', notes:[
+    'Unlock the Spellbook in the Grove to cast spells with regenerating mana. Start with Call Sunlight, Sap Draw, and Sap Surge; Spell Study unlocks nine more spells, including resin magic, Golden Canopy, and a three-minute surge. Earlier spells remain available.',
+    'Every spell has a visible 15% backfire chance and spends mana either way. Bark Ward protects the entire tree for five minutes, but a backfire immediately withers one terminal node.',
+    'Mana refills from empty in 20 minutes, including offline, and survives cuts without a free refill. Mana Well raises its cap to 150 and Mana Spring speeds regeneration. Freeze pauses mana and spell timers; thaw to cast. Temporary spells end when you fell the tree.'
+  ] },
   { id:'2026-10-07-node-interactions-keep-critters', date:'October 7, 2026', title:'Other nodes no longer scare critters away', notes:[
     'Interacting with a node only affects critters sitting on that same node. Critters elsewhere stay put until you scare them directly or another game effect moves them.'
   ] },
@@ -1352,6 +1431,7 @@ function loadMeta() {
   if (META.pantheonSlots.length > PANTHEON_SLOTS) META.pantheonSlots.length = PANTHEON_SLOTS;
   while (META.pantheonSlots.length < META.pantheonSlotsUnlocked) META.pantheonSlots.push(null);
   if (typeof META.pantheonOpened !== 'boolean') META.pantheonOpened = false;
+  ensureSpellbook();
   if (!META.foundersUsed || typeof META.foundersUsed !== 'object') META.foundersUsed = {};
   if (typeof META.rings !== 'number') META.rings = 0;
   if (typeof META.treesCut !== 'number') META.treesCut = 0;
@@ -1676,7 +1756,7 @@ const forcedOn    = () => !!S.forced && forcedOwned();
 const forcedMult  = () => forcedOn() ? 3 : 1;
 // A transient production buff is live: a bloom (incl. the held-leaf Channel surge)
 // or Forced Bloom. Used to decide whether the current income counts as "base".
-const buffActive  = () => forcedOn() || S.channeling || activeBlooms().length > 0;
+const buffActive  = () => forcedOn() || S.channeling || activeBlooms().length > 0 || spellProductionActive();
 // Highest base (buff-free) resin/sec ever reached on the current tree. Every
 // "minutes of resin" cost (Freeze, Blueprint copy) is priced off this single
 // figure, so a momentary bloom/channel spike or the live rate can never inflate
@@ -1725,7 +1805,7 @@ const sunMult       = () => Math.pow(1.3, rootLvl('sunlight'));
 const capillaryMult = () => Math.pow(1.2, rootLvl('capillary'));
 const reservoirMult = () => Math.pow(1.3, rootLvl('reservoir'));
 const myceliumMult = () => Math.pow(1.2, rootLvl('mycelium'));
-const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * myceliumMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
+const leafRate = n => CFG.leafBase * Math.pow(CFG.leafGrowth, n.lvl - 1) * soilMult() * sunMult() * myceliumMult() * metaProdMult() * polishMult(n) * bloomMult() * pesticideMult() * pantheonLeafMult() * hardLeafMult() * spellLeafMult() * channelMult(n) * Math.pow(1.5, rootLvl('nimbus'));
 // Each leaf grows gold leaves on its own timer, so without a brake the tree-wide
 // rate would climb with every leaf. Stretch each leaf's timer with the leaf
 // count (L^1.08): the aggregate appearance rate is then ~L / L^1.08 = L^-0.08,
@@ -1783,7 +1863,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -1988,7 +2068,7 @@ const pruneGainRaw = n => {
     total += lifeAmber(nodeAmberLife(cur));
     for (const id of cur.children) stack.push(N(id));
   }
-  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult();
+  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult() * (S.spells ? S.spells.amber : 1);
 };
 // Amber is integer but cuts are fractional — carry the remainder between cuts so
 // small branches don't round their sub-1 payouts away.
@@ -2035,7 +2115,7 @@ function newGame(creditStarting = true) {
              vigor: 0, verdance: 0, canopy: 0, surge: 0,
              cascade: 0, reservoir: 0, capillary: 0, resonance: 0, sunlight: 0 },
     graftsBought: 0, blueprint: null,
-    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, treeResin: 0, peakBaseS: 0, peakBaseR: 0, peakBuffS: 0, peakBuffR: 0, goldClicked: 0, amberCarry: 0, treePlayMs: 0, treeOfflineMs: 0, blooms: [], pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
+    ms: {}, incomeS: 0, incomeR: 0, ema: { s: 0, r: 0 }, waste: 0, wasteSap: 0, wasteResin: 0, maxLife: 0, treeSap: 0, treeResin: 0, peakBaseS: 0, peakBaseR: 0, peakBuffS: 0, peakBuffR: 0, goldClicked: 0, amberCarry: 0, treePlayMs: 0, treeOfflineMs: 0, blooms: [], spells: freshSpells(), pesticideOn: false, frozen: false, forced: false, dismissedHints: [], touch: { charge: 0 }, channeling: false, channelNode: null };
   // grove plant-time bonuses
   const nest = metaLvl('nest');
   if (nest) { S.sap = CFG.startSap * (1 + nest); S.amber = 3 * nest; }
@@ -2147,27 +2227,13 @@ function computeFlow(dt) {
     let s = 0, r = 0, bufferRetention = 1;
     if (n.type === 'leaf') {
       s = leafRate(n);
-      if (dt > 0 && !n.giftGain && SP().gold > 0 && !frozenOn() && !forcedOn()) {
+      if (dt > 0 && !n.giftGain && SP().gold > 0 && !frozenOn() && !forcedOn() && !(S.spells.goldblock > 0)) {
         n.giftT -= dt;
         if (n.giftT <= 0 && goldShown >= MAX_GOLD_ON_SCREEN) {
           n.giftT = 0; // ripe but no room — wait here until a slot frees
         } else if (n.giftT <= 0) {
           goldShown++;
-          n.giftAge = 0;
-          n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
-          n.giftBig = Math.random() < 0.09 + 0.03 * metaLvl('gildedcanopy');
-          if (n.giftBig) n.giftLife *= 1.6;
-          let goldBase = (S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.01 + leafRate(n) * 7;
-          // Late game these income terms run away; leave early/mid payouts intact
-          // but count only 80% of the base above a knee so gold leaves scale a
-          // little softer once income is large.
-          if (goldBase > 1000) goldBase = 1000 + (goldBase - 1000) * 0.8;
-          let gain = Math.round(goldBase * SP().gold * pantheonGoldPayout() * metaGoldMult());
-          // Cap any single gold-leaf windfall at 30 minutes of current sap income.
-          const giftCap = Math.round((S.ema && S.ema.s ? S.ema.s : 0) * 1800);
-          if (giftCap > 0) gain = Math.min(gain, giftCap);
-          n.giftGain = Math.max(6, gain);
-          n.giftA = jitter(n.id) * TAU;
+          ripenGoldLeaf(n);
         }
       }
     }
@@ -2604,6 +2670,7 @@ function doPrune(id) { const __n = N(id); if (__n && __n.locked) return;
   S.pristine = false;
   const raw = pruneGainRaw(n) + (S.amberCarry || 0);
   const gain = Math.floor(raw);
+  S.spells.amber = 1; // Amber Echo is consumed only by an actual prune.
   S.amberCarry = raw - gain;                 // keep the fraction for the next cut
   const p = N(n.parent);
 const c = edgeCurve(n);
@@ -2701,7 +2768,7 @@ function witherAway(id) {
 // True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
 // Back) — wither pauses then so you aren't penalized for time spent in a menu.
 function overlayBlocksTree() {
-  return ['grove', 'pantheon', 'expeditions', 'intro', 'welcome'].some(id => {
+  return ['grove', 'pantheon', 'expeditions', 'spellbook', 'intro', 'welcome'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('open');
   });
@@ -2718,7 +2785,7 @@ function touchNode(id) {
 // continuously attended. Paused while the player is idle/away so stepping out
 // doesn't quietly kill the tree.
 function updateWither(dt, idle) {
-  if (!hardMode() || idle || dt <= 0 || overlayBlocksTree()) return;
+  if (!hardMode() || idle || dt <= 0 || overlayBlocksTree() || spellWardOn()) return;
   const grace = witherGrace(), wtime = witherTime(), guardHover = hoverGuardOwned();
   for (const id in S.nodes) {
     const n = N(id);
@@ -2989,7 +3056,7 @@ function edgeHit(n, mx, my) {
 let wasteParts = [], floaties = [], sparkParts = [], critters = [];
 let critterSpawnT = 20 + Math.random() * 20;
 let cutAnim = null;
-const critterSlowMult = id => critters.some(c => c.nodeId === id && c.state === 'sitting') ? 0.35 : 1;
+const critterSlowMult = id => !spellWardOn() && critters.some(c => c.nodeId === id && c.state === 'sitting') ? 0.35 : 1;
 function spawnFloaty(x, y, txt, color) {
   if (floaties.length > 40) floaties.shift();
   floaties.push({ x, y, txt, color, life: 1.8 });
@@ -3110,6 +3177,7 @@ function updateDrops(dt) {
 
 // ---------- critters: birds and insects that land on nodes and slow them ----------
 function spawnCritter() {
+  if (spellWardOn()) return;
   if (critters.length >= critterCap()) return;
   const ids = Object.keys(S.nodes).filter(id => {
     const n = N(id);
@@ -3275,6 +3343,7 @@ function dropBug(x, y, escaped = false) {
 }
 function updateCritters(dt) {
   critterSpawnT -= dt;
+  if (spellWardOn()) { critterSpawnT = Math.max(critterSpawnT, 5); }
   if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); return; }
   if (critterSpawnT <= 0) {
     spawnCritter();
@@ -3303,7 +3372,7 @@ function updateCritters(dt) {
         c.x = node.x; c.y = node.y;
         c.t += dt;
         // Blight mode: a bug camped on a leaf eats it once its timer runs out.
-        if (hardMode() && c.type === 'bug' && node.type === 'leaf') {
+        if (hardMode() && !spellWardOn() && c.type === 'bug' && node.type === 'leaf') {
           // chew ramps 0→1 across the warning window, driving both the gnaw
           // animation (drawCritters) and the leaf shrink/bite marks (draw).
           const chew = clamp((c.t - (BUG_EAT_TIME - BUG_EAT_WARN)) / BUG_EAT_WARN, 0, 1);
@@ -4617,6 +4686,7 @@ function refreshHud() {
 const KEY = 'sapling-save-v1';
 function save() {
   if (window.__SAPLING_WIPED) return;
+  tickSpellMana();
   const prev = localStorage.getItem(KEY);
   if (prev) {
     localStorage.setItem(KEY + '-bak', prev);
@@ -4632,7 +4702,7 @@ function save() {
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
-    nextId: S.nextId, rootId: S.rootId, counts: S.counts, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
+    nextId: S.nextId, rootId: S.rootId, counts: S.counts, spells: S.spells, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, peakBuffS: S.peakBuffS || 0, peakBuffR: S.peakBuffR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, nodes }));
   // Lifetime earnings and production change even when no new peak is reached.
   saveMeta(); peakMetaDirty = false;
@@ -4645,16 +4715,28 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 // reload (laptop asleep, tab backgrounded) — those paths never re-run load(),
 // so without this the tree earned nothing while the JS clock was frozen.
 function creditOffline(awaySecRaw) {
+  tickSpellMana();
   const elapsed = Math.max(0, awaySecRaw);
   const away = Math.min(elapsed, offlineCapSecNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
-  if (away <= 30) { advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
+  if (away <= 30) { advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
-  computeFlow(0); // capacitors pass through for the offline estimate
   const rate = offlineRateNow();
-  accrueChallengeWindow(liveChallengeNow() - away * 1000, liveChallengeNow(), {sap:S.incomeS * rate, leaf_sap:S.leafSapRate * rate, resin:S.incomeR * rate, refinery_resin:S.refineryResinRate * rate}, true);
-  const sap = S.incomeS * away * rate, resin = S.incomeR * away * rate;
+  let sap = 0, resin = 0, remaining = away;
+  // Split offline income at spell expirations so a 30-second surge cannot pay
+  // boosted production for an entire night. Existing bloom behavior is preserved.
+  while (remaining > 0) {
+    computeFlow(0);
+    const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
+    const segment = Math.min(remaining, ...timers);
+    const end = liveChallengeNow() - remaining * 1000 + segment * 1000;
+    accrueChallengeWindow(end - segment * 1000, end, {sap:S.incomeS * rate, leaf_sap:S.leafSapRate * rate, resin:S.incomeR * rate, refinery_resin:S.refineryResinRate * rate}, true);
+    sap += S.incomeS * segment * rate; resin += S.incomeR * segment * rate;
+    advanceSpellTimers(segment); remaining = Math.max(0, remaining - segment);
+  }
+  advanceSpellTimers(elapsed - away);
+  computeFlow(0);
   recordProduction(sap, resin);
   if (sap + resin > 0) {
     S.sap += sap;
@@ -4704,7 +4786,7 @@ function load() {
   S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, blooms: Array.isArray(d.blooms)
     ? d.blooms.filter(x => x && BLOOMS[x.kind]).map(x => ({ kind: x.kind, t: x.t || 0 }))
     : (d.bloomT > 0 ? [{ kind: d.bloomKind || 'bloom3', t: d.bloomT }] : []),
-    pesticideOn: !!d.pesticideOn, frozen: !!d.frozen, forced: !!d.forced, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
+    spells: hydrateSpells(d.spells), pesticideOn: !!d.pesticideOn, frozen: !!d.frozen, forced: !!d.forced, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
     nodes: {}, nextId: d.nextId, rootId: d.rootId,
     counts: { leaf: 0, amp: 0, ref: 0, cap: 0, ...d.counts },
     roots: { amplify: 0, refine: 0, capacitance: 0, grafting: 0, soil: 0, wood: 0, shears: 0, heartwood: 0,
@@ -5563,6 +5645,7 @@ function buyGrove(k, n) {
   const g = GROVE[k];
   let bought = 0;
   while (bought < n && metaLvl(k) < g.max) {
+    tickSpellMana();
     const c = costGrove(k);
     if (META.rings < c) break;
     META.rings -= c;
@@ -5579,6 +5662,7 @@ function buyGrove(k, n) {
     groveJustBought = k;
     sfx('buy'); saveMeta(); replantIfPristine();
     if (k === 'critterhub') renderCritterHub();
+    refreshMiniDock();
     toast(`${groveGlyph(k)} ${groveName(k)} ${metaLvl(k) >= g.max ? 'fully grown' : 'lv ' + metaLvl(k)} — ${bought > 1 ? `bought ${bought} levels` : 'bought'}`);
     renderGrove();
     showGrovePopover(k);
@@ -6287,6 +6371,206 @@ cheat?.addEventListener('input', () => {
   if (checkCheat(cheat.value)) cheat.value = '';
 });
 
+// ---------- spellbook: persistent mana, run-local spells ----------
+const SPELLS = {
+  sunlight: { name:'Call Sunlight', icon:'☀️', cost:20, study:0, good:'Ripen one gold leaf immediately.', bad:'Delay unripe gold leaves by 60 seconds.' },
+  sapdraw: { name:'Sap Draw', icon:'💧', cost:25, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
+  surge: { name:'Sap Surge', icon:'🌿', cost:35, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
+  roots: { name:'Deepen Roots', icon:'🌱', cost:30, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
+  growth: { name:'Wild Growth', icon:'🍃', cost:45, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
+  amber: { name:'Amber Echo', icon:'🧡', cost:45, study:1, good:'The next prune gives ×1.5 amber.', bad:'The next prune gives half amber.' },
+  ward: { name:'Bark Ward', icon:'🛡️', cost:50, study:1, good:'Protect the whole tree from critters and Blight for five minutes. Critters on the tree leave.', bad:'Immediately wither one random terminal node. The Core is immune.' },
+  resindraw: { name:'Resin Draw', icon:'🫙', cost:40, study:2, good:'Gain five minutes of current resin production.', bad:'Lose up to five minutes of resin, capped at 10% of your bank.' },
+  canopy: { name:'Golden Canopy', icon:'🌟', cost:65, study:2, good:'Ripen up to four gold leaves immediately (six on screen maximum).', bad:'Suppress new gold leaves for three minutes.' },
+  stillwood: { name:'Stillwood', icon:'⌛', cost:55, study:2, good:'Extend active positive blooms and timed spells by 25% (up to 60 seconds each).', bad:'Shorten those effects by 25%.' },
+  transmute: { name:'Transmutation', icon:'⚗️', cost:30, study:2, good:'Spend one minute of sap production for two minutes of resin production.', bad:'Spend the same sap for only 30 seconds of resin production.' },
+  greatsurge: { name:'Great Sap Surge', icon:'🌳', cost:80, study:3, good:'×2 leaf production for three minutes. Earlier spells remain available.', bad:'Half leaf production for three minutes.' },
+};
+const SPELL_TIMERS = ['surge','greatsurge','drought','rootward','rootblight','ward','goldblock'];
+const freshSpells = () => ({ surge:0, greatsurge:0, drought:0, rootward:0, rootblight:0, ward:0, goldblock:0, amber:1 });
+function hydrateSpells(data) {
+  const result = freshSpells();
+  for (const key of SPELL_TIMERS) if (data && Number.isFinite(data[key])) result[key] = clamp(data[key], 0, 3600);
+  if (data && [0.5,1,1.5].includes(data.amber)) result.amber = data.amber;
+  return result;
+}
+const spellbookOwned = () => metaLvl('spellbook') > 0;
+const manaCap = () => 100 + 10 * metaLvl('manawell');
+const manaRate = () => manaCap() * (1 + 0.15 * metaLvl('manaspring')) / 1200;
+function ensureSpellbook() {
+  if (!META.spellbook || typeof META.spellbook !== 'object') META.spellbook = {};
+  const b = META.spellbook;
+  b.mana = Number.isFinite(b.mana) ? clamp(b.mana, 0, manaCap()) : 100;
+  if (!Number.isFinite(b.lastTickAt)) b.lastTickAt = Date.now();
+  b.casts = Number.isFinite(b.casts) ? Math.max(0, b.casts) : 0;
+}
+function tickSpellMana(now = Date.now()) {
+  ensureSpellbook();
+  const b = META.spellbook;
+  const elapsed = Math.max(0, (now - b.lastTickAt) / 1000);
+  b.lastTickAt = now;
+  if (spellbookOwned() && !frozenOn()) b.mana = Math.min(manaCap(), b.mana + elapsed * manaRate());
+}
+function advanceSpellTimers(dt) {
+  if (frozenOn()) return;
+  for (const k of SPELL_TIMERS) S.spells[k] = Math.max(0, S.spells[k] - dt);
+}
+const spellWardOn = () => !!(S && S.spells && S.spells.ward > 0);
+const spellLeafMult = () => S.spells ? ((S.spells.surge > 0 || S.spells.greatsurge > 0) ? 2 : 1) * (S.spells.drought > 0 ? 0.5 : 1) : 1;
+const spellEdgeMult = () => S.spells ? (S.spells.rootward > 0 ? 1.5 : 1) * (S.spells.rootblight > 0 ? 0.5 : 1) : 1;
+const spellProductionActive = () => !!(S.spells && ['surge','greatsurge','drought','rootward','rootblight'].some(k => S.spells[k] > 0));
+function ripenGoldLeaf(n) {
+  n.giftAge = 0;
+  n.giftLife = clamp(6 + n.lvl * 0.7, 7, 12) * (1 + 0.18 * metaLvl('lingering'));
+  n.giftBig = Math.random() < 0.09 + 0.03 * metaLvl('gildedcanopy');
+  if (n.giftBig) n.giftLife *= 1.6;
+  let base = (S.ema && S.ema.s ? S.ema.s : 0) * 8 + S.sap * 0.01 + leafRate(n) * 7;
+  if (base > 1000) base = 1000 + (base - 1000) * 0.8;
+  let gain = Math.round(base * SP().gold * pantheonGoldPayout() * metaGoldMult());
+  const cap = Math.round((S.ema && S.ema.s ? S.ema.s : 0) * 1800);
+  if (cap > 0) gain = Math.min(gain, cap);
+  n.giftGain = Math.max(6, gain);
+  n.giftA = jitter(n.id) * TAU;
+}
+function spellTargets() { return Object.values(S.nodes).filter(n => n.type === 'leaf' && !n.giftGain); }
+function spellReason(key) {
+  const sp = SPELLS[key];
+  if (!spellbookOwned()) return 'Unlock the Spellbook in the Grove';
+  if (metaLvl('spellstudy') < sp.study) return `Requires Spell Study ${sp.study}`;
+  if (frozenOn()) return 'Thaw your tree to cast';
+  if (cutAnim) return 'Wait until the tree is planted';
+  if (key === 'sunlight' || key === 'canopy') {
+    if (SP().gold <= 0) return 'This species cannot bear gold leaves';
+    if (forcedOn()) return 'Turn off Forced Bloom to ripen gold leaves';
+    if (S.spells.goldblock > 0) return 'Gold leaves are suppressed';
+    if (goldOnScreen() >= MAX_GOLD_ON_SCREEN) return 'Harvest a gold leaf first';
+    if (!spellTargets().length) return 'Grow an unripe leaf first';
+  }
+  if ((key === 'surge' || key === 'greatsurge') && !S.counts.leaf) return 'Grow a leaf first';
+  if (key === 'sapdraw' && S.incomeS <= 0) return 'Requires sap production';
+  if (key === 'resindraw' && S.incomeR <= 0) return 'Requires resin production';
+  if (key === 'growth') {
+    const n = N(selected);
+    if (!n || n.type !== 'leaf') return 'Select a leaf before opening the book';
+    if (n.locked) return 'Unlock the selected leaf first';
+    if (n.lvl >= lvlMax(n)) return 'Selected leaf is already at maximum level';
+  }
+  if (key === 'ward' && !Object.values(S.nodes).some(n => n.parent != null && !n.children.length)) return 'Grow a node first';
+  if (key === 'amber' && S.spells.amber !== 1) return 'Prune to use your pending Amber Echo';
+  if (key === 'amber' && !Object.values(S.nodes).some(n => n.parent != null && !n.locked)) return 'Grow a prunable node first';
+  if (key === 'roots' && Object.keys(S.nodes).length < 2) return 'Grow a branch first';
+  if (key === 'stillwood' && !positiveSpellEffects().length && !activeBlooms().some(x => x.kind !== 'channel')) return 'Requires an active positive effect';
+  if (key === 'transmute') {
+    if (S.incomeS <= 0 || S.incomeR <= 0) return 'Requires sap and resin production';
+    if (S.sap < S.incomeS * 60) return `Needs ${fmt(S.incomeS * 60)} sap`;
+  }
+  return '';
+}
+function positiveSpellEffects() { return ['surge','greatsurge','rootward','ward'].filter(k => S.spells[k] > 0); }
+function castSpell(key) {
+  const sp = SPELLS[key];
+  if (!sp) return;
+  tickSpellMana(); computeFlow(0);
+  const reason = spellReason(key);
+  if (reason || META.spellbook.mana + 1e-8 < sp.cost) { toast(reason || 'Not enough mana'); return; }
+  META.spellbook.mana = Math.max(0, META.spellbook.mana - sp.cost);
+  META.spellbook.casts++;
+  S.pristine = false; // Casting commits this tree; Grove purchases must not replant away its effects.
+  const failed = Math.random() < 0.15;
+  let outcome = '';
+  const effects = S.spells;
+  if (key === 'sunlight' || key === 'canopy') {
+    if (failed) {
+      if (key === 'canopy') effects.goldblock = Math.max(effects.goldblock,180);
+      else for (const n of spellTargets()) n.giftT += 60;
+    } else {
+      const count = Math.min(key === 'canopy' ? 4 : 1, MAX_GOLD_ON_SCREEN - goldOnScreen());
+      const leaves = spellTargets().sort((a,b) => a.giftT - b.giftT).slice(0,count);
+      leaves.forEach(ripenGoldLeaf);
+      outcome = `${leaves.length} gold leaf${leaves.length === 1 ? '' : 's'} ripened.`;
+    }
+  } else if (key === 'sapdraw' || key === 'resindraw') {
+    const resource = key === 'sapdraw' ? 'sap' : 'resin';
+    const amount = failed ? Math.min(S[resource] * 0.1, (resource === 'sap' ? S.incomeS : S.incomeR) * 300) : (resource === 'sap' ? S.incomeS : S.incomeR) * 300;
+    S[resource] += failed ? -amount : amount;
+    if (!failed) recordEarned(resource === 'sap' ? amount : 0, resource === 'resin' ? amount : 0);
+    outcome = `${failed ? 'Lost' : 'Gained'} ${fmt(amount)} ${resource}.`;
+  } else if (key === 'surge' || key === 'greatsurge') {
+    const duration = key === 'surge' ? 30 : 180;
+    const effect = failed ? 'drought' : key;
+    effects[effect] = Math.max(effects[effect],duration);
+  } else if (key === 'roots') effects[failed ? 'rootblight' : 'rootward'] = 180;
+  else if (key === 'growth') {
+    const n = N(selected);
+    n.lvl = Math.max(1,n.lvl + (failed ? -1 : 1)); S.pristine = false; pulseNode(n,1,0.8);
+  } else if (key === 'amber') effects.amber = failed ? 0.5 : 1.5;
+  else if (key === 'ward') {
+    if (failed) {
+      const nodes = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length);
+      witherAway(nodes[Math.floor(Math.random() * nodes.length)].id);
+    } else {
+      effects.ward = Math.max(effects.ward,300);
+      for (const c of critters) if (c.state !== 'carried') { c.state = 'leaving'; c.leaveX = c.x + 150; c.leaveY = c.y - 250; }
+      for (const n of Object.values(S.nodes)) { n.idle = 0; n.wither = 0; }
+    }
+  } else if (key === 'stillwood') {
+    for (const x of activeBlooms()) if (x.kind !== 'channel') x.t = failed ? x.t * 0.75 : x.t + Math.min(60,x.t * 0.25);
+    for (const k of positiveSpellEffects()) effects[k] = failed ? effects[k] * 0.75 : effects[k] + Math.min(60,effects[k] * 0.25);
+  } else if (key === 'transmute') {
+    const cost = S.incomeS * 60, gain = S.incomeR * (failed ? 30 : 120);
+    S.sap -= cost; S.resin += gain; recordEarned(0,gain);
+    outcome = `Spent ${fmt(cost)} sap for ${fmt(gain)} resin.`;
+  }
+  recordHighestBalances(); computeFlow(0); buildPanel();
+  const result = `${sp.icon} ${sp.name}${failed ? ' backfired!' : ' succeeded!'} ${outcome || (failed ? sp.bad : sp.good)}`;
+  document.getElementById('spellResult').textContent = result;
+  toast(result); sfx(failed ? 'wither' : 'buy'); save(); renderSpellbook();
+}
+const spellPanel = document.getElementById('spellbook');
+const spellBtn = document.getElementById('spellbookbtn');
+function renderSpellbook() {
+  ensureSpellbook();
+  const mana = META.spellbook.mana;
+  document.getElementById('spellMana').textContent = `${mana.toFixed(1)} / ${manaCap()} mana · ${frozenOn() ? 'Frozen' : mana >= manaCap() ? 'Full' : `Full in ${fmtAcornTimer((manaCap()-mana)/manaRate()*1000)}`}`;
+  const meter = document.getElementById('spellMeter'); meter.max = manaCap(); meter.value = mana;
+  const labels = {surge:'Sap Surge ×2',greatsurge:'Great Sap Surge ×2',drought:'Sap drought ×0.5',rootward:'Capacity ×1.5',rootblight:'Capacity ×0.5',ward:'Whole-tree Bark Ward',goldblock:'Gold leaves suppressed'};
+  const active = SPELL_TIMERS.filter(k => S.spells[k] > 0).map(k => `${labels[k]} · ${fmtAcornTimer(S.spells[k]*1000)}`);
+  if (S.spells.amber !== 1) active.push(`Next prune: ×${S.spells.amber} amber`);
+  document.getElementById('spellEffects').textContent = active.join(' · ') || 'No active spells. Surges overlap at ×2; recasting refreshes duration.';
+  // Build cards only when study changes; update buttons without moving keyboard focus.
+  const grid = document.getElementById('spellCards');
+  const study = metaLvl('spellstudy');
+  if (grid.dataset.study !== String(study)) {
+    grid.dataset.study = study;
+    grid.innerHTML = Object.entries(SPELLS).map(([k,sp]) => `<section class="spellcard ${study < sp.study ? 'locked' : ''}"><h3>${sp.icon} ${sp.name}</h3><p class="spellcost">✦ ${sp.cost} mana</p><p>${sp.good}</p><p class="spellrisk"><b>15% backfire:</b> ${sp.bad}</p>${study < sp.study ? `<p class="spellunlock">Unlock: Spell Study ${sp.study} in the Grove</p>` : ''}<button type="button" data-spell="${k}"></button></section>`).join('');
+  }
+  for (const button of grid.querySelectorAll('[data-spell]')) {
+    const sp = SPELLS[button.dataset.spell], reason = spellReason(button.dataset.spell);
+    button.disabled = !!reason || mana + 1e-8 < sp.cost;
+    const wait = mana < sp.cost ? fmtAcornTimer((sp.cost - mana)/manaRate()*1000) : '';
+    button.textContent = reason || `Cast · ${sp.cost} mana${wait ? ` · ready in ${wait}` : ''}`;
+  }
+}
+spellBtn.addEventListener('click', () => {
+  if (!spellbookOwned()) return;
+  tickSpellMana(); renderSpellbook(); spellPanel.classList.add('open'); document.getElementById('spellClose').focus();
+});
+function closeSpellbook() { spellPanel.classList.remove('open'); spellBtn.focus(); }
+spellPanel.addEventListener('click', e => {
+  if (e.target === spellPanel || e.target.closest('#spellClose')) { closeSpellbook(); return; }
+  const button = e.target.closest('[data-spell]');
+  if (button) castSpell(button.dataset.spell);
+});
+spellPanel.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeSpellbook(); }
+  if (e.key === 'Tab') {
+    const buttons = [...spellPanel.querySelectorAll('button:not(:disabled)')];
+    const first = buttons[0], last = buttons[buttons.length-1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
 // ---------- pantheon minigame ----------
 const pantheon = document.getElementById('pantheon');
 function pantheonAvailable() {
@@ -6374,13 +6658,13 @@ const EXPEDITION_TYPES = [
   { name:'Rare Canopy', critters:2, sap:[2,4], resin:[0,0], ring:false, acorn:true },
 ];
 function expeditionBaseRates() {
-  const blooms = S.blooms, forced = S.forced, channeling = S.channeling;
+  const blooms = S.blooms, forced = S.forced, channeling = S.channeling, spells = S.spells;
   try {
-    S.blooms = []; S.forced = false; S.channeling = false;
+    S.blooms = []; S.forced = false; S.channeling = false; S.spells = freshSpells();
     computeFlow(0);
     return { sap: Math.max(0, S.incomeS), resin: Math.max(0, S.incomeR) };
   } finally {
-    S.blooms = blooms; S.forced = forced; S.channeling = channeling;
+    S.blooms = blooms; S.forced = forced; S.channeling = channeling; S.spells = spells;
     computeFlow(0);
   }
 }
@@ -6525,7 +6809,13 @@ function refreshMiniDock() {
   const showExpeditions = metaLvl('critterhub') > 0;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
-  miniDock.style.display = showPantheon || showExpeditions ? '' : 'none';
+  const showSpells = spellbookOwned();
+  spellBtn.style.display = showSpells ? '' : 'none';
+  if (showSpells) {
+    const active = SPELL_TIMERS.some(k => S.spells[k] > 0) || S.spells.amber !== 1;
+    spellBtn.textContent = `📖 Spellbook · ${Math.floor(META.spellbook.mana)}/${manaCap()}${active ? ' · active' : ''}`;
+  }
+  miniDock.style.display = showPantheon || showExpeditions || showSpells ? '' : 'none';
 }
 pantheonBtn?.addEventListener('click', tryOpenPantheon);
 pantheon?.addEventListener('click', e => {
@@ -6998,6 +7288,8 @@ function frame(now) {
     S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
     META.playMs = (META.playMs || 0) + dt * 1000;
     const time = now / 1000;
+    tickSpellMana();
+    advanceSpellTimers(dt);
     computeFlow(dt);
     // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
     // instead of full, matching the away mechanic so leaving the window open
@@ -7024,6 +7316,7 @@ function frame(now) {
     accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), {sap:S.incomeS * prod, leaf_sap:S.leafSapRate * prod, resin:S.incomeR * prod, refinery_resin:S.refineryResinRate * prod}, true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
       frame.eventHudAt = Date.now(); renderEventHud();
+      if (spellPanel.classList.contains('open')) renderSpellbook();
       if (expeditionPanel.classList.contains('open')) renderExpeditions();
     }
     const sapInc = S.incomeS * dt * prod, resinInc = S.incomeR * dt * prod;
