@@ -48,7 +48,7 @@
   #challengeList { display:grid; gap:8px; margin-top:12px; }
   .challenge-item { border:1px solid #2e3f31; border-radius:9px; padding:10px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
   .challenge-item p { margin:4px 0; color:#9db89f; font-size:12px; }
-  #achievementList { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:8px; }
+  #achievementList { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:8px; max-height:55vh; overflow-y:auto; overscroll-behavior:contain; padding-right:6px; }
   .achievement-item { display:flex; gap:10px; align-items:flex-start; border:1px solid #2e3f31; border-radius:9px; padding:10px; }
   .achievement-glyph { font-size:22px; line-height:1; }
   .achievement-item p { margin:4px 0 0; color:#9db89f; font-size:12px; }
