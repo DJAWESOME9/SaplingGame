@@ -1006,8 +1006,8 @@ const SPECIES = {
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
   spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
-  manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'vitality', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
-  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'vitality', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
+  manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellstudy', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
+  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellstudy', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
   // Tier 1 — always available after first cut.
   vitality:  { name:'Vitality',        glyph:'🌿', tier:1, parent:null,     max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
   girth:     { name:'Heartgirth',      glyph:'🪵', tier:1, parent:null,     max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
@@ -1025,9 +1025,9 @@ const GROVE = {
   // Tier-2 extensions
   slumber:   { name:'Slumber',         glyph:'😴', tier:2, parent:'endurance', max:4,  cost:l=>2+l,    desc:'+5% offline production rate per level' },
   sunray:    { name:'Sunray',          glyph:'🌞', tier:2, parent:'vitality',  max:5,  cost:l=>3+l,   desc:'Gold leaves ripen 10% sooner per level' },
-  omen:      { name:'Omen',            glyph:'👁️', tier:2, parent:'vitality',  max:1,  cost:_=>4,     desc:'Reveals the timer until each leaf produces its next gold leaf' },
+  omen:      { name:'Omen',            glyph:'👁️', tier:2, parent:'sunray',  max:1,  cost:_=>4,     desc:'Reveals the timer until each leaf produces its next gold leaf' },
   abacus:    { name:'Abacus',          glyph:'🧮', tier:2, parent:'endurance', max:1,  cost:_=>4,     desc:'Calculator: every purchase shows what % of your current bank it costs and roughly how long until you can afford it' },
-  stasis:    { name:'Stasis',          glyph:'❄️', tier:2, parent:'vitality',  max:1,  cost:_=>6,     desc:'Unlocks the Freeze toggle: pay ~10min of resin to halt all buff timers — blooms, surges, the Channel charge and gold-leaf ripening all hold in place until you thaw' },
+  stasis:    { name:'Stasis',          glyph:'❄️', tier:2, parent:'seasoned',  max:1,  cost:_=>6,     desc:'Unlocks the Freeze toggle: pay ~10min of resin to halt all buff timers — blooms, surges, the Channel charge and gold-leaf ripening all hold in place until you thaw' },
   patience:  { name:'Patience',        glyph:'🧘', tier:3, parent:'windfall',  max:4,  cost:l=>3+l*2, desc:'+10% offline production rate per level' },
   // Tier-3 deepenings
   bramble:   { name:'Bramble',         glyph:'🌵', tier:3, parent:'nest',      max:4,  cost:l=>4+l*2, desc:'Critters appear 25% less often per level' },
@@ -1049,7 +1049,7 @@ const GROVE = {
   // Extra mid-tier — fill out the tree
   crescent:  { name:'Crescent',        glyph:'🌙', tier:3, parent:'nest',       max:4, cost:l=>3+l*2, desc:'New trees start with +10 amber per level' },
   squirrelry:{ name:'Squirrelry',      glyph:'🐿️', tier:3, parent:'nest',       max:5, cost:l=>4+l*2, desc:'Acorns ripen 10% faster per level' },
-  bountiful: { name:'Bountiful',       glyph:'🌾', tier:3, parent:'vitality',   max:5, cost:l=>3+l*2, desc:'+10% resin yield per level' },
+  bountiful: { name:'Bountiful',       glyph:'🌾', tier:3, parent:'seasoned',   max:5, cost:l=>3+l*2, desc:'+10% resin yield per level' },
   // Tier 5 — endgame mythics, deliberately pricey
   worldtree: { name:'Worldtree',       glyph:'🌳', tier:5, parent:'ascendance', max:3, cost:l=>1800+l*1200, desc:'+50% to all leaf production per level' },
   eternity:  { name:'Eternity',        glyph:'⏳', tier:5, parent:'dreams',     max:1, cost:_=>5000,       desc:'Offline rate jumps to 100% (no cap)' },
@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-grove-branches', date:'October 7, 2026', title:'Grove upgrades branch into focused paths', notes:[
+    'Mana upgrades now grow from Spell Study, gold-leaf insight follows Sunray, and Stasis and Bountiful branch from Seasoned Leaves.'
+  ] },
   { id:'2026-10-07-roots-lines-under-nodes', date:'October 7, 2026', title:'Root lines sit beneath their nodes', notes:[
     'Connectors between root upgrades now draw underneath the root nodes.'
   ] },
