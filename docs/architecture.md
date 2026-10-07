@@ -76,6 +76,18 @@ When changing state fields, inspect both serialization and hydration, existing d
 
 ## Browser and deployment assumptions
 
+The separate `calculator/` folder contains a graphical TI-84 Plus CE TI-BASIC edition.
+`SAPLING.txt` is its source, `SAPLING.8xp` is the transferable program, and
+`build.py` optionally regenerates that file using Python's standard library. It
+draws a fixed tree with up to 13 nodes and computes leaf-to-Core sap/resin flow
+through amplifiers and refineries. Individual upgrades, pruning, and Roots are
+stored in the calculator's named list `SAPCE`; version-1 calculator saves migrate
+to version 2 with a `SABAK` backup. Its saves are independent of browser saves.
+Production advances
+using `startTmr`/`checkTmr` only while the calculator program runs. See
+[`calculator/README.md`](../calculator/README.md) for installation, controls,
+limits, calculator settings, and device verification status.
+
 - Modern browser APIs include canvas, `requestAnimationFrame`, pointer events, `localStorage`, visibility events, and Web Audio (with prefixed AudioContext fallback).
 - The local game can be opened directly as a file; the static site also loads from GitHub Pages.
 - `sethatubby.png` is referenced by a relative path in the HTML. Preserve that path relationship or update the reference if the asset moves.

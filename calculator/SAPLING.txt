@@ -1,0 +1,478 @@
+Full
+Float
+Real
+ClrHome
+If not(isClockOn)
+Then
+Disp "TURN THE CLOCK ON","USE CLOCKON IN CATALOG"
+Stop
+End
+SetUpEditor ʟSAPCE
+If dim(ʟSAPCE)=0
+{1,12,1,1}→ʟSAPCE
+If dim(ʟSAPCE)=4
+Then
+If ʟSAPCE(1)≠1
+Then
+Disp "SAVE VERSION UNSUPPORTED"
+Stop
+End
+ʟSAPCE(2)→S
+ʟSAPCE(3)→Z
+ʟSAPCE(4)→E
+If S<0 or S>1000000000 or Z<1 or Z>50 or Z≠int(Z) or E<1 or E>20 or E≠int(E)
+Then
+Disp "SAVE VALUES UNSUPPORTED"
+Stop
+End
+ʟSAPCE→ʟSABAK
+{4,1,0,0,0,0,0,0,0,0,0,0,0}→ʟSATYP
+seq(1,I,1,13)→ʟSALVL
+E→ʟSALVL(2)
+0→R
+0→H
+0→G
+1→Q
+Else
+If dim(ʟSAPCE)≠33
+Then
+Disp "SAVE SIZE UNSUPPORTED"
+Stop
+End
+If ʟSAPCE(1)≠2
+Then
+Disp "SAVE VERSION UNSUPPORTED"
+Stop
+End
+ʟSAPCE(2)→S
+ʟSAPCE(3)→R
+ʟSAPCE(4)→H
+ʟSAPCE(5)→G
+ʟSAPCE(6)→Q
+ʟSAPCE(7)→Z
+seq(ʟSAPCE(I+7),I,1,13)→ʟSATYP
+seq(ʟSAPCE(I+20),I,1,13)→ʟSALVL
+If S<0 or S>1000000000 or R<0 or R>1000000000 or H<0 or H>1000000000 or G<0 or G>10 or G≠int(G) or Q<1 or Q>13 or Q≠int(Q) or Z<1 or Z>50 or Z≠int(Z) or ʟSATYP(1)≠4
+Then
+Disp "SAVE VALUES UNSUPPORTED"
+Stop
+End
+For(I,2,13)
+If ʟSATYP(I)<0 or ʟSATYP(I)>3 or ʟSATYP(I)≠int(ʟSATYP(I)) or ʟSALVL(I)<1 or ʟSALVL(I)>20-10*(ʟSATYP(I)>1) or ʟSALVL(I)≠int(ʟSALVL(I))
+Then
+Disp "SAVE NODES UNSUPPORTED"
+Stop
+End
+If I>4 and ʟSATYP(I)>0
+Then
+int((I-5)/3)+2→P
+If ʟSATYP(P)≠2 and ʟSATYP(P)≠3
+Then
+Disp "SAVE BRANCH UNSUPPORTED"
+Stop
+End
+End
+End
+If ʟSATYP(Q)=0
+1→Q
+End
+{132,48,132,216,24,48,72,108,132,156,192,216,240}→ʟSAX
+{99,76,66,76,41,41,41,35,35,35,41,41,41}→ʟSAY
+Func
+FnOff
+PlotsOff
+AxesOff
+GridOff
+LabelOff
+ExprOff
+BackgroundOff
+0→Xmin
+264→Xmax
+0→Ymin
+164→Ymax
+TextColor(12)
+startTmr→T
+0→A
+0→K
+0→M
+0→J
+1→V
+1→F
+seq(0,I,1,13)→ʟSAFLW
+seq(0,I,1,13)→ʟSARFL
+If F
+Then
+seq(0,I,1,13)→ʟSAFLW
+seq(0,I,1,13)→ʟSARFL
+For(I,13,2,⁻1)
+If ʟSATYP(I)>0
+Then
+1→P
+If I>4
+int((I-5)/3)+2→P
+If ʟSATYP(I)=1
+Z*(1+.15*G)*1.4^(ʟSALVL(I)-1)→ʟSAFLW(I)
+If ʟSATYP(I)=2
+ʟSAFLW(I)*(2+.5*(ʟSALVL(I)-1))→ʟSAFLW(I)
+If ʟSATYP(I)=3
+Then
+ʟSARFL(I)+ʟSAFLW(I)/max(6,18-.9*(ʟSALVL(I)-1))→ʟSARFL(I)
+0→ʟSAFLW(I)
+End
+ʟSAFLW(P)+ʟSAFLW(I)→ʟSAFLW(P)
+ʟSARFL(P)+ʟSARFL(I)→ʟSARFL(P)
+End
+End
+round(8*1.35^sum(ʟSATYP=1),0)→C
+round(80*1.5^sum(ʟSATYP=2),0)→U
+round(150*1.5^sum(ʟSATYP=3),0)→W
+0→F
+End
+While K≠45
+checkTmr(T)→B
+If B<A
+B→A
+B-A→D
+If D>0
+Then
+min(1000000000,S+D*ʟSAFLW(1))→S
+min(1000000000,R+D*ʟSARFL(1))→R
+B→A
+augment(augment({2,S,R,H,G,Q,Z},ʟSATYP),ʟSALVL)→ʟSAPCE
+End
+getKey→K
+If K>0 and K≠83
+0→J
+If K=24 or K=26
+Then
+1→P
+If K=24
+0-1→P
+Repeat ʟSATYP(Q)>0
+Q+P→Q
+If Q<1
+13→Q
+If Q>13
+1→Q
+End
+1→V
+End
+If K=25
+Then
+If Q≤4
+Then
+1→Q
+Else
+int((Q-5)/3)+2→Q
+End
+1→V
+End
+If K=34 and Q≤4
+Then
+2→P
+4→E
+If Q>1
+Then
+3*Q-1→P
+3*Q+1→E
+End
+For(I,E,P,⁻1)
+If ʟSATYP(I)>0
+I→Q
+End
+1→V
+End
+If K=92 or K=93 or K=94
+Then
+K-91→E
+C→Y
+If E=2
+U→Y
+If E=3
+W→Y
+1→M
+If Q>4 or ʟSATYP(Q)=1
+Then
+2→M
+Else
+If Q>1 and E>1
+Then
+10→M
+Else
+2→P
+4→L
+If Q>1
+Then
+3*Q-1→P
+3*Q+1→L
+End
+0→O
+For(I,L,P,⁻1)
+If ʟSATYP(I)=0
+I→O
+End
+If O=0
+Then
+3→M
+Else
+If S≥Y
+Then
+S-Y→S
+E→ʟSATYP(O)
+1→ʟSALVL(O)
+O→Q
+4→M
+1→F
+End
+End
+End
+End
+1→V
+End
+If K=82
+Then
+1→M
+0→Y
+If ʟSATYP(Q)=1
+round(20*1.8^(ʟSALVL(Q)-1)*1.25^max(0,sum(ʟSATYP=1)-1),0)→Y
+If ʟSATYP(Q)=2
+round(80*2.8^(ʟSALVL(Q)-1)*1.5^max(0,sum(ʟSATYP=2)-1),0)→Y
+If ʟSATYP(Q)=3
+round(150*2.2^(ʟSALVL(Q)-1),0)→Y
+If Q=1 or ʟSALVL(Q)≥20-10*(ʟSATYP(Q)>1)
+Then
+5→M
+Else
+If S≥Y
+Then
+S-Y→S
+ʟSALVL(Q)+1→ʟSALVL(Q)
+4→M
+1→F
+End
+End
+1→V
+End
+If K=72
+Then
+11→M
+If ʟSATYP(Q)=3
+Then
+round(5*1.8^(ʟSALVL(Q)-1),0)→Y
+If ʟSALVL(Q)=10
+Then
+5→M
+Else
+If R≥Y
+Then
+R-Y→R
+ʟSALVL(Q)+1→ʟSALVL(Q)
+4→M
+1→F
+End
+End
+End
+1→V
+End
+If K=83 and Q=1
+Then
+5→M
+1→V
+End
+If K=83 and Q>1
+Then
+If J≠Q
+Then
+Q→J
+9→M
+Else
+ʟSALVL(Q)→Y
+0→ʟSATYP(Q)
+1→ʟSALVL(Q)
+If Q≤4
+Then
+For(I,3*Q-1,3*Q+1)
+If ʟSATYP(I)>0
+Y+ʟSALVL(I)→Y
+0→ʟSATYP(I)
+1→ʟSALVL(I)
+End
+End
+min(1000000000,H+max(1,int(Y/3)))→H
+1→Q
+0→J
+6→M
+1→F
+End
+1→V
+End
+If K=84
+Then
+7→M
+If G=10
+Then
+5→M
+Else
+If H≥5+3*G
+Then
+H-(5+3*G)→H
+G+1→G
+4→M
+1→F
+End
+End
+1→V
+End
+If K=102
+Then
+min(1000000000,S+1)→S
+8→M
+D+1→D
+End
+If F
+Then
+seq(0,I,1,13)→ʟSAFLW
+seq(0,I,1,13)→ʟSARFL
+For(I,13,2,⁻1)
+If ʟSATYP(I)>0
+Then
+1→P
+If I>4
+int((I-5)/3)+2→P
+If ʟSATYP(I)=1
+Z*(1+.15*G)*1.4^(ʟSALVL(I)-1)→ʟSAFLW(I)
+If ʟSATYP(I)=2
+ʟSAFLW(I)*(2+.5*(ʟSALVL(I)-1))→ʟSAFLW(I)
+If ʟSATYP(I)=3
+Then
+ʟSARFL(I)+ʟSAFLW(I)/max(6,18-.9*(ʟSALVL(I)-1))→ʟSARFL(I)
+0→ʟSAFLW(I)
+End
+ʟSAFLW(P)+ʟSAFLW(I)→ʟSAFLW(P)
+ʟSARFL(P)+ʟSARFL(I)→ʟSARFL(P)
+End
+End
+round(8*1.35^sum(ʟSATYP=1),0)→C
+round(80*1.5^sum(ʟSATYP=2),0)→U
+round(150*1.5^sum(ʟSATYP=3),0)→W
+0→F
+End
+If V
+Then
+ClrDraw
+Line(8,54,256,54,1,24)
+Line(132,54,132,65,1,16)
+For(I,2,13)
+If ʟSATYP(I)>0
+Then
+1→P
+If I>4
+int((I-5)/3)+2→P
+Line(ʟSAX(P),164-ʟSAY(P),ʟSAX(I),164-ʟSAY(I),1,16)
+End
+End
+For(I,1,13)
+If ʟSATYP(I)>0
+Then
+ʟSAX(I)→X
+164-ʟSAY(I)→Y
+14→O
+If ʟSATYP(I)=2
+13→O
+If ʟSATYP(I)=3
+15→O
+If I=1
+19→O
+If ʟSATYP(I)=2
+Then
+Line(X-5,Y-5,X+5,Y-5,1,O)
+Line(X+5,Y-5,X+5,Y+5,1,O)
+Line(X+5,Y+5,X-5,Y+5,1,O)
+Line(X-5,Y+5,X-5,Y-5,1,O)
+Else
+Line(X-6,Y,X,Y+7,1,O)
+Line(X,Y+7,X+6,Y,1,O)
+Line(X+6,Y,X,Y-7,1,O)
+Line(X,Y-7,X-6,Y,1,O)
+End
+TextColor(O)
+If I=1
+Text(ʟSAY(I)-3,ʟSAX(I)-2,"C")
+If ʟSATYP(I)=1
+Text(ʟSAY(I)-3,ʟSAX(I)-2,"L")
+If ʟSATYP(I)=2
+Text(ʟSAY(I)-3,ʟSAX(I)-2,"A")
+If ʟSATYP(I)=3
+Text(ʟSAY(I)-3,ʟSAX(I)-2,"R")
+End
+End
+Circle(ʟSAX(Q),164-ʟSAY(Q),10,10,1)
+TextColor(12)
+Text(114,2,"NODE ",Q," ")
+If Q=1
+Text(114,50,"CORE - ROOT BONUS ",15*G,"%")
+If ʟSATYP(Q)=1
+Text(114,50,"LEAF LEVEL ",ʟSALVL(Q))
+If ʟSATYP(Q)=2
+Text(114,50,"AMP LEVEL ",ʟSALVL(Q))
+If ʟSATYP(Q)=3
+Text(114,50,"REF LV ",ʟSALVL(Q)," 7 POLISH ",round(5*1.8^(ʟSALVL(Q)-1),0)," RES")
+Text(124,2,"1 LEAF ",C)
+Text(124,90,"2 AMP ",U)
+Text(124,177,"3 REF ",W)
+0→Y
+If ʟSATYP(Q)=1
+round(20*1.8^(ʟSALVL(Q)-1)*1.25^max(0,sum(ʟSATYP=1)-1),0)→Y
+If ʟSATYP(Q)=2
+round(80*2.8^(ʟSALVL(Q)-1)*1.5^max(0,sum(ʟSATYP=2)-1),0)→Y
+If ʟSATYP(Q)=3
+round(150*2.2^(ʟSALVL(Q)-1),0)→Y
+Text(134,2,"4 UP ",Y)
+Text(134,90,"5 PRUNE")
+Text(134,177,"6 ROOT ",5+3*G)
+If Q=1 or ʟSALVL(Q)≥20-10*(ʟSATYP(Q)>1)
+Text(134,2,"4 UP MAX")
+If G=10
+Text(134,177,"6 ROOT MAX")
+0→V
+D+1→D
+End
+If D>0
+Then
+TextColor(12)
+Text(0,2,"SAP ",int(S),"       ")
+Text(0,140,"RES ",int(R),"       ")
+Text(10,2,"SAP/S ",round(ʟSAFLW(1),1),"       ")
+Text(10,140,"RES/S ",round(ʟSARFL(1),1),"       ")
+Text(20,2,"AMBER ",H,"     ROOT ",G,"       ")
+Text(144,2,"                                            ")
+If M=0
+Text(144,2,"ARROWS SELECT - 0 HARVEST - CLEAR QUIT")
+If M=1
+Text(144,2,"NEED MORE SAP")
+If M=2
+Text(144,2,"GROW FROM CORE, AMP OR REFINERY")
+If M=3
+Text(144,2,"THIS BRANCH HAS THREE CHILDREN")
+If M=4
+Text(144,2,"PURCHASED - ARROWS SELECT")
+If M=5
+Text(144,2,"MAX LEVEL OR SELECT A DIFFERENT NODE")
+If M=6
+Text(144,2,"BRANCH PRUNED INTO AMBER")
+If M=7
+Text(144,2,"ROOTS NEED MORE AMBER")
+If M=8
+Text(144,2,"HARVESTED +1 SAP")
+If M=9
+Text(144,2,"PRESS 5 AGAIN TO PRUNE THIS BRANCH")
+If M=10
+Text(144,2,"AMP AND REF NEED A CORE SLOT")
+If M=11
+Text(144,2,"SELECT REFINERY OR EARN MORE RESIN")
+augment(augment({2,S,R,H,G,Q,Z},ʟSATYP),ʟSALVL)→ʟSAPCE
+End
+End
+augment(augment({2,S,R,H,G,Q,Z},ʟSATYP),ʟSALVL)→ʟSAPCE
+ClrHome
+Disp "SAPLING SAVED","RUN AGAIN TO CONTINUE"

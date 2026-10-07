@@ -1132,6 +1132,16 @@ const UPDATE_LOG = [
   { id:'2026-10-07-node-interactions-keep-critters', date:'October 7, 2026', title:'Other nodes no longer scare critters away', notes:[
     'Interacting with a node only affects critters sitting on that same node. Critters elsewhere stay put until you scare them directly or another game effect moves them.'
   ] },
+  { id:'2026-10-07-calculator-tree', date:'October 7, 2026', title:'A graphical calculator tree', notes:[
+    'The TI-84 Plus CE edition now draws a colored tree with arrow-key node selection, growing branches, and individual upgrades. Amplifiers multiply sap from their child leaves, using the browser game’s base multipliers.',
+    'Calculator trees also have refineries, resin polishing, pruning for amber, and Roots upgrades. Existing calculator saves migrate with their sap and production preserved. Transfer the updated SAPLING.8xp from the repository’s calculator folder with TI Connect CE.'
+  ] },
+  { id:'2026-10-07-calculator-basics', date:'October 7, 2026', title:'A basic calculator edition', notes:[
+    'A first TI-84 Plus CE edition is available in the repository’s calculator folder, with passive sap production, growing leaves, enrichment, harvesting, and calculator saves. Transfer SAPLING.8xp with TI Connect CE; this early version still needs testing on a calculator.'
+  ] },
+  { id:'2026-10-07-leaf-amp-count-costs', date:'October 7, 2026', title:'Leaf and amplifier upgrades scale with your tree', notes:[
+    'Enriching leaves and strengthening amplifiers now costs more as you add more of that node type.'
+  ] },
   { id:'2026-10-07-capacitor-rework', date:'October 7, 2026', title:'Capacitors scale with your tree', notes:[
     'Capacitor storage now grows with the flow reaching it, so it stays useful as production rises. While bursting, capacitors also take in some fresh flow to keep the burst going longer.'
   ] },
@@ -1901,8 +1911,8 @@ const growUnlocked = t =>
   (t === 'funnel' && metaLvl('funnels') > 0);
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
-  leaf: 20 * Math.pow(1.8, n.lvl - 1),
-  amp:  80 * Math.pow(2.8, n.lvl - 1),
+  leaf: 20 * Math.pow(1.8, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)),
+  amp:  80 * Math.pow(2.8, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
   cap:  32 * Math.pow(2.3, n.lvl - 1),
 }[n.type] * crowdMult());
