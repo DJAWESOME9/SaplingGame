@@ -1183,6 +1183,9 @@ const UPDATE_LOG = [
   { id:'2026-10-07-leaf-amp-count-costs', date:'October 7, 2026', title:'Leaf and amplifier upgrades scale with your tree', notes:[
     'Enriching leaves and strengthening amplifiers now costs more as you add more of that node type.'
   ] },
+  { id:'2026-10-07-sap-draw-cap', date:'October 7, 2026', title:'Sap Draw loss cap raised', notes:[
+    'A failed Sap Draw can now remove up to 30% of your current sap bank.'
+  ] },
   { id:'2026-10-07-capacitor-rework', date:'October 7, 2026', title:'Capacitors scale with your tree', notes:[
     'Capacitor storage now grows with the flow reaching it, so it stays useful as production rises. While bursting, capacitors also take in some fresh flow to keep the burst going longer.'
   ] },
@@ -6452,7 +6455,7 @@ cheat?.addEventListener('input', () => {
 // ---------- spellbook: persistent mana, run-local spells ----------
 const SPELLS = {
   sunlight: { name:'Call Sunlight', icon:'☀️', cost:45, study:0, good:'Ripen one gold leaf immediately, with a 50% chance it is a big boost leaf that grants a Bloom.', bad:'Delay unripe gold leaves by 60 seconds.' },
-  sapdraw: { name:'Sap Draw', icon:'💧', cost:57, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 10% of your bank.' },
+  sapdraw: { name:'Sap Draw', icon:'💧', cost:57, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 30% of your bank.' },
   surge: { name:'Sap Surge', icon:'🌿', cost:80, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
   roots: { name:'Deepen Roots', icon:'🌱', cost:68, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
   growth: { name:'Wild Growth', icon:'🍃', cost:68, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
@@ -6572,7 +6575,7 @@ function castSpell(key) {
     }
   } else if (key === 'sapdraw' || key === 'resindraw') {
     const resource = key === 'sapdraw' ? 'sap' : 'resin';
-    const amount = failed ? Math.min(S[resource] * 0.1, (resource === 'sap' ? S.incomeS : S.incomeR) * 300) : (resource === 'sap' ? S.incomeS : S.incomeR) * 300;
+    const amount = failed ? Math.min(S[resource] * (resource === 'sap' ? 0.3 : 0.1), (resource === 'sap' ? S.incomeS : S.incomeR) * 300) : (resource === 'sap' ? S.incomeS : S.incomeR) * 300;
     S[resource] += failed ? -amount : amount;
     if (!failed) recordEarned(resource === 'sap' ? amount : 0, resource === 'resin' ? amount : 0);
     outcome = `${failed ? 'Lost' : 'Gained'} ${fmt(amount)} ${resource}.`;
