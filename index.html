@@ -1050,11 +1050,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
-  { id:'2026-10-07-critter-stays-put', date:'October 7, 2026', title:'Critters stay put when you tap elsewhere', notes:[
-    'Tapping a tree node no longer scares critters sitting on other branches. Each critter only reacts when you tap its own node or the critter itself.'
-  ] },
   { id:'2026-10-07-challenges-menu', date:'October 7, 2026', title:'Challenges have their own menu', notes:[
     'Live challenge details and rewards have moved out of Settings. Open them with the 🏁 button beside the leaderboard; the menu can be moved and locked open.'
+  ] },
+  { id:'2026-10-07-easier-bug-catching', date:'October 7, 2026', title:'Bugs are easier to carry to the hub', notes:[
+    'Bugs now resist escaping for longer while you drag them toward the Critter Hub.'
   ] },
   { id:'2026-10-07-challenge-reward-message', date:'October 7, 2026', title:'Challenge reward messages', notes:[
     'Completing a live challenge now shows a message listing every reward received and whether the first-finisher bonus was included.'
@@ -3125,10 +3125,7 @@ function scareCritters(nodeId) {
   touchNode(nodeId); // swatting a critter off a node counts as attending it (anti-wither)
   const dmg = 1 + (metaLvl('swatpower') > 0 ? 1 : 0);
   for (const c of critters) {
-    // A tap should only affect the critter on the tapped node. Previously,
-    // this loop sent every other critter flying whenever any node was tapped.
-    if (c.nodeId !== nodeId) continue;
-    if (c.state === 'sitting') {
+    if (c.nodeId === nodeId && c.state === 'sitting') {
       c.hp -= dmg;
       c.jolt = 1;
       if (c.hp <= 0) {
@@ -3144,7 +3141,7 @@ function scareCritters(nodeId) {
       } else {
         sfx('bug');
       }
-    } else if (c.state !== 'leaving') {
+    } else {
       c.state = 'leaving';
       c.leaveX = c.x + (Math.random() - 0.5) * 280;
       c.leaveY = c.y - 170;
@@ -3911,10 +3908,10 @@ cv.addEventListener('pointermove', e => {
     if (b.moved) {
       b.critter.state = 'carried';
       b.travel += step;
-      // A bug fights the pointer; long, fast drags can lose it.
+      // A bug may wriggle free on a long carry, but short trips to the hub stay reliable.
       const wiggle = Math.sin(performance.now() / 65) * 9;
       showCarriedBug(e.clientX + wiggle, e.clientY - wiggle * 0.5);
-      if (b.travel > 70 && Math.random() < Math.min(0.13, step * 0.0018)) {
+      if (b.travel > 220 && Math.random() < Math.min(0.03, step * 0.00012)) {
         dropBug(e.clientX, e.clientY, true); activePointer = null; drag = null; pointers.delete(e.pointerId); return;
       }
     }
