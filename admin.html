@@ -129,14 +129,24 @@ function render() {
 }
 async function refreshPlayers() {
   say('Loading player profiles…');
+  let profilesLoaded = false;
   try {
     players=await rpc('admin_list_players') || [];
-    const res=await fetch(`${base}/rest/v1/leaderboard?select=player_id,lifetime_sap,lifetime_resin,production_sap,production_resin,highest_held_sap,highest_held_resin,gold_leaves`,{headers:headers()});
+    profilesLoaded = true;
+    selected=players.find(p=>p.player_id===selected?.player_id)||null;
+    render();
+    const res=await fetch(`${base}/rest/v1/leaderboard?select=player_id,lifetime_sap,lifetime_resin,production_sap,production_resin,highest_held_sap,highest_held_resin,gold_leaves`,{headers:headers(),cache:'no-store'});
     if (!res.ok) throw new Error(`Leaderboard request failed (${res.status})`);
     leaderboardRecords=new Map((await res.json()).map(row=>[row.player_id,row]));
-    selected=players.find(p=>p.player_id===selected?.player_id)||null; render(); say(`Loaded ${players.length} player profiles and leaderboard records.`);
+    render(); say(`Loaded ${players.length} player profiles and leaderboard records.`);
+    return true;
   }
-  catch(e) { say(`Could not load players: ${e.message}`); }
+  catch(e) {
+    say(profilesLoaded
+      ? `Player profiles loaded, but leaderboard details could not refresh: ${e.message}`
+      : `Could not load player profiles: ${e.message}`);
+    return false;
+  }
 }
 async function refreshChallenges() {
   try {
@@ -183,8 +193,16 @@ async function deletePlayer() {
   try {
     await rpc('admin_delete_player',{p_player_id:player.player_id});
     selected = null;
+    players = players.filter(p=>p.player_id!==player.player_id);
+    leaderboardRecords.delete(player.player_id);
+    render();
+    say(`Delete accepted for ${player.display_name}; verifying the player list…`);
     await refreshPlayers();
-    say(`Deleted ${player.display_name}'s account. Browser progress will clear at the next online check-in.`);
+    if (players.some(p=>p.player_id===player.player_id)) {
+      say(`Supabase accepted the delete request, but still returned ${player.display_name}'s profile. Check that the latest supabase/leaderboard.sql is applied to this project.`);
+    } else {
+      say(`Deleted ${player.display_name}'s account. Browser progress will clear at the next online check-in.`);
+    }
   } catch(e) { say(`Could not delete account: ${e.message}`); }
   finally { button.disabled = false; }
 }
