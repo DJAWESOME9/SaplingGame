@@ -1005,10 +1005,9 @@ const SPECIES = {
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
-  spellbook: { name:'Spellbook', glyph:'📖', tier:2, parent:'vitality', max:1, cost:_=>5, desc:'Unlock tree magic: 100 mana, a 20-minute refill, and three starter spells. Each cast has a 15% chance to backfire.' },
-  spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'spellbook', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
-  manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellbook', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
-  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellbook', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
+  spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
+  manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'vitality', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
+  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'vitality', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
   // Tier 1 — always available after first cut.
   vitality:  { name:'Vitality',        glyph:'🌿', tier:1, parent:null,     max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
   girth:     { name:'Heartgirth',      glyph:'🪵', tier:1, parent:null,     max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
@@ -1113,7 +1112,8 @@ const speciesUnlocked = sp => {
 const groveVisible = k => !GROVE[k].blightOnly || hardMode();
 const groveAvailable = k => {
   const g = GROVE[k];
-  return groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0);
+  return groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0)
+    && (!['spellstudy','manawell','manaspring'].includes(k) || spellbookOwned());
 };
 // Some grove nodes are repurposed in Blight mode and show different name/glyph/text.
 const groveName  = k => (hardMode() && GROVE[k].blightName)  || GROVE[k].name;
@@ -1124,6 +1124,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-spellbook-acorn-unlock', date:'October 7, 2026', title:'Unlock the Spellbook with an acorn', notes:[
+    'The Spellbook now appears beside the other minigames when acorns unlock. Spend 1 banked acorn to open it permanently; the 5-ring Grove unlock has been removed. Spell Study and mana upgrades remain in the Grove.',
+    'If you already unlocked the Spellbook, it stays unlocked with all your mana and spells preserved. You do not need to pay again.'
+  ] },
   { id:'2026-10-07-spellbook', date:'October 7, 2026', title:'Tree magic has arrived', notes:[
     'Unlock the Spellbook in the Grove to cast spells with regenerating mana. Start with Call Sunlight, Sap Draw, and Sap Surge; Spell Study unlocks nine more spells, including resin magic, Golden Canopy, and a three-minute surge. Earlier spells remain available.',
     'Every spell has a visible 15% backfire chance and spends mana either way. Bark Ward protects the entire tree for five minutes, but a backfire immediately withers one terminal node.',
@@ -6404,12 +6408,15 @@ function hydrateSpells(data) {
   if (data && [0.5,1,1.5].includes(data.amber)) result.amber = data.amber;
   return result;
 }
-const spellbookOwned = () => metaLvl('spellbook') > 0;
+const SPELLBOOK_OPEN_COST = 1;
+const spellbookOwned = () => !!(META && META.spellbook && META.spellbook.opened);
 const manaCap = () => 100 + 10 * metaLvl('manawell');
 const manaRate = () => manaCap() * (1 + 0.15 * metaLvl('manaspring')) / 1200;
 function ensureSpellbook() {
   if (!META.spellbook || typeof META.spellbook !== 'object') META.spellbook = {};
   const b = META.spellbook;
+  // Keep the former ring unlock valid for existing saves without charging again.
+  b.opened = b.opened === true || metaLvl('spellbook') > 0;
   b.mana = Number.isFinite(b.mana) ? clamp(b.mana, 0, manaCap()) : 100;
   if (!Number.isFinite(b.lastTickAt)) b.lastTickAt = Date.now();
   b.casts = Number.isFinite(b.casts) ? Math.max(0, b.casts) : 0;
@@ -6445,7 +6452,7 @@ function ripenGoldLeaf(n) {
 function spellTargets() { return Object.values(S.nodes).filter(n => n.type === 'leaf' && !n.giftGain); }
 function spellReason(key) {
   const sp = SPELLS[key];
-  if (!spellbookOwned()) return 'Unlock the Spellbook in the Grove';
+  if (!spellbookOwned()) return 'Unlock the Spellbook for 1 acorn in the minigame dock';
   if (metaLvl('spellstudy') < sp.study) return `Requires Spell Study ${sp.study}`;
   if (frozenOn()) return 'Thaw your tree to cast';
   if (cutAnim) return 'Wait until the tree is planted';
@@ -6561,8 +6568,22 @@ function renderSpellbook() {
     button.textContent = reason || `Cast · ${sp.cost} mana${wait ? ` · ready in ${wait}` : ''}`;
   }
 }
+function unlockSpellbook() {
+  ensureSpellbook();
+  if (spellbookOwned()) return true;
+  if (acornsBanked() < SPELLBOOK_OPEN_COST) {
+    toast('Bank 1 ripe acorn to unlock the Spellbook.');
+    return false;
+  }
+  META.acorns -= SPELLBOOK_OPEN_COST;
+  META.spellbook.opened = true;
+  META.spellbook.lastTickAt = Date.now();
+  saveMeta(); refreshAcorns(); refreshMiniDock();
+  toast('📖 Paid 🌰 1 acorn — the Spellbook opens.');
+  return true;
+}
 spellBtn.addEventListener('click', () => {
-  if (!spellbookOwned()) return;
+  if (!unlockSpellbook()) return;
   tickSpellMana(); renderSpellbook(); spellPanel.classList.add('open'); document.getElementById('spellClose').focus();
 });
 function closeSpellbook() { spellPanel.classList.remove('open'); spellBtn.focus(); }
@@ -6819,9 +6840,13 @@ function refreshMiniDock() {
   const showExpeditions = metaLvl('critterhub') > 0;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
-  const showSpells = spellbookOwned();
+  const showSpells = acornsUnlocked() || spellbookOwned();
   spellBtn.style.display = showSpells ? '' : 'none';
-  if (showSpells) {
+  if (showSpells && !spellbookOwned()) {
+    spellBtn.textContent = `📖 Spellbook · 🌰${SPELLBOOK_OPEN_COST}`;
+    spellBtn.title = `Spend ${SPELLBOOK_OPEN_COST} acorn to unlock the Spellbook permanently (have ${acornsBanked()})`;
+  } else if (showSpells) {
+    spellBtn.title = 'Spend regenerating mana on tree magic';
     const active = SPELL_TIMERS.some(k => S.spells[k] > 0) || S.spells.amber !== 1;
     spellBtn.textContent = `📖 Spellbook · ${Math.floor(META.spellbook.mana)}/${manaCap()}${active ? ' · active' : ''}`;
   }
