@@ -1050,6 +1050,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-node-interactions-keep-critters', date:'October 7, 2026', title:'Other nodes no longer scare critters away', notes:[
+    'Interacting with a node only affects critters sitting on that same node. Critters elsewhere stay put until you scare them directly or another game effect moves them.'
+  ] },
   { id:'2026-10-07-capacitor-rework', date:'October 7, 2026', title:'Capacitors scale with your tree', notes:[
     'Capacitor storage now grows with the flow reaching it, so it stays useful as production rises. While bursting, capacitors also take in some fresh flow to keep the burst going longer.'
   ] },
@@ -3150,10 +3153,6 @@ function scareCritters(nodeId) {
       } else {
         sfx('bug');
       }
-    } else {
-      c.state = 'leaving';
-      c.leaveX = c.x + (Math.random() - 0.5) * 280;
-      c.leaveY = c.y - 170;
     }
   }
 }
