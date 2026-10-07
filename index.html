@@ -1124,6 +1124,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-leaf-amp-upgrade-scaling', date:'October 7, 2026', title:'Higher leaf and amp upgrades cost more', notes:[
+    'Leaf upgrade costs now double per level, up from ×1.8. Amplifier upgrade costs now triple per level, up from ×2.8.'
+  ] },
+  { id:'2026-10-07-node-cost-scaling', date:'October 7, 2026', title:'Node costs rise faster with tree size', notes:[
+    'Growing nodes, upgrading nodes, and grafting now receive an 8% price increase for each other node on your tree, up from 5%.'
+  ] },
   { id:'2026-10-07-channel-node-aura', date:'October 7, 2026', title:'Channeling nodes glow', notes:[
     'A soft green aura now marks the leaf currently receiving a Verdant Touch surge.'
   ] },
@@ -1914,10 +1920,10 @@ const maxKids  = n => {
   return Math.min(hardCap, (CFG.baseKids[n.type] || 0) + crownBonus + canopyBonus + spKids + (n.extraKids || 0));
 };
 
-// Total branches on the tree, and a gentle compounding "crowding" surcharge:
+// Total branches on the tree, and a compounding "crowding" surcharge:
 // the more nodes you already have, the pricier each new node and upgrade.
 const totalNodes = () => (S.counts.leaf || 0) + (S.counts.amp || 0) + (S.counts.ref || 0) + (S.counts.cap || 0) + (S.counts.funnel || 0);
-const crowdMult  = () => Math.pow(1.05, Math.max(0, totalNodes() - 1));
+const crowdMult  = () => Math.pow(1.08, Math.max(0, totalNodes() - 1));
 const GROW = {
   leaf: { cur: 'sap',   cost: () => 15 * Math.pow(1.4, Math.max(0, S.counts.leaf - 1)) * thriftMult() * crowdMult(),
           label: 'Grow leaf', sub: '+1/s producer' },
@@ -1943,8 +1949,8 @@ const growUnlocked = t =>
   (t === 'funnel' && metaLvl('funnels') > 0);
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
-  leaf: 20 * Math.pow(1.8, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)),
-  amp:  80 * Math.pow(2.8, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
+  leaf: 20 * Math.pow(2.0, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)),
+  amp:  80 * Math.pow(3.0, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
   cap:  32 * Math.pow(2.3, n.lvl - 1),
 }[n.type] * crowdMult());
