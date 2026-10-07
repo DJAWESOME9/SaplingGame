@@ -48,6 +48,11 @@
   #challengeList { display:grid; gap:8px; margin-top:12px; }
   .challenge-item { border:1px solid #2e3f31; border-radius:9px; padding:10px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
   .challenge-item p { margin:4px 0; color:#9db89f; font-size:12px; }
+  #achievementList { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:8px; }
+  .achievement-item { display:flex; gap:10px; align-items:flex-start; border:1px solid #2e3f31; border-radius:9px; padding:10px; }
+  .achievement-glyph { font-size:22px; line-height:1; }
+  .achievement-item p { margin:4px 0 0; color:#9db89f; font-size:12px; }
+  .achievement-category { color:#8fa891; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
   #message { min-height:20px; color:#f0d9a0; font-size:13px; }
   @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } .challenge-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .challenge-form .wide { grid-column:span 2; } .challenge-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); } .goal-row { grid-template-columns:1fr 1fr; } .goal-row button { grid-column:1 / -1; } }
 </style>
@@ -62,6 +67,7 @@
   </section>
   <section id="dashboard" hidden>
     <div class="toolbar"><input id="search" placeholder="Filter players by name or ID"><button id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
+    <div class="card"><h2>Achievements <span class="muted" id="achievementCount"></span></h2><p class="muted">Full game achievement catalog, including secret achievements. This is a read-only view.</p><div class="toolbar"><input id="achievementSearch" placeholder="Filter achievements by name, ID, or description"><button id="refreshAchievements" type="button">Refresh achievements</button></div><div id="achievementList" aria-live="polite"></div></div>
     <div class="card"><h2>Live challenges</h2><p class="muted">You can run several challenges at once. Publishing starts each clock immediately. Progress starts at zero for each player when the challenge opens. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
       <form id="challengeForm" class="challenge-form">
         <label class="wide">Challenge title<input id="challengeTitle" maxlength="60" placeholder="Example: Forest sprint" required></label>
@@ -100,6 +106,7 @@ const base = (CONFIG.url || '').replace(/\/$/, '');
 const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONFIG.anonKey;
 const $ = id => document.getElementById(id);
 let token = '', players = [], selected = null, leaderboardRecords = new Map();
+let achievements = [];
 function say(text) { $('message').textContent = text; }
 function headers() { return { apikey:CONFIG.anonKey, Authorization:`Bearer ${token || CONFIG.anonKey}`, 'Content-Type':'application/json' }; }
 async function rpc(name, body = {}) {
@@ -108,6 +115,36 @@ async function rpc(name, body = {}) {
   return res.status === 204 ? null : res.json();
 }
 function n(value) { const x=Number(value)||0; return x.toLocaleString(undefined,{maximumFractionDigits:2}); }
+const achievementGroups=[['normal','Achievements'],['challenge','Challenges'],['blight','Blight'],['secret','Secrets']];
+function parseAchievements(source) {
+  const block=source.match(/const ACHIEVEMENTS\s*=\s*\{([\s\S]*?)\n\};/);
+  if(!block) throw new Error('Could not find the game achievement catalog.');
+  const read=(line,key)=>line.match(new RegExp(`\\b${key}:\\s*'((?:\\\\.|[^'])*)'`))?.[1]?.replace(/\\\\(['\\\\])/g,'$1');
+  return block[1].split('\n').flatMap(line=>{
+    const id=line.match(/^\s*([A-Za-z_$][\w$]*):\s*\{/ )?.[1];
+    if(!id) return [];
+    const name=read(line,'name'), glyph=read(line,'glyph'), desc=read(line,'desc'), cat=read(line,'cat')||'normal';
+    return name&&glyph&&desc ? [{id,name,glyph,desc,cat}] : [];
+  });
+}
+function renderAchievements() {
+  const q=$('achievementSearch').value.trim().toLowerCase();
+  const visible=achievements.filter(a=>!q||`${a.id} ${a.name} ${a.desc} ${a.cat}`.toLowerCase().includes(q));
+  $('achievementCount').textContent=`(${visible.length}${visible.length===achievements.length?'':' shown'} / ${achievements.length})`;
+  $('achievementList').innerHTML=achievementGroups.map(([cat,title])=>{
+    const items=visible.filter(a=>a.cat===cat);
+    return items.length?`<section><h3 class="achievement-category">${title} · ${items.length}</h3>${items.map(a=>`<article class="achievement-item"><span class="achievement-glyph" aria-hidden="true">${escapeHtml(a.glyph)}</span><div><b>${escapeHtml(a.name)}</b><p>${escapeHtml(a.desc)}</p><p class="muted">ID: ${escapeHtml(a.id)}</p></div></article>`).join('')}</section>`:'';
+  }).join('')||'<p class="muted">No achievements match that filter.</p>';
+}
+async function refreshAchievements() {
+  try {
+    const res=await fetch('index.html',{cache:'no-store'});
+    if(!res.ok) throw new Error(`Could not load game catalog (${res.status}).`);
+    achievements=parseAchievements(await res.text());
+    if(!achievements.length) throw new Error('No achievement definitions were found.');
+    renderAchievements();
+  } catch(e) { $('achievementList').innerHTML=`<p class="muted">Could not load achievements: ${escapeHtml(e.message)}</p>`; }
+}
 const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.'};
 const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option>';
 function updateGoalRow(row) { const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'); input.step=['expeditions','amber','rings','bugs'].includes(type)?'1':'any'; input.min=['expeditions','amber','rings','bugs'].includes(type)?'1':'0.000001'; row.title=challengeGoalHelp[type]; }
@@ -215,7 +252,7 @@ $('loginForm').addEventListener('submit',async e=>{
     const res=await fetch(`${base}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:CONFIG.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
     if(!res.ok) throw new Error((await res.text()).slice(0,200));
     const session=await res.json(); token=session.access_token;
-    $('loginCard').hidden=true; $('dashboard').hidden=false; await refreshPlayers(); await refreshChallenges();
+    $('loginCard').hidden=true; $('dashboard').hidden=false; await refreshPlayers(); await refreshChallenges(); await refreshAchievements();
   } catch(err) { say(`Sign in failed: ${err.message}`); }
 });
 $('createAccount').addEventListener('click',async()=>{
@@ -244,6 +281,8 @@ $('challengeList').addEventListener('click',async e=>{
   catch(err) { say(`Could not end challenge: ${err.message}`); button.disabled=false; }
 });
 $('search').addEventListener('input',render);
+$('achievementSearch').addEventListener('input',renderAchievements);
+$('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
 $('logout').addEventListener('click',()=>{token='';selected=null;players=[];$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
