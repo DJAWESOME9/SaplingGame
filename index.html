@@ -1050,6 +1050,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-07-capacitor-rework', date:'October 7, 2026', title:'Capacitors scale with your tree', notes:[
+    'Capacitor storage now grows with the flow reaching it, so it stays useful as production rises. While bursting, capacitors also take in some fresh flow to keep the burst going longer.'
+  ] },
   { id:'2026-10-07-node-upgrade-costs', date:'October 7, 2026', title:'Leaf and amplifier upgrade costs scale faster', notes:[
     'The sap cost of enriching leaves and strengthening amplifiers now rises faster with each upgrade level.'
   ] },
@@ -1765,7 +1768,10 @@ function declumpGiftTimers() {
 const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
-const capSize  = n => 30 * Math.pow(1.8, n.lvl - 1) * reservoirMult() * Math.pow(1.2, rootLvl('artesian')) * polishMult(n) * pantheonCapStorMult();
+const capSize  = n => Math.max(
+  60 * Math.pow(2.0, n.lvl - 1) * reservoirMult() * Math.pow(1.2, rootLvl('artesian')) * polishMult(n) * pantheonCapStorMult(),
+  Math.max(0, n.inFlow || 0) * CFG.capDischargeTime
+);
 const capBonus = n => (CFG.capBonusBase + CFG.capBonusStep * (n.lvl - 1) + 0.15 * rootLvl('cascade')) * polishMult(n) * bloomCapMult() * (metaLvl('godseed') > 0 ? 3 : 1);
 const capDrain = n => capSize(n) / CFG.capDischargeTime;
 const POLISH_PCT  = 0.06;
@@ -2172,10 +2178,10 @@ function computeFlow(dt) {
           const size = capSize(n), lim = size * 2;
           const inS = s, inR = r; // raw incoming flow this tick
           n.bufWaste = 0; n.bufWasteS = 0; n.bufWasteR = 0;
-          // While the capacitor is emptying, let fresh sap/resin flow straight
-          // through the branch instead of topping the buffer back up — it only
-          // refills once fully drained.
+          // Charging stores all incoming flow. During a burst, pass fresh flow
+          // through and feed half of it back into the reservoir to extend the burst.
           if (!n.discharging) { n.buf.s += inS * dt; n.buf.r += inR * dt; }
+          else { n.buf.s += inS * dt * 0.5; n.buf.r += inR * dt * 0.5; }
           let tot = n.buf.s + n.buf.r;
           if (tot > lim) { // buffer overflow leaks at the node
             const k = lim / tot;
