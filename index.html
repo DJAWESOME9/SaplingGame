@@ -828,7 +828,7 @@
   <button id="trophy" aria-label="Achievements" title="Achievements">🏆</button>
   <button id="statsbtn" aria-label="Stats" title="Stats">📊</button>
   <button id="lbbtn" aria-label="Leaderboard" title="Leaderboard">🌿</button>
-  <button id="challengebtn" aria-label="Live challenges" title="Live challenges">🏁</button>
+  <button id="challengebtn" aria-label="Quests" title="Quests">🏁</button>
   <button id="gear" aria-label="Settings">⚙</button>
   <!-- Contextual items live on their own slim second row so they never break up
        the resource cards / controls when they appear. Hidden entirely when empty. -->
@@ -843,15 +843,15 @@
   </div>
 </div>
 <section id="eventHud" aria-label="Live event progress" aria-live="polite">
-  <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Event</span><span id="eventHudTime"></span><button id="eventHudNext" type="button" aria-label="Show next live challenge" title="Show next challenge">›</button><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
+  <div id="eventHudHead"><span id="eventHudTitle">🌿 Live Quest</span><span id="eventHudTime"></span><button id="eventHudNext" type="button" aria-label="Show next quest" title="Show next quest">›</button><button id="eventHudMin" type="button" aria-label="Minimize event bar" title="Minimize">−</button></div>
   <div id="eventHudBody"><div id="eventHudProgress"><span id="eventHudCount">0 / 100,000 sap</span><span id="eventHudMetric"></span></div><div id="eventHudGoals"></div></div>
 </section>
 <div id="bpbar"></div>
 <div id="boosttip"></div>
-  <section id="liveChallenges" aria-label="Live challenges">
-    <div class="drawer-heading"><h3>🏁 Live Challenges</h3><button class="drawer-lock" type="button" aria-label="Lock panel open" aria-pressed="false">🔓</button></div>
-    <p class="live-note">Limited-time community challenges. The first finisher earns the listed bonus.</p>
-    <div id="liveChallengeRows"><div class="lb-status">Loading live challenges…</div></div>
+  <section id="liveChallenges" aria-label="Quests">
+    <div class="drawer-heading"><h3>🏁 Quests</h3><button class="drawer-lock" type="button" aria-label="Lock panel open" aria-pressed="false">🔓</button></div>
+    <p class="live-note">Limited-time community quests. The first finisher earns the listed bonus.</p>
+    <div id="liveChallengeRows"><div class="lb-status">Loading quests…</div></div>
     <div class="lb-status" id="liveChallengeStatus" role="status"></div>
   </section>
 <div id="settings">
@@ -1186,6 +1186,9 @@ const UPDATE_LOG = [
     'The TI-84 Plus CE edition now draws a colored tree with arrow-key node selection, growing branches, and individual upgrades. Amplifiers multiply sap from their child leaves, using the browser game’s base multipliers.',
     'Calculator trees also have refineries, resin polishing, pruning for amber, and Roots upgrades. Existing calculator saves migrate with their sap and production preserved. Transfer the updated SAPLING.8xp from the repository’s calculator folder with TI Connect CE.'
   ] },
+  { id:'2026-10-08-live-quests', date:'October 8, 2026', title:'Live challenges are now quests', notes:[
+    'Live challenges are now called quests throughout the game. Your active goals, progress, rewards, and first-finisher bonuses work the same way.'
+  ] },
   { id:'2026-10-07-calculator-basics', date:'October 7, 2026', title:'A basic calculator edition', notes:[
     'A first TI-84 Plus CE edition is available in the repository’s calculator folder, with passive sap production, growing leaves, enrichment, harvesting, and calculator saves. Transfer SAPLING.8xp with TI Connect CE; this early version still needs testing on a calculator.'
   ] },
@@ -1201,8 +1204,8 @@ const UPDATE_LOG = [
   { id:'2026-10-07-node-upgrade-costs', date:'October 7, 2026', title:'Leaf and amplifier upgrade costs scale faster', notes:[
     'The sap cost of enriching leaves and strengthening amplifiers now rises faster with each upgrade level.'
   ] },
-  { id:'2026-10-07-challenges-menu', date:'October 7, 2026', title:'Challenges have their own menu', notes:[
-    'Live challenge details and rewards have moved out of Settings. Open them with the 🏁 button beside the leaderboard; the menu can be moved and locked open.'
+  { id:'2026-10-07-challenges-menu', date:'October 7, 2026', title:'Quests have their own menu', notes:[
+    'Quest details and rewards have moved out of Settings. Open them with the 🏁 button beside the leaderboard; the menu can be moved and locked open.'
   ] },
   { id:'2026-10-07-easier-bug-catching', date:'October 7, 2026', title:'Bugs are easier to carry to the hub', notes:[
     'Bugs now resist escaping for longer while you drag them toward the Critter Hub.'
@@ -5196,14 +5199,14 @@ function renderLiveChallenges() {
     const bonus = liveRewardText(c, 'first_bonus');
     const action = claimed
       ? '<small class="live-complete">Completed ✓</small>'
-      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim challenge' : `Need ${goals.filter((g,i)=>current[i] < Number(g.target)).length} goal${goals.filter((g,i)=>current[i] < Number(g.target)).length===1?'':'s'} remaining`}</button>`;
+      : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim quest' : `Need ${goals.filter((g,i)=>current[i] < Number(g.target)).length} goal${goals.filter((g,i)=>current[i] < Number(g.target)).length===1?'':'s'} remaining`}</button>`;
     const goalText=goals.map((g,i)=>`${escapeHtml(CHALLENGE_LABELS[g.type]||g.type)}: ${fmt(current[i])}/${fmt(Number(g.target))} ${CHALLENGE_UNITS[g.type]||'units'}`).join(' · ');
     return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>${goalText} · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
-  }).join('') || '<div class="lb-status">No live challenges right now. Check back later.</div>';
+  }).join('') || '<div class="lb-status">No active quests right now. Check back later.</div>';
 }
 async function loadLiveChallenges() {
   if (!lbConfigured || !lbPlayerId) {
-    if (liveChallengeRows) liveChallengeRows.innerHTML = '<div class="lb-status">Live challenges are unavailable until Supabase is configured.</div>';
+    if (liveChallengeRows) liveChallengeRows.innerHTML = '<div class="lb-status">Quests are unavailable until Supabase is configured.</div>';
     return;
   }
   try {
@@ -5238,14 +5241,14 @@ async function loadLiveChallenges() {
     liveChallengeStatus.textContent = liveChallenges.length ? 'Updated just now' : '';
     checkLiveChallengeClaims();
   } catch (err) {
-    liveChallengeStatus.textContent = `Could not load challenges: ${err.message}`;
+    liveChallengeStatus.textContent = `Could not load quests: ${err.message}`;
   }
 }
 async function claimLiveChallenge(id, button) {
   if (!lbConfigured || !lbPlayerId) return;
   const challenge = liveChallenges.find(c => c.id === id);
   if (!challenge) return;
-  if (META.hacks) { liveChallengeStatus.textContent = 'Live challenges are disabled for hacked saves.'; return; }
+  if (META.hacks) { liveChallengeStatus.textContent = 'Quests are disabled for hacked saves.'; return; }
   if (liveChallengeClaimsInFlight.has(id)) return;
   liveChallengeClaimsInFlight.add(id);
   liveChallengeLastClaimAttempt.set(id, Date.now());
@@ -5276,18 +5279,18 @@ async function claimLiveChallenge(id, button) {
       refreshAcorns();
       const achievementKey = `liveChallenge:${id}`;
       META.liveChallengeAchievements = META.liveChallengeAchievements || {};
-      META.liveChallengeAchievements[achievementKey] = { name:challenge?.title || 'Live Challenge', glyph:'🏆', desc:challenge?.description || 'Completed a live Sapling challenge.', cat:'challenge' };
+      META.liveChallengeAchievements[achievementKey] = { name:challenge?.title || 'Quest', glyph:'🏆', desc:challenge?.description || 'Completed a Sapling quest.', cat:'challenge' };
       META.achievements = META.achievements || {};
       META.achievements[achievementKey] = { t:Date.now(), cat:'challenge' };
       save(); saveMeta();
       const rewards = liveRewardText(result, 'reward');
       toast(`🏆 ${challenge.title} complete! Received: ${rewards}.${result.first_finisher ? ' First finisher bonus included!' : ''}`, 12000);
     }
-    liveChallengeStatus.textContent = result.first_finisher ? 'You were the first finisher — bonus reward included!' : 'Challenge complete — reward claimed.';
+    liveChallengeStatus.textContent = result.first_finisher ? 'Quest first finisher — bonus reward included!' : 'Quest complete — reward claimed.';
     await loadLiveChallenges();
     if (achPanel?.classList.contains('open')) renderAchievements();
   } catch (err) {
-    liveChallengeStatus.textContent = `Could not claim challenge: ${err.message}`;
+    liveChallengeStatus.textContent = `Could not claim quest: ${err.message}`;
     if (button) button.disabled = false;
   } finally {
     liveChallengeClaimsInFlight.delete(id);
