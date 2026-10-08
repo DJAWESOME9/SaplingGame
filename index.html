@@ -1125,7 +1125,7 @@ const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
   { id:'2026-10-08-admin-resource-controls', date:'October 8, 2026', title:'Admins can adjust more resources', notes:[
-    'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments.'
+    'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments. Open resource panels refresh when a queued adjustment is applied at the player’s next online check-in.'
   ] },
   { id:'2026-10-08-offline-mana-refill', date:'October 8, 2026', title:'Mana pauses during offline progress', notes:[
     'Mana no longer refills during offline catchup. It continues to refill while the game is open, and Freeze still pauses it.'
@@ -1206,6 +1206,9 @@ const UPDATE_LOG = [
   ] },
   { id:'2026-10-07-challenge-reward-message', date:'October 7, 2026', title:'Challenge reward messages', notes:[
     'Completing a live challenge now shows a message listing every reward received and whether the first-finisher bonus was included.'
+  ] },
+  { id:'2026-10-08-leaderboard-refresh', date:'October 8, 2026', title:'Leaderboard refresh works reliably', notes:[
+    'The Refresh button now requests a fresh leaderboard result and reports when online leaderboards are not configured.'
   ] },
   { id:'2026-10-07-wither-stagger', date:'October 7, 2026', title:'More space between wither warnings', notes:[
     'In Blight mode, neglected nodes now start withering across a wider spread of times, so their warnings are less likely to bunch together.'
@@ -4985,6 +4988,7 @@ const LB_BOARDS = {
 };
 let selectedLeaderboard = 'lifetime_sap';
 let leaderboardLoadId = 0;
+const lbRefresh = document.getElementById('lbRefresh');
 const lbConfigured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(LEADERBOARD_CONFIG.url || '') &&
   /^[a-z0-9._-]+$/i.test(LEADERBOARD_CONFIG.anonKey || '');
 const LB_PLAYER_KEY = 'sapling-leaderboard-player-v1';
@@ -5009,7 +5013,7 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25&_=${Date.now()}`, { headers: lbHeaders(), cache: 'no-store' });
     if (loadId !== leaderboardLoadId) return;
     if (res.status === 400) {
       lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
@@ -5453,7 +5457,13 @@ async function processAdminActions() {
       if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) { location.reload(); return true; }
     }
     showAdminNotice();
-    if (actions && actions.length) { buildPanel(); computeFlow(0); }
+    if (actions && actions.length) {
+      buildPanel(); computeFlow(0); refreshAcorns(); refreshMiniDock();
+      if (grove.classList.contains('open')) renderGrove();
+      if (pantheon.classList.contains('open')) renderPantheon();
+      const expeditionsPanel = document.getElementById('expeditions');
+      if (expeditionsPanel && expeditionsPanel.classList.contains('open')) renderExpeditions();
+    }
     return false;
   } catch (e) { return false; /* Admin commands are best-effort while a player is online. */ }
 }
@@ -5666,7 +5676,13 @@ window.addEventListener('resize', () => {
     if (panel.classList.contains('open')) placeDrawerByButton(document.getElementById(buttonId), panel);
   });
 });
-document.getElementById('lbRefresh').addEventListener('click', loadLeaderboard);
+lbRefresh.addEventListener('click', () => {
+  if (!lbConfigured) {
+    lbStatus.textContent = 'Leaderboard is not configured.';
+    return;
+  }
+  loadLeaderboard();
+});
 document.getElementById('lbTabs').addEventListener('click', e => {
   const tab = e.target.closest('button[data-lb]');
   if (!tab || !LB_BOARDS[tab.dataset.lb]) return;
