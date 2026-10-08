@@ -1134,6 +1134,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-blooms-match-your-tree', date:'October 8, 2026', title:'Boost leaves match your tree', notes:[
+    'Big gold leaves no longer grant capacitor, refinery, or amplifier boosts when you do not currently own one of those nodes.'
+  ]},
   { id:'2026-10-08-completed-quests-tracker', date:'October 8, 2026', title:'A cleaner quest tracker', notes:[
     'Completed quests now disappear from the movable mini tracker. They remain listed in the Quests tab.'
   ]},
@@ -1800,7 +1803,7 @@ const BLOOMS = {
   expedition: { name:'Expedition Blessing', icon:'🧭', color:'#a8d988', dur:300, weight:0, leafMult:()=>1.25, refMult:()=>1.25, descOf:()=>'+25% leaf and refinery production' },
 };
 function pickBloom() {
-  const keys = Object.keys(BLOOMS);
+  const keys = Object.keys(BLOOMS).filter(k => BLOOMS[k].weight > 0 && bloomShown({ kind:k }));
   const total = keys.reduce((a,k)=>a+BLOOMS[k].weight, 0);
   let r = Math.random() * total;
   for (const k of keys) { r -= BLOOMS[k].weight; if (r <= 0) return k; }
