@@ -1134,6 +1134,14 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-completed-quests-tracker', date:'October 8, 2026', title:'A cleaner quest tracker', notes:[
+    'Completed quests now disappear from the movable mini tracker. They remain listed in the Quests tab.'
+  ]},
+  { id:'2026-10-08-adventure-route-unlocks', date:'October 8, 2026', title:'Longer adventures and route unlocks', notes:[
+    'Adventures now have 5, 10, 20, 30, 45 and 60 minutes of journey time, plus battles. Trips already underway keep their original journey timing.',
+    'Start with Garden Path. Each later adventure route unlocks when you successfully complete the route before it. Defeat or retreat does not unlock a route.',
+    'Route completion and unlocks stay with your Grove through tree cuts and reloads. Journeys already in progress can still finish.'
+  ]},
   { id:'2026-10-08-bug-adventures', date:'October 8, 2026', title:'Bug adventures', notes:[
     'The Bug Hub starts with three spaces. Each bug now has its own health, attack, defense and level, gaining experience from battles and expeditions. Higher levels make expeditions up to 15% faster.',
     'Unlock adventure slots for 1, 3 and 5 acorns. Explore six routes, battle bugs and woodland creatures with Strike, Heavy, Guard and Recover, then keep journeying. Defeated bugs return safely.',
@@ -5072,6 +5080,7 @@ const eventHudMin = document.getElementById('eventHudMin');
 const eventHudPosKey = 'sapling-live-event-position-v1';
 let liveChallengeClockOffsetMs = 0;
 const liveChallengeNow = () => Date.now() + liveChallengeClockOffsetMs;
+function eventHudChallenges() { return liveChallenges.filter(challenge => !challenge.player_completed); }
 function clampEventHud() {
   if (!eventHud || !eventHud.classList.contains('visible')) return;
   const rect = eventHud.getBoundingClientRect();
@@ -5081,17 +5090,18 @@ function clampEventHud() {
 }
 function renderEventHud() {
   if (!eventHud) return;
+  const trackedChallenges = eventHudChallenges();
   const prefs = META.liveChallengeUi || {};
-  const index = Math.max(0, Math.min(liveChallenges.length - 1, Number(prefs.index) || 0));
-  const challenge = liveChallenges[index];
+  const index = Math.max(0, Math.min(trackedChallenges.length - 1, Number(prefs.index) || 0));
+  const challenge = trackedChallenges[index];
   if (!challenge) { eventHud.classList.remove('visible'); return; }
   eventHud.classList.add('visible');
   eventHud.classList.toggle('minimized', !!prefs.minimized);
   eventHudMin.textContent = prefs.minimized ? '+' : '−';
   eventHudMin.setAttribute('aria-label', prefs.minimized ? 'Expand event bar' : 'Minimize event bar');
   eventHudMin.title = prefs.minimized ? 'Expand' : 'Minimize';
-  document.getElementById('eventHudNext').hidden = liveChallenges.length < 2;
-  document.getElementById('eventHudTitle').textContent = `🏆 ${challenge.title}${liveChallenges.length > 1 ? ` (${index + 1}/${liveChallenges.length})` : ''}`;
+  document.getElementById('eventHudNext').hidden = trackedChallenges.length < 2;
+  document.getElementById('eventHudTitle').textContent = `🏆 ${challenge.title}${trackedChallenges.length > 1 ? ` (${index + 1}/${trackedChallenges.length})` : ''}`;
   document.getElementById('eventHudTime').textContent = liveChallengeTime(challenge.closes_at);
   const goals = challengeGoals(challenge), values = challengeProgressValues(challenge);
   document.getElementById('eventHudCount').textContent = challengeReady(challenge) ? 'All goals complete' : `${values.filter((v, i) => v >= Number(goals[i].target)).length} / ${goals.length} goals complete`;
@@ -5123,8 +5133,10 @@ eventHudMin?.addEventListener('click', () => {
   saveMeta(); renderEventHud(); clampEventHud();
 });
 document.getElementById('eventHudNext')?.addEventListener('click', () => {
+  const trackedChallenges = eventHudChallenges();
+  if (!trackedChallenges.length) return;
   META.liveChallengeUi = META.liveChallengeUi || {};
-  META.liveChallengeUi.index = ((Number(META.liveChallengeUi.index) || 0) + 1) % liveChallenges.length;
+  META.liveChallengeUi.index = ((Number(META.liveChallengeUi.index) || 0) + 1) % trackedChallenges.length;
   saveMeta(); renderEventHud();
 });
 {
@@ -6764,12 +6776,12 @@ const ADVENTURE_ENEMIES = {
   centipede:['Centipede','🐛',50,12,3], frog:['Pond Frog','🐸',58,12,4], guardian:['Hollow Guardian','🪵',70,13,5]
 };
 const ADVENTURE_ROUTES = [
-  {name:'Garden Path', seconds:90, foes:['mite','ant'], tier:0, sap:[.25,.5], resin:[0,0], ring:false, acorn:false},
-  {name:'Mossy Stones', seconds:180, foes:['mite','slug','spider'], tier:1, sap:[.5,1], resin:[.25,.5], ring:false, acorn:false},
-  {name:'Bramble Crossing', seconds:300, foes:['ant','wasp','spider'], tier:2, sap:[1,2], resin:[.5,1], ring:true, acorn:false},
-  {name:'Mushroom Hollow', seconds:420, foes:['slug','fungus','centipede','fungus'], tier:3, sap:[1,2], resin:[1,2], ring:true, acorn:false},
-  {name:'Moonlit Pond', seconds:600, foes:['wasp','spider','frog','frog'], tier:4, sap:[2,3], resin:[1,2], ring:true, acorn:true},
-  {name:'Ancient Heartwood', seconds:900, foes:['centipede','fungus','wasp','frog','guardian'], tier:5, sap:[2,4], resin:[2,3], ring:true, acorn:true}
+  {name:'Garden Path', seconds:300, foes:['mite','ant'], tier:0, sap:[.25,.5], resin:[0,0], ring:false, acorn:false},
+  {name:'Mossy Stones', seconds:600, foes:['mite','slug','spider'], tier:1, sap:[.5,1], resin:[.25,.5], ring:false, acorn:false},
+  {name:'Bramble Crossing', seconds:1200, foes:['ant','wasp','spider'], tier:2, sap:[1,2], resin:[.5,1], ring:true, acorn:false},
+  {name:'Mushroom Hollow', seconds:1800, foes:['slug','fungus','centipede','fungus'], tier:3, sap:[1,2], resin:[1,2], ring:true, acorn:false},
+  {name:'Moonlit Pond', seconds:2700, foes:['wasp','spider','frog','frog'], tier:4, sap:[2,3], resin:[1,2], ring:true, acorn:true},
+  {name:'Ancient Heartwood', seconds:3600, foes:['centipede','fungus','wasp','frog','guardian'], tier:5, sap:[2,4], resin:[2,3], ring:true, acorn:true}
 ];
 function makeBug() {
   const kind = Math.floor(Math.random()*BUG_KINDS.length);
@@ -6788,8 +6800,11 @@ function ensureAdventures() {
   a.slots=clamp(Math.floor(Number(a.slots)||0),0,3);
   a.entries=Array.isArray(a.entries)?a.entries.slice(0,a.slots):[];
   a.completed=Math.max(0,Math.floor(Number(a.completed)||0));
+  a.routeCompletions=ADVENTURE_ROUTES.map((_,i)=>Math.max(0,Math.floor(Number(a.routeCompletions?.[i])||0)));
   if (!Number.isFinite(a.lastTickAt)) a.lastTickAt=Date.now();
   while(a.entries.length<a.slots) a.entries.push(null);
+  // The first adventure release used shorter legs without a duration snapshot.
+  for(const trip of a.entries) if(trip && !(trip.journeySeconds>0)) trip.journeySeconds=[90,180,300,420,600,900][trip.route];
   if (!Array.isArray(META.bugGear)) META.bugGear=[];
   for (const b of h.roster) {
     b.level=clamp(Math.floor(Number(b.level)||1),1,100); b.xp=Math.max(0,Number(b.xp)||0); b.gear=b.gear||{};
@@ -6831,17 +6846,22 @@ function adventureEnemy(a) {
   const r=ADVENTURE_ROUTES[a.route], e=ADVENTURE_ENEMIES[r.foes[a.stage]], scale=1+r.tier*.12;
   return {name:e[0],icon:e[1],hp:Math.round(e[2]*scale),attack:Math.round(e[3]*scale),defense:Math.round(e[4]*scale)};
 }
+function adventureRouteUnlocked(route) {
+  return Number.isInteger(route) && !!ADVENTURE_ROUTES[route] && (route===0 || META.adventures.routeCompletions[route-1]>0);
+}
 function startAdventure(slot, route, bugId) {
   if(frozenOn() || META.adventures.entries[slot] || slot>=META.adventures.slots || !ADVENTURE_ROUTES[route]) return;
+  if(!adventureRouteUnlocked(route)) { toast(`Complete ${ADVENTURE_ROUTES[route-1].name} to unlock this route.`); return; }
   const b=availableBugs().find(b=>b.id===bugId); if(!b) return;
   const rates=expeditionBaseRates(), rings=expeditionRingRange();
-  META.adventures.entries[slot]={bugId,route,stage:0,travel:0,enemyHp:null,hp:bugStats(b).hp,focus:0,rest:2,turns:0,autoTime:0,baseSap:rates.sap,baseResin:rates.resin,ringMin:rings[0],ringMax:rings[1],log:'Setting out…'};
+  META.adventures.entries[slot]={bugId,route,journeySeconds:ADVENTURE_ROUTES[route].seconds,stage:0,travel:0,enemyHp:null,hp:bugStats(b).hp,focus:0,rest:2,turns:0,autoTime:0,baseSap:rates.sap,baseResin:rates.resin,ringMin:rings[0],ringMax:rings[1],log:'Setting out…'};
   syncHubBugs(); save(); renderCritterHub(); renderAdventures();
 }
 function finishAdventure(i, won) {
   const a=META.adventures.entries[i], b=META.critterHub.roster.find(b=>b.id===a.bugId), r=ADVENTURE_ROUTES[a.route];
   if(won) {
     META.adventures.completed++;
+    META.adventures.routeCompletions[a.route]++;
     const roll=v=>v[0]+Math.random()*(v[1]-v[0]);
     const sap=a.baseSap*3600*roll(r.sap), resin=a.baseResin*3600*roll(r.resin);
     const rings=r.ring?Math.floor(a.ringMin+Math.random()*(a.ringMax-a.ringMin+1)):0;
@@ -6888,7 +6908,7 @@ function advanceAdventures(seconds, now=Date.now()) {
         const b=META.critterHub.roster.find(b=>b.id===a.bugId);
         adventureMove(i,a.hp<bugStats(b).hp*.45&&a.rest>0?'rest':a.focus>=2?'heavy':'strike',true);
       } else {
-        const leg=r.seconds/(r.foes.length+1), used=Math.min(left,Math.max(0,leg-a.travel)); a.travel+=used; left-=used;
+        const leg=a.journeySeconds/(r.foes.length+1), used=Math.min(left,Math.max(0,leg-a.travel)); a.travel+=used; left-=used;
         if(a.travel<leg) break;
         if(a.stage>=r.foes.length) {finishAdventure(i,true); break;}
         a.enemyHp=adventureEnemy(a).hp; a.autoTime=0; a.log='Enemy spotted — choose your move!';
@@ -6902,15 +6922,15 @@ function renderAdventures() {
   const a=META.adventures, roster=META.critterHub.roster;
   const unlocked=a.slots>0;
   document.getElementById('advSlots').innerHTML=a.entries.map((trip,i)=> {
-    if(!trip) return `<section class="expcard"><h3>Adventure ${i+1}</h3><label>Bug<select id="advBug${i}">${availableBugs().map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].name} ${b.id.slice(0,4)} · Lv ${b.level}</option>`).join('')}</select></label><label>Route<select id="advRoute${i}">${ADVENTURE_ROUTES.map((r,j)=>`<option value="${j}">${r.name} · ${fmtAcornTimer(r.seconds*1000)} · ${r.foes.length} enemies</option>`).join('')}</select></label><p>Times are journey time plus battles. Tougher routes need levels and gear. Rewards: sap, resin, possible rings, rare acorns and boosts; one gear piece on every success.</p><button data-adv="start" data-slot="${i}" ${!availableBugs().length||frozenOn()?'disabled':''}>Send bug</button></section>`;
+    if(!trip) return `<section class="expcard"><h3>Adventure ${i+1}</h3><label>Bug<select id="advBug${i}">${availableBugs().map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].name} ${b.id.slice(0,4)} · Lv ${b.level}</option>`).join('')}</select></label><label>Route<select id="advRoute${i}">${ADVENTURE_ROUTES.map((r,j)=>`<option value="${j}" ${adventureRouteUnlocked(j)?'':'disabled'}>${adventureRouteUnlocked(j)?`${r.name} · ${fmtAcornTimer(r.seconds*1000)} · ${r.foes.length} enemies${a.routeCompletions[j]?' · ✓ completed':''}`:`🔒 ${r.name} · complete ${ADVENTURE_ROUTES[j-1].name}`}</option>`).join('')}</select></label><p>Complete each route to unlock the next. Times are journey time plus battles. Tougher routes need levels and gear. Rewards: sap, resin, possible rings, rare acorns and boosts; one gear piece on every success.</p><button data-adv="start" data-slot="${i}" ${!availableBugs().length||frozenOn()?'disabled':''}>Send bug</button></section>`;
     const b=roster.find(b=>b.id===trip.bugId), r=ADVENTURE_ROUTES[trip.route], stats=bugStats(b), fighting=trip.enemyHp!==null, enemy=fighting?adventureEnemy(trip):null;
-    return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,r.seconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
+    return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,trip.journeySeconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
   }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
   document.getElementById('advBugs').innerHTML=roster.map(b=> {
     const k=BUG_KINDS[b.kind], s=bugStats(b), busy=bugBusy(b.id);
     return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
   }).join('')||'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>';
-  for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value)) el.value=value; }
+  for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value&&!o.disabled)) el.value=value; }
   if(focusAction) adventurePanel.querySelector(`[data-adv="${focusAction}"][data-slot="${focusSlot}"]`)?.focus({preventScroll:true});
   document.getElementById('advSummary').textContent=`${a.completed} adventures completed · ${META.bugGear.length} gear pieces · next loot tier ${1+Math.floor(a.completed/8)}. Bugs gain XP from battles and trips, level automatically, and return safely after defeat. Bugs, gear and journeys survive tree cuts. Away bugs free hub spaces; returning bugs are always kept, even if the hub is full.`;
 }
