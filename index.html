@@ -920,7 +920,7 @@
     <section class="spellbook-mana" aria-label="Mana">
       <div class="spellbook-mana-heading"><span>✦ Mana</span><strong id="spellMana">100 / 100</strong></div>
       <progress id="spellMeter" max="100" value="100" aria-label="Available mana">100%</progress>
-      <p>Mana refills over time, including while offline. Cutting preserves your mana. Freeze pauses mana refill and spell timers.</p>
+      <p>Mana refills while the game is open. Cutting preserves your mana. Freeze pauses mana refill and spell timers.</p>
     </section>
     <div id="spellEffects" class="spellbook-effects" aria-label="Active spell effects"></div>
     <p class="spellbook-warning"><strong>15% chance to backfire.</strong> Every cast spends mana, whichever way the magic turns.</p>
@@ -1007,7 +1007,7 @@ const SPECIES = {
 const GROVE = {
   spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
   manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellstudy', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
-  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellstudy', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills fully offline; Freeze pauses it.' },
+  manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellstudy', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills while the game is open; Freeze pauses it.' },
   // Tier 1 — always available after first cut.
   vitality:  { name:'Vitality',        glyph:'🌿', tier:1, parent:null,     max:12, cost:l=>1+l,   desc:'+15% sap production per level' },
   girth:     { name:'Heartgirth',      glyph:'🪵', tier:1, parent:null,     max:8,  cost:l=>2+l,   desc:'+20% branch capacity per level' },
@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-offline-mana-refill', date:'October 8, 2026', title:'Mana pauses during offline progress', notes:[
+    'Mana no longer refills during offline catchup. It continues to refill while the game is open, and Freeze still pauses it.'
+  ] },
   { id:'2026-10-07-boosts-save-immediately', date:'October 7, 2026', title:'Boosts save as soon as they activate', notes:[
     'Active gold-leaf boosts are saved immediately, so reloading right after harvesting a boost leaf will not discard the effect.'
   ] },
@@ -1168,7 +1171,7 @@ const UPDATE_LOG = [
   { id:'2026-10-07-spellbook', date:'October 7, 2026', title:'Tree magic has arrived', notes:[
     'Unlock the Spellbook in the Grove to cast spells with regenerating mana. Start with Call Sunlight, Sap Draw, and Sap Surge; Spell Study unlocks nine more spells, including resin magic, Golden Canopy, and a three-minute surge. Earlier spells remain available.',
     'Every spell has a visible 15% backfire chance and spends mana either way. Bark Ward protects the entire tree for five minutes, but a backfire immediately withers one terminal node.',
-    'Mana refills from empty in 20 minutes, including offline, and survives cuts without a free refill. Mana Well raises its cap to 150 and Mana Spring speeds regeneration. Freeze pauses mana and spell timers; thaw to cast. Temporary spells end when you fell the tree.'
+    'Mana refills from empty in 20 minutes while the game is open, and survives cuts without a free refill. Mana Well raises its cap to 150 and Mana Spring speeds regeneration. Freeze pauses mana and spell timers; thaw to cast. Temporary spells end when you fell the tree.'
   ] },
   { id:'2026-10-07-node-interactions-keep-critters', date:'October 7, 2026', title:'Other nodes no longer scare critters away', notes:[
     'Interacting with a node only affects critters sitting on that same node. Critters elsewhere stay put until you scare them directly or another game effect moves them.'
@@ -4796,7 +4799,11 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 // reload (laptop asleep, tab backgrounded) — those paths never re-run load(),
 // so without this the tree earned nothing while the JS clock was frozen.
 function creditOffline(awaySecRaw) {
-  tickSpellMana();
+  // Offline catchup advances production and spell timers, but mana only refills
+  // while the game is open. Re-anchor the clock so the next frame cannot credit
+  // this same away interval as foreground regeneration.
+  ensureSpellbook();
+  META.spellbook.lastTickAt = Date.now();
   const elapsed = Math.max(0, awaySecRaw);
   const away = Math.min(elapsed, offlineCapSecNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
