@@ -1021,6 +1021,7 @@ const GROVE = {
   critterhub:{ name:'Critter Hub', glyph:'🪲', tier:2, parent:'endurance', max:1, cost:_=>5, desc:'Unlocks a movable critter hub with space for 2 bugs. Drag bugs into it; each stored bug drains 1% of sap production. Expand with acorns.' },
   // Tier 3 — deeper.
   resonant:  { name:'Born Resonant',   glyph:'💠', tier:3, parent:'seasoned',  max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level' },
+  amplifiergrove:{ name:'Amplifier Grove', glyph:'⚡', tier:3, parent:'resonant', max:5, cost:l=>18+l*12, desc:'+2 maximum amplifiers per level' },
   deeproots: { name:'Deep Roots',      glyph:'🌱', tier:3, parent:'windfall',  max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
   // Tier-2 extensions
   slumber:   { name:'Slumber',         glyph:'😴', tier:2, parent:'endurance', max:4,  cost:l=>2+l,    desc:'+5% offline production rate per level' },
@@ -1127,6 +1128,9 @@ const UPDATE_LOG = [
   { id:'2026-10-08-longer-expeditions', date:'October 8, 2026', title:'Longer critter expeditions', notes:[
     'Expedition trips now take twice as long. Offers show the updated trip time before you send critters.'
   ] },
+  { id:'2026-10-08-amplifier-grove', date:'October 8, 2026', title:'Grow a larger amplifier forest', notes:[
+    'A new mid-game Grove upgrade adds 2 to your maximum amplifier count per level, up to 10 additional amplifiers.'
+  ]},
   { id:'2026-10-08-admin-resource-controls', date:'October 8, 2026', title:'Admins can adjust more resources', notes:[
     'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments. Open resource panels refresh when a queued adjustment is applied at the player’s next online check-in.'
   ] },
@@ -2057,7 +2061,7 @@ const ROOTS = {
 const thriftMult = () => Math.pow(0.88, rootLvl('thrift')) * SP().cost;
 const purityMult = () => 1 + 0.1 * rootLvl('purity');
 const typeMax = t =>
-  t === 'amp' ? 3 + 2 * rootLvl('grove') :
+  t === 'amp' ? 3 + 2 * rootLvl('grove') + 2 * metaLvl('amplifiergrove') :
   t === 'ref' ? 2 + rootLvl('stills') :
   t === 'cap' ? 2 + rootLvl('wells') :
   t === 'funnel' ? 2 + metaLvl('funnels') : Infinity;
