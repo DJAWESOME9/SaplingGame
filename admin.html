@@ -218,8 +218,14 @@ async function publishChallenge(e) {
 async function act(type,sap=0,resin=0,acorns=0,rings=0,amber=0) {
   if (!selected) { say('Select a player first.'); return; }
   if (type==='reset' && !confirm(`Reset ${selected.display_name}'s Sapling account? This clears their current tree and persistent meta progress the next time they are online.`)) return;
-  try { await rpc(type==='reset'?'admin_apply_action':'admin_apply_action_with_message',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin,p_acorns_delta:acorns,p_rings_delta:rings,p_amber_delta:amber,...(type==='reset'?{}:{p_message:$('actionMessage').value.trim()})}); if(type!=='reset') $('actionMessage').value=''; say(type==='reset'?'Account reset queued.':'Balance adjustment and message queued.'); }
-  catch(e) { say(`Action failed: ${e.message}`); }
+  try { await rpc(type==='reset'?'admin_apply_action':'admin_apply_action_with_message',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin,p_acorns_delta:acorns,p_rings_delta:rings,p_amber_delta:amber,...(type==='reset'?{}:{p_message:$('actionMessage').value.trim()})}); if(type!=='reset') $('actionMessage').value=''; say(type==='reset'?'Account reset queued.':'Balance adjustment queued; it applies when the player’s game checks in online.'); }
+  catch(e) {
+    const detail=e.message||'Unknown error';
+    const migrationMissing=/admin_apply_action_with_message|PGRST202|schema cache/i.test(detail);
+    say(migrationMissing
+      ? 'Action failed: Run supabase/admin_messages.sql in the Supabase SQL Editor, then retry.'
+      : `Action failed: ${detail}`);
+  }
 }
 async function deletePlayer() {
   if (!selected) { say('Select a player first.'); return; }
