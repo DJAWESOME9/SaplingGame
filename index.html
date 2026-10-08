@@ -1134,6 +1134,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-adventure-equipment-list', date:'October 8, 2026', title:'A tidier bug equipment list', notes:[
+    'Bugs travelling on expeditions are hidden from Adventures → Your bugs & equipment, and reappear when they return.'
+  ]},
   { id:'2026-10-08-channel-quest-goal', date:'October 8, 2026', title:'Channeling quests', notes:[
     'Quest creators can now add a Verdant Touch goal measured in seconds spent actively channeling. Open the 🏁 Quests menu to track progress.'
   ]},
@@ -6932,10 +6935,10 @@ function renderAdventures() {
     const b=roster.find(b=>b.id===trip.bugId), r=ADVENTURE_ROUTES[trip.route], stats=bugStats(b), fighting=trip.enemyHp!==null, enemy=fighting?adventureEnemy(trip):null;
     return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,trip.journeySeconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
   }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
-  document.getElementById('advBugs').innerHTML=roster.map(b=> {
+  document.getElementById('advBugs').innerHTML=roster.filter(b=>!META.expeditions.entries.some(slot=>slot?.active?.bugIds?.includes(b.id))).map(b=> {
     const k=BUG_KINDS[b.kind], s=bugStats(b), busy=bugBusy(b.id);
     return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
-  }).join('')||'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>';
+  }).join('')||(roster.length?'<p class="expsub">Your bugs are on expeditions. They will appear here when they return.</p>':'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>');
   for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value&&!o.disabled)) el.value=value; }
   if(focusAction) adventurePanel.querySelector(`[data-adv="${focusAction}"][data-slot="${focusSlot}"]`)?.focus({preventScroll:true});
   document.getElementById('advSummary').textContent=`${a.completed} adventures completed · ${META.bugGear.length} gear pieces · next loot tier ${1+Math.floor(a.completed/8)}. Bugs gain XP from battles and trips, level automatically, and return safely after defeat. Bugs, gear and journeys survive tree cuts. Away bugs free hub spaces; returning bugs are always kept, even if the hub is full.`;
