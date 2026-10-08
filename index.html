@@ -1134,6 +1134,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-channel-quest-goal', date:'October 8, 2026', title:'Channeling quests', notes:[
+    'Quest creators can now add a Verdant Touch goal measured in seconds spent actively channeling. Open the 🏁 Quests menu to track progress.'
+  ]},
   { id:'2026-10-08-blooms-match-your-tree', date:'October 8, 2026', title:'Boost leaves match your tree', notes:[
     'Big gold leaves no longer grant capacitor, refinery, or amplifier boosts when you do not currently own one of those nodes.'
   ]},
@@ -5164,8 +5167,8 @@ document.getElementById('eventHudNext')?.addEventListener('click', () => {
   head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
 }
 window.addEventListener('resize', clampEventHud);
-const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
-const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
+const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', channel:'seconds', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
+const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', channel:'Channel Verdant Touch', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
 const challengeSpeciesTypes = Object.keys(SPECIES).map(id => `${id}_sap`);
 function challengeProductionRates(mult = 1) {
   const rates = {sap:S.incomeS * mult, leaf_sap:S.leafSapRate * mult, resin:S.incomeR * mult, refinery_resin:S.refineryResinRate * mult};
@@ -7723,6 +7726,8 @@ function frame(now) {
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
     accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), challengeProductionRates(prod), true);
+    const channelSeconds = S.channeling && touchOwned() && !frozenOn() ? Math.min(dt, Number(S.touch?.charge) || 0) : 0;
+    if (channelSeconds > 0) accrueChallengeWindow(liveChallengeNow() - channelSeconds * 1000, liveChallengeNow(), {channel:1}, true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
       frame.eventHudAt = Date.now(); renderEventHud();
       if (spellPanel.classList.contains('open')) renderSpellbook();
