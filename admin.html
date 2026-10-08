@@ -72,7 +72,7 @@
       <form id="challengeForm" class="challenge-form">
         <label class="wide">Challenge title<input id="challengeTitle" maxlength="60" placeholder="Example: Forest sprint" required></label>
         <label class="wide">Description players see<input id="challengeDescription" maxlength="240" placeholder="Explain the goal in plain language" required></label>
-        <div class="wide" id="challengeGoals"><div class="goal-row"><label>Goal<select class="goal-type"><option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option></select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div></div>
+        <div class="wide" id="challengeGoals"><div class="goal-row"><label>Goal<select class="goal-type"><option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option></select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div></div>
         <button id="addGoal" type="button">Add another goal</button>
         <label>Runs for (hours)<input id="challengeHours" type="number" min="0.01" max="8760" step="any" value="24" required></label>
         <p id="challengeGoalHelp" class="muted" style="grid-column:1 / -1; margin:0" aria-live="polite"></p>
@@ -81,19 +81,20 @@
           <label>Resin<input id="challengeRewardResin" type="number" min="0" step="any" value="0"></label>
           <label>Acorns<input id="challengeRewardAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeRewardRings" type="number" min="0" step="1" value="0"></label>
-          <label>Amber<input id="challengeRewardAmber" type="number" min="0" step="1" value="0"></label>
+          <label>Gear<select id="challengeRewardGear"><option value="">None</option></select></label><label>Amber<input id="challengeRewardAmber" type="number" min="0" step="1" value="0"></label>
         </fieldset>
         <fieldset><legend>Extra reward for first finisher</legend>
           <label>Sap<input id="challengeFirstSap" type="number" min="0" step="any" value="0"></label>
           <label>Resin<input id="challengeFirstResin" type="number" min="0" step="any" value="0"></label>
           <label>Acorns<input id="challengeFirstAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeFirstRings" type="number" min="0" step="1" value="0"></label>
-          <label>Amber<input id="challengeFirstAmber" type="number" min="0" step="1" value="0"></label>
+          <label>Gear<select id="challengeFirstGear"><option value="">None</option></select></label><label>Amber<input id="challengeFirstAmber" type="number" min="0" step="1" value="0"></label>
         </fieldset>
         <button type="submit">Publish live challenge now</button>
       </form>
       <div id="challengeList" aria-live="polite"></div>
     </div>
+    <div class="card"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="0" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="0" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="0" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
     <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
     <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes and messages are queued for the player's game. They appear at the next online check-in. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
   </section>
@@ -145,8 +146,8 @@ async function refreshAchievements() {
     renderAchievements();
   } catch(e) { $('achievementList').innerHTML=`<p class="muted">Could not load achievements: ${escapeHtml(e.message)}</p>`; }
 }
-const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.'};
-const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option>';
+const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',oak_sap:'Sap produced by leaf nodes while Oak is planted.',apple_sap:'Sap produced by leaf nodes while Apple is planted.',peach_sap:'Sap produced by leaf nodes while Peach is planted.',grape_sap:'Sap produced by leaf nodes while Grape is planted.',maple_sap:'Sap produced by leaf nodes while Maple is planted.',pine_sap:'Sap produced by leaf nodes while Pine is planted.',chocolate_sap:'Sap produced by leaf nodes while Chocolate is planted.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.'};
+const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option>';
 function updateGoalRow(row) { const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'); input.step=['expeditions','amber','rings','bugs'].includes(type)?'1':'any'; input.min=['expeditions','amber','rings','bugs'].includes(type)?'1':'0.000001'; row.title=challengeGoalHelp[type]; }
 function updateGoalRows() { document.querySelectorAll('.goal-row').forEach(updateGoalRow); document.querySelectorAll('.remove-goal').forEach(b=>b.disabled=document.querySelectorAll('.goal-row').length<2); }
 function addGoalRow() { const row=document.createElement('div'); row.className='goal-row'; row.innerHTML=`<label>Goal<select class="goal-type">${goalOptions}</select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button">Remove</button>`; $('challengeGoals').append(row); updateGoalRows(); }
@@ -186,6 +187,7 @@ async function refreshPlayers() {
   }
 }
 async function refreshChallenges() {
+  await refreshQuestGear();
   try {
     const rows=await rpc('admin_list_live_challenges') || [];
     $('challengeList').innerHTML=rows.map(c=>{
@@ -194,7 +196,7 @@ async function refreshChallenges() {
       const status=active ? `LIVE · closes ${new Date(c.closes_at).toLocaleString()}` : c.ended_at ? `Ended ${new Date(c.ended_at).toLocaleString()}` : `Expired ${new Date(c.closes_at).toLocaleString()}`;
       const goals=Array.isArray(c.goals)&&c.goals.length?c.goals:[{type:c.target_type,target:c.target_sap}];
       const goal=goals.map(g=>`${n(g.target)} ${({banked_sap:'banked sap',sap:'sap made',leaf_sap:'sap made by leaves',resin:'resin made',refinery_resin:'resin made by refineries',expeditions:'expeditions completed',amber:'amber made',rings:'rings made',bugs:'bugs killed'})[g.type]||g.type}`).join(' + ');
-      const reward=prefix=>['sap','resin','acorns','rings','amber'].map(k=>Number(c[`${prefix}_${k}`])?`${n(c[`${prefix}_${k}`])} ${k}`:'').filter(Boolean).join(' + ')||'achievement only';
+      const reward=prefix=>['sap','resin','acorns','rings','amber'].map(k=>Number(c[`${prefix}_${k}`])?`${n(c[`${prefix}_${k}`])} ${k}`:'').filter(Boolean).concat((c[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name))).join(' + ')||'achievement only';
       return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} ${goal} · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Every finisher: ${reward('reward')} · First bonus: ${reward('first_bonus')}</p></div>${active?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
     }).join('') || '<p class="muted">No challenges published yet.</p>';
   } catch(e) { $('challengeList').innerHTML=`<p class="muted">Could not load live challenges: ${escapeHtml(e.message)}</p>`; }
@@ -204,7 +206,8 @@ async function publishChallenge(e) {
   const value=id=>Number($(id).value||0);
   try {
     say('Publishing challenge…');
-    await rpc('admin_publish_live_challenge',{
+    await rpc('admin_publish_gear_quest',{
+      p_reward_gear:$('challengeRewardGear').value||null, p_first_bonus_gear:$('challengeFirstGear').value||null,
       p_title:$('challengeTitle').value.trim(), p_description:$('challengeDescription').value.trim(),
       p_goals:readGoals(), p_duration_hours:value('challengeHours'),
       p_reward_sap:value('challengeRewardSap'), p_reward_resin:value('challengeRewardResin'), p_reward_acorns:value('challengeRewardAcorns'), p_reward_rings:value('challengeRewardRings'), p_reward_amber:value('challengeRewardAmber'),
@@ -273,6 +276,28 @@ $('createAccount').addEventListener('click',async()=>{
   } catch(err) { say(`Account creation failed: ${err.message}. If sign-ups are disabled, create this user in Supabase Authentication first.`); }
 });
 $('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id]');if(!row)return;selected=players.find(p=>p.player_id===row.dataset.id)||null;render();});
+async function refreshQuestGear() {
+  try {
+    const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:headers(),cache:'no-store'});
+    if(!res.ok) throw new Error('Apply supabase/quest_gear.sql to enable quest gear.');
+    const gear=await res.json();
+    for(const id of ['challengeRewardGear','challengeFirstGear']) {
+      const old=$(id).value;
+      $(id).innerHTML='<option value="">None</option>'+gear.map(g=>`<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)} · ${escapeHtml(g.slot)} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('');
+      $(id).value=old;
+    }
+    $('gearStatus').textContent=`${gear.length} quest-only gear pieces available.`;
+  } catch(err) { $('gearStatus').textContent=err.message; }
+}
+$('refreshGear').addEventListener('click',refreshQuestGear);
+$('gearForm').addEventListener('submit',async e=> {
+  e.preventDefault(); const button=e.target.querySelector('button'); button.disabled=true;
+  try {
+    await rpc('admin_create_quest_gear',{p_name:$('gearName').value.trim(),p_slot:$('gearSlot').value,p_hp:Number($('gearHp').value),p_attack:Number($('gearAttack').value),p_defense:Number($('gearDefense').value)});
+    e.target.reset(); await refreshQuestGear(); say('Quest gear created. Select it in quest rewards.');
+  } catch(err) { say(`Could not create quest gear: ${err.message}`); }
+  finally { button.disabled=false; }
+});
 $('challengeForm').addEventListener('submit',publishChallenge);
 $('addGoal').addEventListener('click',addGoalRow);
 $('challengeGoals').addEventListener('change',e=>{ if(e.target.matches('.goal-type')) updateGoalRows(); });

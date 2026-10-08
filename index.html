@@ -403,6 +403,12 @@
   .expcard button:disabled { opacity:.45; cursor:default; }
   .expprogress { height:8px; overflow:hidden; border-radius:6px; background:#0d1a12; margin:12px 0 8px; }
   .expprogress span { display:block; height:100%; background:#99ca79; }
+  #adventures { position:fixed; inset:0; display:none; z-index:55; background:#060c08dd; backdrop-filter:blur(5px); overflow-y:auto; padding:24px 12px; box-sizing:border-box; }
+  #adventures.open { display:block; }
+  #adventures label { display:block; font-size:12px; margin-top:10px; text-transform:capitalize; }
+  #adventures select { display:block; box-sizing:border-box; width:100%; min-width:0; background:#101e15; border:1px solid #6b965f; color:#edf8df; padding:9px 4px; border-radius:7px; margin-top:5px; }
+  #advClose { padding:8px 12px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
+  @media(max-width:600px) { #adventures .expbox { padding:14px; } #adventures .expgrid { grid-template-columns:1fr; } #adventures button { min-height:40px; } }
   /* ---- Intro overlay: shown on first play / after hard reset ---- */
   #intro { position:fixed; inset:0; display:none; z-index:60; background:rgba(6,10,7,.9);
     backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:32px 16px; }
@@ -736,7 +742,7 @@
 <body>
 <canvas id="cv"></canvas>
 <div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubMin" title="Minimize critter hub">−</button></span></div>
-<div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
+<div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubAdventures" type="button">Bugs &amp; adventures</button><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
 <div id="carriedBug" aria-hidden="true">🪲</div>
 <div id="blightvignette"></div>
 <div id="intro" role="dialog" aria-labelledby="introTitle">
@@ -908,6 +914,7 @@
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
   <button id="spellbookbtn" title="Spend regenerating mana on tree magic" style="display:none">📖 Spellbook</button>
+  <button id="adventurebtn" style="display:none">⚔️ Adventures</button>
   <button id="expeditionbtn" title="Send stored critters on expeditions" style="display:none">🧭 Expeditions</button>
 </div>
 <div id="spellbook" role="dialog" aria-modal="true" aria-labelledby="spellTitle">
@@ -932,10 +939,11 @@
 <div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
   <div class="expbox">
     <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
-    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They leave the hub as soon as a trip starts, freeing those spaces. Trips advance at your offline production rate while you are away.</p>
+    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They leave the hub as soon as a trip starts, freeing those spaces, and return with experience. Higher levels make trips up to 15% faster. Trips advance at your offline production rate while you are away.</p>
     <div id="expSlots" class="expgrid"></div>
   </div>
 </div>
+<div id="adventures" role="dialog" aria-modal="true" aria-labelledby="advTitle"><div class="expbox"><div class="exphead"><h2 id="advTitle">⚔️ Bug Adventures</h2><button id="advClose" type="button" aria-label="Close adventures">✕</button></div><p id="advSummary" class="expsub"></p><h3>Journeys</h3><div id="advSlots" class="expgrid"></div><h3>Your bugs &amp; equipment</h3><div id="advBugs" class="expgrid"></div></div></div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
     <div class="panhead"><h2 id="panTitle">🏛️ The Pantheon</h2><button id="panClose">✕</button></div>
@@ -1018,10 +1026,11 @@ const GROVE = {
   blueprint: { name:'Blueprint',       glyph:'📐', tier:2, parent:'girth',     max:1,  cost:_=>10,    desc:'Unlocks the 📐 Blueprint button — copy a branch (10 min of resin), then graft a paid clone (full sap+resin price) anywhere it fits' },
   windfall:  { name:'Windfall',        glyph:'💰', tier:2, parent:'endurance', max:10, cost:l=>2+l,   desc:'+20% rings earned when you cut down, per level' },
   swatpower: { name:'Strong Swat',     glyph:'👊', tier:2, parent:'endurance', max:1,  cost:_=>5,     desc:'Clicking a critter deals 2 damage instead of 1' },
-  critterhub:{ name:'Critter Hub', glyph:'🪲', tier:2, parent:'endurance', max:1, cost:_=>5, desc:'Unlocks a movable critter hub with space for 2 bugs. Drag bugs into it; each stored bug drains 1% of sap production. Expand with acorns.' },
+  critterhub:{ name:'Critter Hub', glyph:'🪲', tier:2, parent:'endurance', max:1, cost:_=>5, desc:'Unlocks a movable critter hub with space for 3 bugs. Drag bugs into it; each stored bug drains 1% of sap production. Expand with acorns.' },
+  bugtactics:{ name:'Bug Tactics', glyph:'⚔️', tier:3, parent:'critterhub', max:1, cost:_=>75, desc:'Bugs automatically choose battle moves on adventures, including while away. Manual moves remain available.' },
+  amplifiergrove:{ name:'Amplifier Grove', glyph:'⚡', tier:3, parent:'resonant', max:5, cost:l=>18+l*12, desc:'+2 maximum amplifiers per level' },
   // Tier 3 — deeper.
   resonant:  { name:'Born Resonant',   glyph:'💠', tier:3, parent:'seasoned',  max:4,  cost:l=>3+l*2, desc:'New amplifiers begin +1 level higher per level' },
-  amplifiergrove:{ name:'Amplifier Grove', glyph:'⚡', tier:3, parent:'resonant', max:5, cost:l=>18+l*12, desc:'+2 maximum amplifiers per level' },
   deeproots: { name:'Deep Roots',      glyph:'🌱', tier:3, parent:'windfall',  max:4,  cost:l=>4+l*3, desc:'New trees start with roots pre-unlocked (Amplify → Refine → Capacitance → Grafting)' },
   // Tier-2 extensions
   slumber:   { name:'Slumber',         glyph:'😴', tier:2, parent:'endurance', max:4,  cost:l=>2+l,    desc:'+5% offline production rate per level' },
@@ -1125,12 +1134,22 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
-  { id:'2026-10-08-longer-expeditions', date:'October 8, 2026', title:'Longer critter expeditions', notes:[
-    'Expedition trips now take twice as long. Offers show the updated trip time before you send critters.'
-  ] },
+  { id:'2026-10-08-bug-adventures', date:'October 8, 2026', title:'Bug adventures', notes:[
+    'The Bug Hub starts with three spaces. Each bug now has its own health, attack, defense and level, gaining experience from battles and expeditions. Higher levels make expeditions up to 15% faster.',
+    'Unlock adventure slots for 1, 3 and 5 acorns. Explore six routes, battle bugs and woodland creatures with Strike, Heavy, Guard and Recover, then keep journeying. Defeated bugs return safely.',
+    'Successful adventures give expedition-style rewards and gear from 18 different pieces. Equip weapons, armor and charms; loot improves every eight completed adventures. Bugs, gear and trips survive tree cuts.',
+    'Expedition bugs now return to the hub with experience instead of being spent on the trip.',
+    'Buy Bug Tactics in the Grove for automatic battles. Travel progresses offline at your offline rate; manual battles wait for you. Admins can create quest-only gear and award it to finishers or as a first-finisher bonus.'
+  ]},
   { id:'2026-10-08-amplifier-grove', date:'October 8, 2026', title:'Grow a larger amplifier forest', notes:[
     'A new mid-game Grove upgrade adds 2 to your maximum amplifier count per level, up to 10 additional amplifiers.'
   ]},
+  { id:'2026-10-08-species-sap-quests', date:'October 8, 2026', title:'Species sap quests', notes:[
+    'Quest creators can now set sap goals for Oak, Apple, Peach, Grape, Maple, Pine, and Chocolate trees. Species goals count sap produced by leaves while that species is planted, including eligible offline production.'
+  ] },
+  { id:'2026-10-08-longer-expeditions', date:'October 8, 2026', title:'Longer critter expeditions', notes:[
+    'Expedition trips now take twice as long. Offers show the updated trip time before you send critters.'
+  ] },
   { id:'2026-10-08-admin-resource-controls', date:'October 8, 2026', title:'Admins can adjust more resources', notes:[
     'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments. Open resource panels refresh when a queued adjustment is applied at the player’s next online check-in.'
   ] },
@@ -1465,7 +1484,7 @@ function loadMeta() {
   if (typeof META.acorns !== 'number') META.acorns = 0;
   if (!META.critterHub || typeof META.critterHub !== 'object') META.critterHub = { bugs: 0, extra: 0, x: null, y: null, minimized: false };
   META.critterHub.extra = clamp(Math.floor(Number(META.critterHub.extra) || 0), 0, 10);
-  META.critterHub.bugs = clamp(Math.floor(Number(META.critterHub.bugs) || 0), 0, 2 + META.critterHub.extra);
+  META.critterHub.bugs = clamp(Math.floor(Number(META.critterHub.bugs) || 0), 0, 3 + META.critterHub.extra);
   if (!META.expeditions || typeof META.expeditions !== 'object') META.expeditions = { slots: 1, entries: [], lastTickAt: Date.now() };
   META.expeditions.slots = clamp(Math.floor(Number(META.expeditions.slots) || 1), 1, 3);
   if (!Array.isArray(META.expeditions.entries)) META.expeditions.entries = [];
@@ -1477,6 +1496,7 @@ function loadMeta() {
       slot.active.crittersDeparted = true;
     }
   }
+  ensureAdventures();
   if (!Number.isFinite(META.expeditions.lastTickAt)) META.expeditions.lastTickAt = Date.now();
   if (typeof META.lifetimeSap !== 'number') META.lifetimeSap = 0;
   if (typeof META.lifetimeResin !== 'number') META.lifetimeResin = 0;
@@ -2846,7 +2866,7 @@ function witherAway(id) {
 // True while a fullscreen overlay covers the tree (Grove, Pantheon, intro, Welcome
 // Back) — wither pauses then so you aren't penalized for time spent in a menu.
 function overlayBlocksTree() {
-  return ['grove', 'pantheon', 'expeditions', 'spellbook', 'intro', 'welcome'].some(id => {
+  return ['grove', 'pantheon', 'adventures', 'expeditions', 'spellbook', 'intro', 'welcome'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('open');
   });
@@ -3307,7 +3327,7 @@ const hubEl = document.getElementById('critterHub');
 const hubPopover = document.getElementById('hubPopover');
 const carriedBugEl = document.getElementById('carriedBug');
 let bugCarry = null, hubDrag = null, hubDragMoved = false;
-function hubCapacity() { return 2 + META.critterHub.extra; }
+function hubCapacity() { return 3 + META.critterHub.extra; }
 function positionHubPopover() {
   if (!hubPopover.classList.contains('open')) return;
   const r = hubEl.getBoundingClientRect();
@@ -3337,8 +3357,8 @@ function renderCritterHub() {
   btn.textContent = h.extra >= 10 ? 'Max' : `+ 🌰${h.extra + 1}`;
   btn.disabled = h.extra >= 10;
   hubPopover.querySelector('.hubUpgradeText').textContent = h.extra >= 10
-    ? 'All 12 critter spaces unlocked' : `Add 1 space for 🌰 ${h.extra + 1} acorn${h.extra ? 's' : ''}`;
-  hubEl.title = `${h.bugs} stored bug${h.bugs === 1 ? '' : 's'} · −${h.bugs}% sap production · drag to move`;
+    ? 'All 13 critter spaces unlocked' : `Add 1 space for 🌰 ${h.extra + 1} acorn${h.extra ? 's' : ''}`;
+  hubEl.title = `${h.bugs} stored bug${h.bugs === 1 ? '' : 's'} · −${Math.min(12,h.bugs)}% sap production · drag to move`;
   placeHub();
 }
 hubEl.addEventListener('pointerdown', e => {
@@ -3401,7 +3421,7 @@ function dropBug(x, y, escaped = false) {
   if (inside && META.critterHub.bugs < hubCapacity()) {
     const i = critters.indexOf(c);
     if (i >= 0) critters.splice(i, 1);
-    META.critterHub.bugs++;
+    META.critterHub.roster.push(makeBug()); syncHubBugs();
     renderCritterHub(); saveMeta(); sfx('buy');
     toast(`🪲 Bug caught! ${META.critterHub.bugs}/${hubCapacity()} spaces filled.`);
   } else if (c.state === 'carried') {
@@ -4822,6 +4842,7 @@ function creditOffline(awaySecRaw) {
   META.spellbook.lastTickAt = Date.now();
   const elapsed = Math.max(0, awaySecRaw);
   const away = Math.min(elapsed, offlineCapSecNow());
+  advanceAdventures(Math.max(0,(Date.now()-META.adventures.lastTickAt)/1000)*offlineRateNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
   if (away <= 30) { advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
@@ -4835,7 +4856,7 @@ function creditOffline(awaySecRaw) {
     const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
     const segment = Math.min(remaining, ...timers);
     const end = liveChallengeNow() - remaining * 1000 + segment * 1000;
-    accrueChallengeWindow(end - segment * 1000, end, {sap:S.incomeS * rate, leaf_sap:S.leafSapRate * rate, resin:S.incomeR * rate, refinery_resin:S.refineryResinRate * rate}, true);
+    accrueChallengeWindow(end - segment * 1000, end, challengeProductionRates(rate), true);
     sap += S.incomeS * segment * rate; resin += S.incomeR * segment * rate;
     advanceSpellTimers(segment); remaining = Math.max(0, remaining - segment);
   }
@@ -5128,8 +5149,15 @@ document.getElementById('eventHudNext')?.addEventListener('click', () => {
   head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
 }
 window.addEventListener('resize', clampEventHud);
-const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', resin:'resin', refinery_resin:'resin', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
-const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', resin:'Resin made', refinery_resin:'Resin made by refineries', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
+const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
+const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
+const challengeSpeciesTypes = Object.keys(SPECIES).map(id => `${id}_sap`);
+function challengeProductionRates(mult = 1) {
+  const rates = {sap:S.incomeS * mult, leaf_sap:S.leafSapRate * mult, resin:S.incomeR * mult, refinery_resin:S.refineryResinRate * mult};
+  const speciesType = `${META.species}_sap`;
+  if (challengeSpeciesTypes.includes(speciesType)) rates[speciesType] = S.leafSapRate * mult;
+  return rates;
+}
 function addChallengeProgress(challenge, amount) {
   if (!(amount > 0) || challenge.player_completed) return;
   const goals = challengeGoals(challenge), type = arguments[2];
@@ -5190,7 +5218,7 @@ function recordChallengeEvent(type, amount) {
   peakMetaDirty = true;
 }
 function liveRewardText(challenge, prefix) {
-  return ['sap','resin','acorns','rings','amber'].map(k => Number(challenge[`${prefix}_${k}`]) ? `${fmt(Number(challenge[`${prefix}_${k}`]))} ${k}` : '').filter(Boolean).join(' + ') || 'achievement';
+  return ['sap','resin','acorns','rings','amber'].map(k => Number(challenge[`${prefix}_${k}`]) ? `${fmt(Number(challenge[`${prefix}_${k}`]))} ${k}` : '').filter(Boolean).concat((challenge[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name))).join(' + ') || 'achievement';
 }
 function renderLiveChallenges() {
   if (!liveChallengesPanel) return;
@@ -5227,7 +5255,7 @@ async function loadLiveChallenges() {
     META.pendingLeafSapWindows = [];
     for (const w of pending) {
       const offset = w.localTime ? liveChallengeClockOffsetMs : 0;
-      accrueChallengeWindow(Number(w.startMs) + offset, Number(w.endMs) + offset, {leaf_sap:Number(w.rate)});
+      accrueChallengeWindow(Number(w.startMs) + offset, Number(w.endMs) + offset, {leaf_sap:Number(w.rate), [`${w.species || META.species}_sap`]:Number(w.rate)});
     }
     const events = META.pendingChallengeEvents || [];
     META.pendingChallengeEvents = [];
@@ -5272,6 +5300,7 @@ async function claimLiveChallenge(id, button) {
     if (!result.already_completed) {
       const rewardSap = Number(result.reward_sap)||0, rewardResin = Number(result.reward_resin)||0;
       const rewardAcorns = Number(result.reward_acorns)||0, rewardRings = Number(result.reward_rings)||0, rewardAmber = Number(result.reward_amber)||0;
+      (result.reward_gear||[]).forEach((g,i)=>grantBugGear(g,1,`quest:${challenge.id}:${i}`));
       S.sap += rewardSap;
       S.resin += rewardResin;
       S.amber += rewardAmber;
@@ -6714,6 +6743,205 @@ spellPanel.addEventListener('keydown', e => {
   }
 });
 
+// ---------- bug roster, gear, and adventures (persistent across trees) ----------
+const BUG_KINDS = [
+  {name:'Ladybug', icon:'🐞', hp:44, attack:10, defense:4},
+  {name:'Beetle', icon:'🪲', hp:50, attack:9, defense:5},
+  {name:'Ant', icon:'🐜', hp:42, attack:11, defense:3},
+  {name:'Moth', icon:'🦋', hp:46, attack:10, defense:3}
+];
+const GEAR_PIECES = [
+  ['Thorn Lance','weapon',0,4,0], ['Twig Saber','weapon',2,3,0], ['Stinger Pike','weapon',0,5,0],
+  ['Pebble Hammer','weapon',4,3,0], ['Bramble Bow','weapon',0,4,1], ['Amber Fang','weapon',3,4,0],
+  ['Bark Plate','armor',8,0,2], ['Moss Vest','armor',12,0,1], ['Seed Shell','armor',6,0,3],
+  ['Acorn Helm','armor',8,1,1], ['Resin Mail','armor',10,0,2], ['Beetle Carapace','armor',5,0,3],
+  ['Dew Pendant','charm',10,1,0], ['Pollen Brooch','charm',4,2,1], ['Root Charm','charm',6,0,2],
+  ['Sunstone','charm',3,3,0], ['Moonseed','charm',8,1,1], ['Grove Medal','charm',5,2,1]
+];
+const ADVENTURE_ENEMIES = {
+  mite:['Dust Mite','🐛',22,7,1], ant:['Wild Ant','🐜',28,8,2], spider:['Web Spider','🕷️',34,9,2],
+  slug:['Moss Slug','🐌',40,7,4], wasp:['Wasp Scout','🐝',32,11,2], fungus:['Walking Fungus','🍄',45,9,3],
+  centipede:['Centipede','🐛',50,12,3], frog:['Pond Frog','🐸',58,12,4], guardian:['Hollow Guardian','🪵',70,13,5]
+};
+const ADVENTURE_ROUTES = [
+  {name:'Garden Path', seconds:90, foes:['mite','ant'], tier:0, sap:[.25,.5], resin:[0,0], ring:false, acorn:false},
+  {name:'Mossy Stones', seconds:180, foes:['mite','slug','spider'], tier:1, sap:[.5,1], resin:[.25,.5], ring:false, acorn:false},
+  {name:'Bramble Crossing', seconds:300, foes:['ant','wasp','spider'], tier:2, sap:[1,2], resin:[.5,1], ring:true, acorn:false},
+  {name:'Mushroom Hollow', seconds:420, foes:['slug','fungus','centipede','fungus'], tier:3, sap:[1,2], resin:[1,2], ring:true, acorn:false},
+  {name:'Moonlit Pond', seconds:600, foes:['wasp','spider','frog','frog'], tier:4, sap:[2,3], resin:[1,2], ring:true, acorn:true},
+  {name:'Ancient Heartwood', seconds:900, foes:['centipede','fungus','wasp','frog','guardian'], tier:5, sap:[2,4], resin:[2,3], ring:true, acorn:true}
+];
+function makeBug() {
+  const kind = Math.floor(Math.random()*BUG_KINDS.length);
+  return {id:crypto.randomUUID(), kind, level:1, xp:0, hpBonus:Math.floor(Math.random()*5), attackBonus:Math.floor(Math.random()*3), defenseBonus:Math.floor(Math.random()*2), gear:{}};
+}
+function ensureAdventures() {
+  const h = META.critterHub;
+  if (!Array.isArray(h.roster)) {
+    h.roster = Array.from({length:h.bugs}, makeBug);
+    for (const slot of META.expeditions.entries) if (slot?.active) {
+      slot.active.bugIds = Array.from({length:slot.active.critters}, () => { const b=makeBug(); h.roster.push(b); return b.id; });
+    }
+  }
+  if (!META.adventures || typeof META.adventures !== 'object') META.adventures = {slots:0, entries:[], completed:0, lastTickAt:Date.now()};
+  const a=META.adventures;
+  a.slots=clamp(Math.floor(Number(a.slots)||0),0,3);
+  a.entries=Array.isArray(a.entries)?a.entries.slice(0,a.slots):[];
+  a.completed=Math.max(0,Math.floor(Number(a.completed)||0));
+  if (!Number.isFinite(a.lastTickAt)) a.lastTickAt=Date.now();
+  while(a.entries.length<a.slots) a.entries.push(null);
+  if (!Array.isArray(META.bugGear)) META.bugGear=[];
+  for (const b of h.roster) {
+    b.level=clamp(Math.floor(Number(b.level)||1),1,100); b.xp=Math.max(0,Number(b.xp)||0); b.gear=b.gear||{};
+    if (!BUG_KINDS[b.kind]) b.kind=0;
+  }
+  syncHubBugs();
+}
+function bugBusy(id) {
+  return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id);
+}
+function availableBugs() { return META.critterHub.roster.filter(b=>!bugBusy(b.id)); }
+function syncHubBugs() { META.critterHub.bugs=availableBugs().length; }
+function bugStats(b) {
+  const k=BUG_KINDS[b.kind], l=b.level-1;
+  const stats={hp:k.hp+(b.hpBonus||0)+l*5, attack:k.attack+(b.attackBonus||0)+l*1.2, defense:k.defense+(b.defenseBonus||0)+l*.6};
+  for(const id of Object.values(b.gear)) { const g=META.bugGear.find(g=>g.id===id); if(g) for(const key of ['hp','attack','defense']) stats[key]+=g[key]||0; }
+  for(const key of Object.keys(stats)) stats[key]=Math.round(stats[key]);
+  return stats;
+}
+function bugXp(b, amount) {
+  b.xp+=amount;
+  while(b.level<100 && b.xp>=b.level*30) { b.xp-=b.level*30; b.level++; }
+}
+function grantBugGear(piece, tier=1, id=crypto.randomUUID()) {
+  if(META.bugGear.some(g=>g.id===id)) return;
+  if (!piece || !['weapon','armor','charm'].includes(piece.slot)) return;
+  const g={id,name:String(piece.name).slice(0,60),slot:piece.slot,tier};
+  for(const key of ['hp','attack','defense']) g[key]=Math.round(clamp(Number(piece[key])||0,0,10000)*tier);
+  META.bugGear.push(g);
+  return g;
+}
+function adventureGear() {
+  const p=GEAR_PIECES[Math.floor(Math.random()*GEAR_PIECES.length)];
+  return grantBugGear({name:p[0],slot:p[1],hp:p[2],attack:p[3],defense:p[4]},1+Math.floor(META.adventures.completed/8));
+}
+const adventurePanel=document.getElementById('adventures');
+const adventureBtn=document.getElementById('adventurebtn');
+function adventureEnemy(a) {
+  const r=ADVENTURE_ROUTES[a.route], e=ADVENTURE_ENEMIES[r.foes[a.stage]], scale=1+r.tier*.12;
+  return {name:e[0],icon:e[1],hp:Math.round(e[2]*scale),attack:Math.round(e[3]*scale),defense:Math.round(e[4]*scale)};
+}
+function startAdventure(slot, route, bugId) {
+  if(frozenOn() || META.adventures.entries[slot] || slot>=META.adventures.slots || !ADVENTURE_ROUTES[route]) return;
+  const b=availableBugs().find(b=>b.id===bugId); if(!b) return;
+  const rates=expeditionBaseRates(), rings=expeditionRingRange();
+  META.adventures.entries[slot]={bugId,route,stage:0,travel:0,enemyHp:null,hp:bugStats(b).hp,focus:0,rest:2,turns:0,autoTime:0,baseSap:rates.sap,baseResin:rates.resin,ringMin:rings[0],ringMax:rings[1],log:'Setting out…'};
+  syncHubBugs(); save(); renderCritterHub(); renderAdventures();
+}
+function finishAdventure(i, won) {
+  const a=META.adventures.entries[i], b=META.critterHub.roster.find(b=>b.id===a.bugId), r=ADVENTURE_ROUTES[a.route];
+  if(won) {
+    META.adventures.completed++;
+    const roll=v=>v[0]+Math.random()*(v[1]-v[0]);
+    const sap=a.baseSap*3600*roll(r.sap), resin=a.baseResin*3600*roll(r.resin);
+    const rings=r.ring?Math.floor(a.ringMin+Math.random()*(a.ringMax-a.ringMin+1)):0;
+    const acorns=r.acorn&&Math.random()<.2?1:0, boost=Math.random()<.3;
+    S.sap+=sap; S.resin+=resin; recordEarned(sap,resin); META.rings+=rings; META.totalRings+=rings; META.acorns+=acorns;
+    recordChallengeEvent('rings',rings); if(boost) applyBloom('expedition',300);
+    const gear=adventureGear(); bugXp(b,30+r.tier*15);
+    toast(`⚔️ ${r.name} complete: ${fmt(sap)} sap, ${fmt(resin)} resin, ${rings} rings${acorns?', 🌰1':''}${boost?', 5 min boost':''}, ${gear.name} (tier ${gear.tier}).`,10000);
+    recordHighestBalances();
+  } else { bugXp(b,5+a.stage*5); toast(`${BUG_KINDS[b.kind].name} returned safely. No loot this time; experience kept.`); }
+  META.adventures.entries[i]=null; syncHubBugs(); refreshAcorns(); renderCritterHub(); save();
+}
+function adventureMove(i, move, automatic=false) {
+  const a=META.adventures.entries[i]; if(!a || a.enemyHp===null || frozenOn() || !['strike','heavy','guard','rest'].includes(move)) return;
+  const b=META.critterHub.roster.find(b=>b.id===a.bugId), stats=bugStats(b), e=adventureEnemy(a);
+  if(move==='heavy' && a.focus<2 || move==='rest' && a.rest<=0) return;
+  let damage=0;
+  if(move==='rest') {a.rest--; a.hp=Math.min(stats.hp,a.hp+Math.ceil(stats.hp*.35));}
+  else { damage=Math.max(1,Math.round(stats.attack*(move==='heavy'?1.9:move==='guard'?.55:1)-e.defense)); a.enemyHp=Math.max(0,a.enemyHp-damage); }
+  if(move==='heavy') a.focus=0; else a.focus=Math.min(2,a.focus+1);
+  a.turns++; a.log=`${move==='rest'?'Recovered health':`${move}: ${damage} damage`}.`;
+  if(a.enemyHp<=0) {
+    bugXp(b,8+ADVENTURE_ROUTES[a.route].tier*2); a.stage++; a.enemyHp=null; a.travel=0; a.turns=0; a.autoTime=0;
+    a.hp=Math.min(bugStats(b).hp,a.hp+Math.ceil(bugStats(b).hp*.15)); a.log='Enemy defeated! Continuing the journey.';
+  } else {
+    const hit=Math.max(1,Math.round(e.attack*(a.turns%3===0?1.5:1)-stats.defense)*(move==='guard'?.35:1));
+    a.hp=Math.max(0,a.hp-hit); a.log+=` ${e.name} dealt ${Math.round(hit)}${a.turns%3===0?' (heavy attack)':''}.`;
+    if(a.hp<=0 || a.turns>=200) finishAdventure(i,false);
+  }
+  if(!automatic) { save(); renderAdventures(); }
+}
+function advanceAdventures(seconds, now=Date.now()) {
+  const all=META.adventures; all.lastTickAt=now;
+  if(frozenOn() || !(seconds>0)) return;
+  for(let i=0;i<all.slots;i++) {
+    let left=seconds, safety=0;
+    while(all.entries[i] && left>0 && safety++<1100) {
+      const a=all.entries[i], r=ADVENTURE_ROUTES[a.route];
+      if(a.enemyHp!==null) {
+        if(!metaLvl('bugtactics')) break;
+        const needed=Math.max(0,3-a.autoTime), used=Math.min(left,needed); a.autoTime+=used; left-=used;
+        if(a.autoTime<3) break;
+        a.autoTime=0;
+        const b=META.critterHub.roster.find(b=>b.id===a.bugId);
+        adventureMove(i,a.hp<bugStats(b).hp*.45&&a.rest>0?'rest':a.focus>=2?'heavy':'strike',true);
+      } else {
+        const leg=r.seconds/(r.foes.length+1), used=Math.min(left,Math.max(0,leg-a.travel)); a.travel+=used; left-=used;
+        if(a.travel<leg) break;
+        if(a.stage>=r.foes.length) {finishAdventure(i,true); break;}
+        a.enemyHp=adventureEnemy(a).hp; a.autoTime=0; a.log='Enemy spotted — choose your move!';
+      }
+    }
+  }
+}
+function renderAdventures() {
+  const choices=[...adventurePanel.querySelectorAll('select[id]')].map(el=>[el.id,el.value]);
+  const focus=document.activeElement, focusAction=focus?.dataset.adv, focusSlot=focus?.dataset.slot;
+  const a=META.adventures, roster=META.critterHub.roster;
+  const unlocked=a.slots>0;
+  document.getElementById('advSlots').innerHTML=a.entries.map((trip,i)=> {
+    if(!trip) return `<section class="expcard"><h3>Adventure ${i+1}</h3><label>Bug<select id="advBug${i}">${availableBugs().map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].name} ${b.id.slice(0,4)} · Lv ${b.level}</option>`).join('')}</select></label><label>Route<select id="advRoute${i}">${ADVENTURE_ROUTES.map((r,j)=>`<option value="${j}">${r.name} · ${fmtAcornTimer(r.seconds*1000)} · ${r.foes.length} enemies</option>`).join('')}</select></label><p>Times are journey time plus battles. Tougher routes need levels and gear. Rewards: sap, resin, possible rings, rare acorns and boosts; one gear piece on every success.</p><button data-adv="start" data-slot="${i}" ${!availableBugs().length||frozenOn()?'disabled':''}>Send bug</button></section>`;
+    const b=roster.find(b=>b.id===trip.bugId), r=ADVENTURE_ROUTES[trip.route], stats=bugStats(b), fighting=trip.enemyHp!==null, enemy=fighting?adventureEnemy(trip):null;
+    return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,r.seconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
+  }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
+  document.getElementById('advBugs').innerHTML=roster.map(b=> {
+    const k=BUG_KINDS[b.kind], s=bugStats(b), busy=bugBusy(b.id);
+    return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
+  }).join('')||'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>';
+  for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value)) el.value=value; }
+  if(focusAction) adventurePanel.querySelector(`[data-adv="${focusAction}"][data-slot="${focusSlot}"]`)?.focus({preventScroll:true});
+  document.getElementById('advSummary').textContent=`${a.completed} adventures completed · ${META.bugGear.length} gear pieces · next loot tier ${1+Math.floor(a.completed/8)}. Bugs gain XP from battles and trips, level automatically, and return safely after defeat. Bugs, gear and journeys survive tree cuts. Away bugs free hub spaces; returning bugs are always kept, even if the hub is full.`;
+}
+function openAdventures() { renderAdventures(); adventurePanel.classList.add('open'); document.getElementById('advClose').focus(); }
+adventureBtn.addEventListener('click',openAdventures);
+document.getElementById('hubAdventures').addEventListener('click',openAdventures);
+adventurePanel.addEventListener('click',e=> {
+  if(e.target===adventurePanel || e.target.closest('#advClose')) { adventurePanel.classList.remove('open'); adventureBtn.focus(); return; }
+  const btn=e.target.closest('[data-adv]'); if(!btn) return;
+  const act=btn.dataset.adv, i=Number(btn.dataset.slot);
+  if(act==='unlock') {
+    const a=META.adventures, cost=[1,3,5][a.slots];
+    if(!cost||META.acorns<cost||!confirm(`Unlock an adventure slot for 🌰 ${cost}?`)) return;
+    META.acorns-=cost; a.slots++; a.entries.push(null); refreshAcorns(); saveMeta();
+  } else if(act==='start') startAdventure(i,Number(document.getElementById(`advRoute${i}`).value),document.getElementById(`advBug${i}`).value);
+  else if(act==='retreat' && META.adventures.entries[i]) finishAdventure(i,false);
+  else adventureMove(i,act);
+  renderAdventures();
+});
+adventurePanel.addEventListener('change',e=> {
+  const el=e.target, b=META.critterHub.roster.find(b=>b.id===el.dataset.bug), slot=el.dataset.gearSlot;
+  if(!b||bugBusy(b.id)||!['weapon','armor','charm'].includes(slot)) return;
+  if(el.value && (!META.bugGear.some(g=>g.id===el.value&&g.slot===slot)||META.critterHub.roster.some(o=>o.id!==b.id&&Object.values(o.gear).includes(el.value)))) return;
+  b.gear[slot]=el.value; saveMeta(); renderAdventures();
+});
+adventurePanel.addEventListener('keydown',e=> {
+  if(e.key==='Escape') { adventurePanel.classList.remove('open'); adventureBtn.focus(); }
+  if(e.key==='Tab') { const els=[...adventurePanel.querySelectorAll('button:not(:disabled),select:not(:disabled)')], first=els[0],last=els[els.length-1]; if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();} else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();} }
+});
+let adventureRenderAt=0;
+
 // ---------- pantheon minigame ----------
 const pantheon = document.getElementById('pantheon');
 function pantheonAvailable() {
@@ -6873,11 +7101,12 @@ function startExpedition(i) {
   if (!slot || slot.active || !slot.offer) return;
   const t = EXPEDITION_TYPES[slot.offer.kind];
   if (expeditionAvailable() < t.critters) { toast(`Need ${t.critters} critters in the hub.`); return; }
-  META.critterHub.bugs -= t.critters;
+  const team=availableBugs().slice(0,t.critters);
+  const speed=1+Math.min(.15,team.reduce((sum,b)=>sum+(b.level-1)*.01,0)/team.length);
   const { sap:baseSap, resin:baseResin } = expeditionBaseRates();
   const [ringMin, ringMax] = expeditionRingRange();
-  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration, progress:0, critters:t.critters, crittersDeparted:true, baseSap, baseResin, ringMin, ringMax };
-  slot.offer = null;
+  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration/speed, bugIds:team.map(b=>b.id), progress:0, critters:t.critters, crittersDeparted:true, baseSap, baseResin, ringMin, ringMax };
+  slot.offer = null; syncHubBugs();
   META.expeditions.lastTickAt = Date.now();
   renderCritterHub(); saveMeta(); renderExpeditions(); sfx('buy');
   toast(`🧭 ${t.critters} critter${t.critters === 1 ? '' : 's'} set off for ${t.name}.`);
@@ -6912,7 +7141,8 @@ function advanceExpeditions(seconds, now = Date.now()) {
     recordHighestBalances();
     const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
     news.push(`Slot ${i + 1} complete: ${rewards || 'critters returned'}`);
-    slot.active = null; slot.offer = newExpeditionOffer();
+    for(const id of a.bugIds||[]) { const b=META.critterHub.roster.find(b=>b.id===id); if(b) bugXp(b,20); }
+    slot.active = null; syncHubBugs(); slot.offer = newExpeditionOffer();
     renderCritterHub(); refreshAcorns(); saveMeta(); save();
     toast(`🧭 ${t.name} complete — ${rewards}`);
   }
@@ -6954,6 +7184,8 @@ function refreshMiniDock() {
   }
   // Dock is visible whenever it holds at least one available minigame.
   const showExpeditions = metaLvl('critterhub') > 0;
+  adventureBtn.style.display = showExpeditions ? '' : 'none';
+  adventureBtn.textContent = `⚔️ Adventures${META.adventures.entries.some(a=>a && a.enemyHp!==null)?' · battle!':''}`;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
   const showSpells = acornsUnlocked() || spellbookOwned();
@@ -7467,7 +7699,7 @@ function frame(now) {
     }
     wasIdle = idle;
     const prod = idle ? offlineRateNow() : 1;
-    accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), {sap:S.incomeS * prod, leaf_sap:S.leafSapRate * prod, resin:S.incomeR * prod, refinery_resin:S.refineryResinRate * prod}, true);
+    accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), challengeProductionRates(prod), true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
       frame.eventHudAt = Date.now(); renderEventHud();
       if (spellPanel.classList.contains('open')) renderSpellbook();
@@ -7483,6 +7715,8 @@ function frame(now) {
     // Per-tree production resets with each newGame() and powers one-tree challenges.
     recordProduction(sapInc, resinInc);
     if (!document.hidden) {
+      advanceAdventures(dt * prod);
+      if(adventurePanel.classList.contains('open') && Date.now()-adventureRenderAt>1000 && !document.activeElement.matches('#adventures select')) { renderAdventures(); adventureRenderAt=Date.now(); }
       const expeditionNews = advanceExpeditions(dt * prod);
       if (idle) idleExpeditionNews.push(...expeditionNews);
     }

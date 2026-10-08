@@ -9,7 +9,7 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 3. Run [`../supabase/live_challenges.sql`](../supabase/live_challenges.sql) after the leaderboard setup to enable live quests.
 4. Run [`../supabase/live_challenge_leaf_sap.sql`](../supabase/live_challenge_leaf_sap.sql) to enable leaf-produced sap goals and real-time event progress.
 5. Run [`../supabase/live_challenge_server_clock.sql`](../supabase/live_challenge_server_clock.sql) to return the database clock with active events for countdown alignment.
-6. Run [`../supabase/live_challenge_goals.sql`](../supabase/live_challenge_goals.sql) to enable all live goal types and five-currency rewards.
+6. Run [`../supabase/live_challenge_goals.sql`](../supabase/live_challenge_goals.sql) to enable all live goal types and five-currency rewards. Then run [`../supabase/quest_gear.sql`](../supabase/quest_gear.sql) to enable the admin quest-only gear workshop and gear rewards, including first-finisher bonuses.
 7. Run [`../supabase/admin_messages.sql`](../supabase/admin_messages.sql) to enable player-facing admin messages and admin adjustments for acorns, rings, and amber. Run this after `leaderboard.sql` on existing projects too.
 8. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 9. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.

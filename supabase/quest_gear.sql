@@ -1,21 +1,32 @@
--- Apply after live_challenge_leaf_sap.sql and live_challenge_server_clock.sql.
--- Existing banked-sap challenges and completion records remain intact.
+-- Apply after live_challenge_goals.sql. Quest gear is snapshotted at publication.
+-- Existing quests/completions receive empty gear rewards; no progress is changed.
 alter table public.live_challenges
-  add column if not exists goals jsonb not null default '[]'::jsonb,
-  add column if not exists reward_acorns bigint not null default 0 check (reward_acorns >= 0),
-  add column if not exists reward_rings bigint not null default 0 check (reward_rings >= 0),
-  add column if not exists reward_amber bigint not null default 0 check (reward_amber >= 0),
-  add column if not exists first_bonus_acorns bigint not null default 0 check (first_bonus_acorns >= 0),
-  add column if not exists first_bonus_rings bigint not null default 0 check (first_bonus_rings >= 0),
-  add column if not exists first_bonus_amber bigint not null default 0 check (first_bonus_amber >= 0);
+  add column if not exists reward_gear jsonb not null default '[]'::jsonb,
+  add column if not exists first_bonus_gear jsonb not null default '[]'::jsonb;
 alter table public.live_challenge_completions
-  add column if not exists reward_acorns bigint not null default 0 check (reward_acorns >= 0),
-  add column if not exists reward_rings bigint not null default 0 check (reward_rings >= 0),
-  add column if not exists reward_amber bigint not null default 0 check (reward_amber >= 0);
-alter table public.live_challenges drop constraint if exists live_challenges_target_type_check;
-alter table public.live_challenges add constraint live_challenges_target_type_check
-  check (target_type in ('banked_sap', 'sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'expeditions', 'amber', 'rings', 'bugs'));
-
+  add column if not exists reward_gear jsonb not null default '[]'::jsonb;
+create table if not exists public.quest_gear (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 60),
+  slot text not null check (slot in ('weapon','armor','charm')),
+  hp integer not null check (hp between 0 and 10000),
+  attack integer not null check (attack between 0 and 10000),
+  defense integer not null check (defense between 0 and 10000),
+  created_at timestamptz not null default now()
+);
+alter table public.quest_gear enable row level security;
+revoke all on public.quest_gear from public, anon, authenticated;
+grant select on public.quest_gear to authenticated;
+drop policy if exists quest_gear_admin_read on public.quest_gear;
+create policy quest_gear_admin_read on public.quest_gear for select to authenticated using (public.is_sapling_admin());
+create or replace function public.admin_create_quest_gear(p_name text,p_slot text,p_hp integer,p_attack integer,p_defense integer)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare gear_id uuid;
+begin
+  if not public.is_sapling_admin() then raise exception 'Administrator access required'; end if;
+  insert into public.quest_gear(name,slot,hp,attack,defense) values(trim(p_name),p_slot,p_hp,p_attack,p_defense) returning id into gear_id;
+  return gear_id;
+end; $$;
 drop function if exists public.get_live_challenges(uuid);
 create function public.get_live_challenges(p_player_id uuid)
 returns table(
@@ -25,7 +36,7 @@ returns table(
   reward_acorns bigint, reward_rings bigint, reward_amber bigint,
   first_bonus_sap double precision, first_bonus_resin double precision,
   first_bonus_acorns bigint, first_bonus_rings bigint, first_bonus_amber bigint,
-  first_finisher text, completion_count bigint, player_completed boolean, server_now timestamptz
+  first_finisher text, completion_count bigint, player_completed boolean, server_now timestamptz, reward_gear jsonb, first_bonus_gear jsonb
 )
 language sql stable security definer set search_path = '' as $$
   select c.id, c.title, c.description, c.target_sap, c.target_type,
@@ -35,7 +46,7 @@ language sql stable security definer set search_path = '' as $$
     c.first_bonus_sap, c.first_bonus_resin, c.first_bonus_acorns, c.first_bonus_rings, c.first_bonus_amber,
     (select x.display_name from public.live_challenge_completions x where x.challenge_id = c.id and x.is_first limit 1),
     (select count(*) from public.live_challenge_completions x where x.challenge_id = c.id),
-    exists(select 1 from public.live_challenge_completions x where x.challenge_id = c.id and x.player_id = p_player_id), now()
+    exists(select 1 from public.live_challenge_completions x where x.challenge_id = c.id and x.player_id = p_player_id), now(), c.reward_gear, c.first_bonus_gear
   from public.live_challenges c
   where c.ended_at is null and c.opens_at <= now() and c.closes_at > now()
   order by c.opens_at desc;
@@ -47,11 +58,11 @@ create function public.claim_live_challenge(
   p_challenge_id uuid, p_player_id uuid, p_display_name text, p_progress jsonb
 )
 returns table(already_completed boolean, first_finisher boolean, reward_sap double precision, reward_resin double precision,
-  reward_acorns bigint, reward_rings bigint, reward_amber bigint)
+  reward_acorns bigint, reward_rings bigint, reward_amber bigint, reward_gear jsonb)
 language plpgsql security definer set search_path = '' as $$
 declare c public.live_challenges%rowtype; prior public.live_challenge_completions%rowtype;
   first_claim boolean; clean_name text; total_sap double precision; total_resin double precision;
-  total_acorns bigint; total_rings bigint; total_amber bigint;
+  total_acorns bigint; total_rings bigint; total_amber bigint; total_gear jsonb;
 begin
   if p_challenge_id is null or p_player_id is null or p_progress is null or jsonb_typeof(p_progress) <> 'array' then raise exception 'Invalid completion'; end if;
   select * into c from public.live_challenges where id = p_challenge_id for update;
@@ -60,7 +71,7 @@ begin
     where x.challenge_id = p_challenge_id and x.player_id = p_player_id;
   if found then
     return query select true, prior.is_first, prior.reward_sap, prior.reward_resin,
-      prior.reward_acorns, prior.reward_rings, prior.reward_amber;
+      prior.reward_acorns, prior.reward_rings, prior.reward_amber, prior.reward_gear;
     return;
   end if;
   if c.ended_at is not null or now() < c.opens_at or now() >= c.closes_at then raise exception 'Challenge is closed'; end if;
@@ -74,10 +85,11 @@ begin
   total_acorns := c.reward_acorns + case when first_claim then c.first_bonus_acorns else 0 end;
   total_rings := c.reward_rings + case when first_claim then c.first_bonus_rings else 0 end;
   total_amber := c.reward_amber + case when first_claim then c.first_bonus_amber else 0 end;
+  total_gear := c.reward_gear || case when first_claim then c.first_bonus_gear else '[]'::jsonb end;
   insert into public.live_challenge_completions(challenge_id, player_id, display_name, is_first,
-    reward_sap, reward_resin, reward_acorns, reward_rings, reward_amber)
-    values(c.id, p_player_id, clean_name, first_claim, total_sap, total_resin, total_acorns, total_rings, total_amber);
-  return query select false, first_claim, total_sap, total_resin, total_acorns, total_rings, total_amber;
+    reward_sap, reward_resin, reward_acorns, reward_rings, reward_amber, reward_gear)
+    values(c.id, p_player_id, clean_name, first_claim, total_sap, total_resin, total_acorns, total_rings, total_amber, total_gear);
+  return query select false, first_claim, total_sap, total_resin, total_acorns, total_rings, total_amber, total_gear;
 end; $$;
 
 drop function if exists public.admin_list_live_challenges();
@@ -89,7 +101,7 @@ returns table(
   reward_acorns bigint, reward_rings bigint, reward_amber bigint,
   first_bonus_sap double precision, first_bonus_resin double precision,
   first_bonus_acorns bigint, first_bonus_rings bigint, first_bonus_amber bigint,
-  first_finisher text, completion_count bigint
+  first_finisher text, completion_count bigint, reward_gear jsonb, first_bonus_gear jsonb
 )
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -98,53 +110,44 @@ begin
     c.reward_sap, c.reward_resin, c.reward_acorns, c.reward_rings, c.reward_amber,
     c.first_bonus_sap, c.first_bonus_resin, c.first_bonus_acorns, c.first_bonus_rings, c.first_bonus_amber,
     (select x.display_name from public.live_challenge_completions x where x.challenge_id = c.id and x.is_first limit 1),
-    (select count(*) from public.live_challenge_completions x where x.challenge_id = c.id)
+    (select count(*) from public.live_challenge_completions x where x.challenge_id = c.id), c.reward_gear, c.first_bonus_gear
   from public.live_challenges c order by c.created_at desc limit 100;
 end; $$;
 
-drop function if exists public.admin_publish_live_challenge(text,text,double precision,text,double precision,double precision,double precision,double precision,double precision);
-drop function if exists public.admin_publish_live_challenge(text,text,jsonb,double precision,double precision,double precision,bigint,bigint,bigint,double precision,double precision,bigint,bigint,bigint);
-create function public.admin_publish_live_challenge(
+
+-- Keep the existing publisher available to older admin clients; the new wrapper
+-- calls it so all existing goal, duration, reward and admin checks still apply.
+create or replace function public.admin_publish_gear_quest(
   p_title text, p_description text, p_goals jsonb, p_duration_hours double precision,
   p_reward_sap double precision, p_reward_resin double precision,
   p_reward_acorns bigint, p_reward_rings bigint, p_reward_amber bigint,
   p_first_bonus_sap double precision, p_first_bonus_resin double precision,
-  p_first_bonus_acorns bigint, p_first_bonus_rings bigint, p_first_bonus_amber bigint
-)
-returns uuid language plpgsql security definer set search_path = '' as $$
-declare new_id uuid; clean_title text;
+  p_first_bonus_acorns bigint, p_first_bonus_rings bigint, p_first_bonus_amber bigint,
+  p_reward_gear uuid default null, p_first_bonus_gear uuid default null
+) returns uuid language plpgsql security definer set search_path = '' as $$
+declare quest_id uuid; reward jsonb := '[]'::jsonb; bonus jsonb := '[]'::jsonb;
 begin
   if not public.is_sapling_admin() then raise exception 'Administrator access required'; end if;
-  clean_title := left(trim(coalesce(p_title, '')), 60);
-  if clean_title = '' or char_length(trim(coalesce(p_description, ''))) not between 1 and 240
-    or p_goals is null or jsonb_typeof(p_goals) <> 'array' or jsonb_array_length(p_goals) < 1 or jsonb_array_length(p_goals) > 8
-    or exists (select 1 from jsonb_array_elements(p_goals) g where (g->>'type') is null or (g->>'type') not in ('sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'expeditions', 'amber', 'rings', 'bugs') or (g->>'target') is null or (g->>'target')::double precision <= 0 or (g->>'target')::double precision > 1e100 or ((g->>'type') in ('expeditions', 'amber', 'rings', 'bugs') and (g->>'target')::double precision <> floor((g->>'target')::double precision)))
-    or p_duration_hours is null or p_duration_hours <= 0 or p_duration_hours > 8760
-    or p_reward_sap is null or p_reward_resin is null or p_first_bonus_sap is null or p_first_bonus_resin is null
-    or p_reward_acorns is null or p_reward_rings is null or p_reward_amber is null
-    or p_first_bonus_acorns is null or p_first_bonus_rings is null or p_first_bonus_amber is null
-    or least(p_reward_sap,p_reward_resin,p_first_bonus_sap,p_first_bonus_resin,
-      p_reward_acorns,p_reward_rings,p_reward_amber,p_first_bonus_acorns,p_first_bonus_rings,p_first_bonus_amber) < 0
-    or greatest(p_reward_sap,p_reward_resin,p_first_bonus_sap,p_first_bonus_resin,
-      p_reward_acorns,p_reward_rings,p_reward_amber,p_first_bonus_acorns,p_first_bonus_rings,p_first_bonus_amber) > 1e12 then
-    raise exception 'Invalid challenge details';
+  if p_reward_gear is not null then
+    select jsonb_build_array(to_jsonb(g) - 'created_at') into reward from public.quest_gear g where g.id=p_reward_gear;
+    if reward is null then raise exception 'Reward gear not found'; end if;
   end if;
-  insert into public.live_challenges(title, description, target_sap, target_type, goals, opens_at, closes_at,
-    reward_sap, reward_resin, reward_acorns, reward_rings, reward_amber,
-    first_bonus_sap, first_bonus_resin, first_bonus_acorns, first_bonus_rings, first_bonus_amber)
-  values(clean_title, trim(p_description), (p_goals->0->>'target')::double precision, p_goals->0->>'type', p_goals, now(),
-    now() + make_interval(secs => p_duration_hours * 3600),
-    p_reward_sap, p_reward_resin, p_reward_acorns, p_reward_rings, p_reward_amber,
-    p_first_bonus_sap, p_first_bonus_resin, p_first_bonus_acorns, p_first_bonus_rings, p_first_bonus_amber)
-  returning id into new_id;
-  return new_id;
+  if p_first_bonus_gear is not null then
+    select jsonb_build_array(to_jsonb(g) - 'created_at') into bonus from public.quest_gear g where g.id=p_first_bonus_gear;
+    if bonus is null then raise exception 'Bonus gear not found'; end if;
+  end if;
+  quest_id := public.admin_publish_live_challenge(p_title,p_description,p_goals,p_duration_hours,
+    p_reward_sap,p_reward_resin,p_reward_acorns,p_reward_rings,p_reward_amber,
+    p_first_bonus_sap,p_first_bonus_resin,p_first_bonus_acorns,p_first_bonus_rings,p_first_bonus_amber);
+  update public.live_challenges set reward_gear=reward, first_bonus_gear=bonus where id=quest_id;
+  return quest_id;
 end; $$;
-
-revoke all on function public.get_live_challenges(uuid), public.claim_live_challenge(uuid,uuid,text,jsonb),
-  public.admin_list_live_challenges(),
-  public.admin_publish_live_challenge(text,text,jsonb,double precision,double precision,double precision,bigint,bigint,bigint,double precision,double precision,bigint,bigint,bigint)
+revoke all on function public.admin_create_quest_gear(text,text,integer,integer,integer),
+  public.admin_publish_gear_quest(text,text,jsonb,double precision,double precision,double precision,bigint,bigint,bigint,double precision,double precision,bigint,bigint,bigint,uuid,uuid),
+  public.get_live_challenges(uuid), public.claim_live_challenge(uuid,uuid,text,jsonb), public.admin_list_live_challenges()
   from public, anon, authenticated;
 grant execute on function public.get_live_challenges(uuid), public.claim_live_challenge(uuid,uuid,text,jsonb) to anon, authenticated;
-grant execute on function public.admin_list_live_challenges(),
-  public.admin_publish_live_challenge(text,text,jsonb,double precision,double precision,double precision,bigint,bigint,bigint,double precision,double precision,bigint,bigint,bigint)
-  to authenticated;
+grant execute on function public.admin_create_quest_gear(text,text,integer,integer,integer),
+  public.admin_publish_gear_quest(text,text,jsonb,double precision,double precision,double precision,bigint,bigint,bigint,double precision,double precision,bigint,bigint,bigint,uuid,uuid),
+  public.admin_list_live_challenges() to authenticated;
+notify pgrst, 'reload schema';
