@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-admin-resource-controls', date:'October 8, 2026', title:'Admins can adjust more resources', notes:[
+    'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments.'
+  ] },
   { id:'2026-10-08-offline-mana-refill', date:'October 8, 2026', title:'Mana pauses during offline progress', notes:[
     'Mana no longer refills during offline catchup. It continues to refill while the game is open, and Freeze still pauses it.'
   ] },
@@ -5417,17 +5420,25 @@ async function processAdminActions() {
       const alreadyDone = adminActionDone(action.id);
       if (!alreadyDone && action.action_type === 'balance') {
         const oldSap = S.sap, oldResin = S.resin;
+        const oldAmber = S.amber, oldRings = META.rings, oldAcorns = META.acorns;
         if (Number.isFinite(action.sap_delta)) S.sap = Math.max(0, S.sap + action.sap_delta);
         if (Number.isFinite(action.resin_delta)) S.resin = Math.max(0, S.resin + action.resin_delta);
+        if (Number.isFinite(action.amber_delta)) S.amber = Math.max(0, S.amber + action.amber_delta);
+        if (Number.isFinite(action.rings_delta)) META.rings = Math.max(0, META.rings + action.rings_delta);
+        if (Number.isFinite(action.acorns_delta)) META.acorns = Math.max(0, META.acorns + action.acorns_delta);
         recordEarned(Math.max(0, S.sap - oldSap), Math.max(0, S.resin - oldResin));
         const changes = [];
         if (action.sap_delta) changes.push(`${action.sap_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(S.sap - oldSap))} sap`);
         if (action.resin_delta) changes.push(`${action.resin_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(S.resin - oldResin))} resin`);
+        if (action.amber_delta) changes.push(`${action.amber_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(S.amber - oldAmber))} amber`);
+        if (action.rings_delta) changes.push(`${action.rings_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(META.rings - oldRings))} rings`);
+        if (action.acorns_delta) changes.push(`${action.acorns_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(META.acorns - oldAcorns))} acorns`);
         const notices = adminNotices();
         notices.push({ change: changes.join(' · '), message: typeof action.message === 'string' ? action.message : '' });
         localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
         recordHighestBalances();
         save();
+        saveMeta();
       } else if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) {
         window.__SAPLING_WIPED = true;
         for (const key of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);

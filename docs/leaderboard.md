@@ -10,7 +10,7 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 4. Run [`../supabase/live_challenge_leaf_sap.sql`](../supabase/live_challenge_leaf_sap.sql) to enable leaf-produced sap goals and real-time event progress.
 5. Run [`../supabase/live_challenge_server_clock.sql`](../supabase/live_challenge_server_clock.sql) to return the database clock with active events for countdown alignment.
 6. Run [`../supabase/live_challenge_goals.sql`](../supabase/live_challenge_goals.sql) to enable all live goal types and five-currency rewards.
-7. Run [`../supabase/admin_messages.sql`](../supabase/admin_messages.sql) to enable player-facing admin messages. Run this after `leaderboard.sql` on existing projects too.
+7. Run [`../supabase/admin_messages.sql`](../supabase/admin_messages.sql) to enable player-facing admin messages and admin adjustments for acorns, rings, and amber. Run this after `leaderboard.sql` on existing projects too.
 8. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 9. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.
 10. The migration allowlists `djdavidfreeman@gmail.com` for admin access. Open `admin.html`, create/sign in to a Supabase Auth account with that email, and confirm the email if Supabase prompts you.
@@ -22,7 +22,7 @@ The October 2026 leaderboard reset cleared leaderboard rows and name claims with
 
 ## Admin player controls
 
-Open `admin.html` and sign in with the Supabase Auth account you allowlisted. Admins can search and inspect player profiles, including current balances, per-tree and lifetime production, peak rates, gold leaves, playtime, offline time, tree count, rings, species, node count, and last online. Last online is the most recent successful game check-in, separate from the profile's account update time. Existing profiles show “Not recorded yet” until their next check-in after the SQL update. The dashboard can queue sap/resin grants or deductions with an optional message, reset a player's progress, or delete a player account. The recipient sees balance changes and messages in a popup that stays pending until dismissed.
+Open `admin.html` and sign in with the Supabase Auth account you allowlisted. Admins can search and inspect player profiles, including current balances, per-tree and lifetime production, peak rates, gold leaves, playtime, offline time, tree count, rings, species, node count, and last online. Last online is the most recent successful game check-in, separate from the profile's account update time. Existing profiles show “Not recorded yet” until their next check-in after the SQL update. The dashboard can queue sap, resin, acorn, ring, and amber grants or deductions with an optional message, reset a player's progress, or delete a player account. The recipient sees balance changes and messages in a popup that stays pending until dismissed.
 
 The dashboard's Achievements section reads the catalog directly from the game and lists every achievement, including secrets, with its ID, name, icon, and description. It is a read-only catalog view.
 

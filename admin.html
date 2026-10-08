@@ -95,7 +95,7 @@
       <div id="challengeList" aria-live="polite"></div>
     </div>
     <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
-    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes and messages are queued for the player's game. They appear at the next online check-in. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
+    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes and messages are queued for the player's game. They appear at the next online check-in. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
   </section>
   <div id="message" role="status"></div>
 </main>
@@ -215,10 +215,10 @@ async function publishChallenge(e) {
     say('Challenge is live.'); await refreshChallenges();
   } catch(err) { say(`Could not publish challenge: ${err.message}`); }
 }
-async function act(type,sap=0,resin=0) {
+async function act(type,sap=0,resin=0,acorns=0,rings=0,amber=0) {
   if (!selected) { say('Select a player first.'); return; }
   if (type==='reset' && !confirm(`Reset ${selected.display_name}'s Sapling account? This clears their current tree and persistent meta progress the next time they are online.`)) return;
-  try { await rpc(type==='reset'?'admin_apply_action':'admin_apply_action_with_message',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin,...(type==='reset'?{}:{p_message:$('actionMessage').value.trim()})}); if(type!=='reset') $('actionMessage').value=''; say(type==='reset'?'Account reset queued.':'Balance adjustment and message queued.'); }
+  try { await rpc(type==='reset'?'admin_apply_action':'admin_apply_action_with_message',{p_player_id:selected.player_id,p_action_type:type,p_sap_delta:sap,p_resin_delta:resin,p_acorns_delta:acorns,p_rings_delta:rings,p_amber_delta:amber,...(type==='reset'?{}:{p_message:$('actionMessage').value.trim()})}); if(type!=='reset') $('actionMessage').value=''; say(type==='reset'?'Account reset queued.':'Balance adjustment and message queued.'); }
   catch(e) { say(`Action failed: ${e.message}`); }
 }
 async function deletePlayer() {
@@ -289,6 +289,10 @@ $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
 $('takeResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,-v);});
+for(const [id,key] of [['Acorns','acorns'],['Rings','rings'],['Amber','amber']]) {
+  $(`grant${id}`).addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,0,...({acorns:[v,0,0],rings:[0,v,0],amber:[0,0,v]}[key]));});
+  $(`take${id}`).addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,0,...({acorns:[-v,0,0],rings:[0,-v,0],amber:[0,0,-v]}[key]));});
+}
 $('resetPlayer').addEventListener('click',()=>act('reset'));
 $('deletePlayer').addEventListener('click',deletePlayer);
 if(!validConfig) say('Supabase is not configured. See docs/leaderboard.md.');
