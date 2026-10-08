@@ -9,11 +9,20 @@ create table if not exists public.quest_gear (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 60),
   slot text not null check (slot in ('weapon','armor','charm')),
-  hp integer not null check (hp between 0 and 10000),
-  attack integer not null check (attack between 0 and 10000),
-  defense integer not null check (defense between 0 and 10000),
+  hp integer not null check (hp between -10000 and 10000),
+  attack integer not null check (attack between -10000 and 10000),
+  defense integer not null check (defense between -10000 and 10000),
   created_at timestamptz not null default now()
 );
+-- Widen existing catalogs too; rerunning this script preserves gear and quest snapshots.
+alter table public.quest_gear
+  drop constraint if exists quest_gear_hp_check,
+  drop constraint if exists quest_gear_attack_check,
+  drop constraint if exists quest_gear_defense_check;
+alter table public.quest_gear
+  add constraint quest_gear_hp_check check (hp between -10000 and 10000),
+  add constraint quest_gear_attack_check check (attack between -10000 and 10000),
+  add constraint quest_gear_defense_check check (defense between -10000 and 10000);
 alter table public.quest_gear enable row level security;
 revoke all on public.quest_gear from public, anon, authenticated;
 grant select on public.quest_gear to authenticated;

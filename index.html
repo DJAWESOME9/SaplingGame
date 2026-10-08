@@ -1134,8 +1134,18 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-quest-milestone-achievements', date:'October 8, 2026', title:'Quest completion achievements', notes:[
+    'Earn achievements for completing 1, 5, 10, 25, 50, 100, 250, and 500 quests. The new Quests section in Achievements shows your progress, and previously completed quests saved on this profile count too.',
+    'Quest milestone achievements contribute to Accolades and Laurels, just like other non-secret achievements.'
+  ]},
+  { id:'2026-10-08-negative-gear-stats', date:'October 8, 2026', title:'Gear with stat tradeoffs', notes:[
+    'Admins can now create quest gear with negative health, attack, or defense stats. These penalties are preserved when rewards are claimed and shown correctly in equipment lists.'
+  ]},
   { id:'2026-10-08-leaderboard-request-fix', date:'October 8, 2026', title:'Leaderboards restored', notes:[
     'Fixed a request error that prevented leaderboard rankings from loading or refreshing, including Sap production. Failed requests now show the actual error instead of incorrectly saying the database needs an update.'
+  ]},
+  { id:'2026-10-08-quest-gear-choices', date:'October 8, 2026', title:'Gear rewards for quests', notes:[
+    'Quest creators can now choose from all 18 standard gear pieces for finisher rewards and first-finisher bonuses. The reward selectors show available gear, and custom quest-only equipment can still be created in the workshop.'
   ]},
   { id:'2026-10-08-adventure-equipment-list', date:'October 8, 2026', title:'A tidier bug equipment list', notes:[
     'Bugs travelling on expeditions are hidden from Adventures → Your bugs & equipment, and reappear when they return.'
@@ -1591,6 +1601,15 @@ const ACHIEVEMENTS = {
   // Discovery
   hacker:     { name:'Hacker',           glyph:'💻', cat:'secret', desc:'Discovered the dev cheat code.' },
   sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', cat:'secret', desc:'Summoned the purple one.' },
+  // Lifetime quest completion milestones; distinct claimed quests count once.
+  quests1: { name:'First Quest', glyph:'🏁', cat:'quest', quests:1, desc:'Complete 1 quest.' },
+  quests5: { name:'Quest Regular', glyph:'📜', cat:'quest', quests:5, desc:'Complete 5 quests.' },
+  quests10: { name:'Quest Seeker', glyph:'🧭', cat:'quest', quests:10, desc:'Complete 10 quests.' },
+  quests25: { name:'Quest Veteran', glyph:'🎖️', cat:'quest', quests:25, desc:'Complete 25 quests.' },
+  quests50: { name:'Quest Champion', glyph:'🏆', cat:'quest', quests:50, desc:'Complete 50 quests.' },
+  quests100: { name:'Quest Legend', glyph:'👑', cat:'quest', quests:100, desc:'Complete 100 quests.' },
+  quests250: { name:'Quest Master', glyph:'🌟', cat:'quest', quests:250, desc:'Complete 250 quests.' },
+  quests500: { name:'Quest Luminary', glyph:'💫', cat:'quest', quests:500, desc:'Complete 500 quests.' },
   // Early-game milestones
   firstLeaf:  { name:'Sprout',           glyph:'🌱', desc:'Grew your very first leaf.' },
   firstAmp:   { name:'Loud and Clear',   glyph:'⚡', desc:'Grew your first amplifier.' },
@@ -1783,6 +1802,16 @@ function grantAchievement(k) {
   saveMeta();
   toast(`🏆 Achievement: ${ACHIEVEMENTS[k].glyph} ${ACHIEVEMENTS[k].name}`);
   sfx('achieve');
+}
+// Existing quest trophies are permanent, including quests that have since ended.
+function completedQuestCount() {
+  return Object.keys(META.achievements || {}).filter(k => k.startsWith('liveChallenge:') && META.achievements[k]).length;
+}
+function checkQuestAchievements() {
+  const completed = completedQuestCount();
+  for (const [key, achievement] of Object.entries(ACHIEVEMENTS)) {
+    if (achievement.cat === 'quest' && completed >= achievement.quests) grantAchievement(key);
+  }
 }
 const costGrove = k => Math.ceil(GROVE[k].cost(metaLvl(k)) * Math.pow(1.8, ((GROVE[k] && GROVE[k].tier) || 1) - 1));
 const SP = () => (META && SPECIES[META.species]) || SPECIES.oak;
@@ -5341,6 +5370,7 @@ async function claimLiveChallenge(id, button) {
       META.liveChallengeAchievements[achievementKey] = { name:challenge?.title || 'Quest', glyph:'🏆', desc:challenge?.description || 'Completed a Sapling quest.', cat:'challenge' };
       META.achievements = META.achievements || {};
       META.achievements[achievementKey] = { t:Date.now(), cat:'challenge' };
+      checkQuestAchievements();
       save(); saveMeta();
       const rewards = liveRewardText(result, 'reward');
       toast(`🏆 ${challenge.title} complete! Received: ${rewards}.${result.first_finisher ? ' First finisher bonus included!' : ''}`, 12000);
@@ -6846,7 +6876,7 @@ function grantBugGear(piece, tier=1, id=crypto.randomUUID()) {
   if(META.bugGear.some(g=>g.id===id)) return;
   if (!piece || !['weapon','armor','charm'].includes(piece.slot)) return;
   const g={id,name:String(piece.name).slice(0,60),slot:piece.slot,tier};
-  for(const key of ['hp','attack','defense']) g[key]=Math.round(clamp(Number(piece[key])||0,0,10000)*tier);
+  for(const key of ['hp','attack','defense']) g[key]=Math.round(clamp(Number(piece[key])||0,-10000,10000)*tier);
   META.bugGear.push(g);
   return g;
 }
@@ -6942,7 +6972,7 @@ function renderAdventures() {
   }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
   document.getElementById('advBugs').innerHTML=roster.filter(b=>!META.expeditions.entries.some(slot=>slot?.active?.bugIds?.includes(b.id))).map(b=> {
     const k=BUG_KINDS[b.kind], s=bugStats(b), busy=bugBusy(b.id);
-    return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
+    return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
   }).join('')||(roster.length?'<p class="expsub">Your bugs are on expeditions. They will appear here when they return.</p>':'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>');
   for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value&&!o.disabled)) el.value=value; }
   if(focusAction) adventurePanel.querySelector(`[data-adv="${focusAction}"][data-slot="${focusSlot}"]`)?.focus({preventScroll:true});
@@ -7496,16 +7526,19 @@ function renderAchievements() {
   const total = Object.keys(definitions).length;
   const unlocked = Object.keys(owned).filter(k => definitions[k]).length;
   const catOf = k => (definitions[k].cat || 'normal');
+  const questsCompleted = completedQuestCount();
   const rowHtml = k => {
-    const a = definitions[k], has = !!owned[k];
+    const a = definitions[k], has = !!owned[k], visible = has || a.cat === 'quest';
+    const progress = a.cat === 'quest' ? ` · ${Math.min(questsCompleted, a.quests)}/${a.quests}` : '';
     return `<div class="achrow ${has ? '' : 'locked'}">
       <div class="ag">${has ? a.glyph : '🔒'}</div>
-      <div class="at"><div class="ah">${has ? a.name : '???'}</div><div class="ad">${has ? a.desc : '???'}</div></div>
+      <div class="at"><div class="ah">${visible ? a.name : '???'}</div><div class="ad">${visible ? a.desc : '???'}${progress}</div></div>
     </div>`;
   };
   const sections = [
     { cat:'normal',    title:'Achievements', note:'+1% each' },
     { cat:'challenge', title:'Challenges',   note:'+1% each' },
+    { cat:'quest',     title:'Quests',       note:'+1% each' },
     { cat:'blight',    title:'Blight',       note:'+1% each' },
     { cat:'secret',    title:'Secrets',      note:'no bonus' },
   ];
@@ -7849,6 +7882,7 @@ function frame(now) {
 resize();
 loadMeta();
 load();
+checkQuestAchievements();
 computeFlow(0);
 renderCritterHub();
 restoreLockedUtilityDrawers();

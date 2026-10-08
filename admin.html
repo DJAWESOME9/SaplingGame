@@ -81,20 +81,20 @@
           <label>Resin<input id="challengeRewardResin" type="number" min="0" step="any" value="0"></label>
           <label>Acorns<input id="challengeRewardAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeRewardRings" type="number" min="0" step="1" value="0"></label>
-          <label>Gear<select id="challengeRewardGear"><option value="">None</option></select></label><label>Amber<input id="challengeRewardAmber" type="number" min="0" step="1" value="0"></label>
+          <label style="grid-column:1 / -1">Gear reward<select id="challengeRewardGear"><option value="">None</option></select><small class="gearRewardHelp">Loading gear choices…</small></label><label>Amber<input id="challengeRewardAmber" type="number" min="0" step="1" value="0"></label>
         </fieldset>
         <fieldset><legend>Extra reward for first finisher</legend>
           <label>Sap<input id="challengeFirstSap" type="number" min="0" step="any" value="0"></label>
           <label>Resin<input id="challengeFirstResin" type="number" min="0" step="any" value="0"></label>
           <label>Acorns<input id="challengeFirstAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeFirstRings" type="number" min="0" step="1" value="0"></label>
-          <label>Gear<select id="challengeFirstGear"><option value="">None</option></select></label><label>Amber<input id="challengeFirstAmber" type="number" min="0" step="1" value="0"></label>
+          <label style="grid-column:1 / -1">Bonus gear for first finisher<select id="challengeFirstGear"><option value="">None</option></select><small class="gearRewardHelp">Loading gear choices…</small></label><label>Amber<input id="challengeFirstAmber" type="number" min="0" step="1" value="0"></label>
         </fieldset>
         <button type="submit">Publish live challenge now</button>
       </form>
       <div id="challengeList" aria-live="polite"></div>
     </div>
-    <div class="card"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="0" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="0" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="0" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
+    <div class="card" id="gearWorkshop"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Stats can range from −10,000 to 10,000; negative values reduce the equipped bug’s stats. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="-10000" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
     <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
     <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes and messages are queued for the player's game. They appear at the next online check-in. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
   </section>
@@ -279,15 +279,16 @@ $('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id
 async function refreshQuestGear() {
   try {
     const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:headers(),cache:'no-store'});
-    if(!res.ok) throw new Error('Apply supabase/quest_gear.sql to enable quest gear.');
+    if(!res.ok) throw new Error(`Could not load gear choices (${res.status}). Sign in as an administrator and try Refresh gear catalog.`);
     const gear=await res.json();
     for(const id of ['challengeRewardGear','challengeFirstGear']) {
       const old=$(id).value;
-      $(id).innerHTML='<option value="">None</option>'+gear.map(g=>`<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)} · ${escapeHtml(g.slot)} · HP+${g.hp} ATK+${g.attack} DEF+${g.defense}</option>`).join('');
-      $(id).value=old;
+      $(id).innerHTML='<option value="">None</option>'+gear.map(g=>`<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)} · ${escapeHtml(g.slot)} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('');
+      $(id).value=gear.some(g=>g.id===old)?old:'';
     }
-    $('gearStatus').textContent=`${gear.length} quest-only gear pieces available.`;
-  } catch(err) { $('gearStatus').textContent=err.message; }
+    $('gearStatus').textContent=`${gear.length} gear pieces available for quest rewards.`;
+    for(const el of document.querySelectorAll('.gearRewardHelp')) el.innerHTML=gear.length?'Choose equipment above, or <a href="#gearWorkshop">create custom quest-only gear</a> in the workshop.':'No gear available yet. <a href="#gearWorkshop">Create your first piece in the workshop</a>, then select it here.';
+  } catch(err) { $('gearStatus').textContent=err.message; for(const el of document.querySelectorAll('.gearRewardHelp')) el.textContent=err.message; }
 }
 $('refreshGear').addEventListener('click',refreshQuestGear);
 $('gearForm').addEventListener('submit',async e=> {
