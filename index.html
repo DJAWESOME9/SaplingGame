@@ -1134,6 +1134,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-leaderboard-request-fix', date:'October 8, 2026', title:'Leaderboards restored', notes:[
+    'Fixed a request error that prevented leaderboard rankings from loading or refreshing, including Sap production. Failed requests now show the actual error instead of incorrectly saying the database needs an update.'
+  ]},
   { id:'2026-10-08-adventure-equipment-list', date:'October 8, 2026', title:'A tidier bug equipment list', notes:[
     'Bugs travelling on expeditions are hidden from Adventures → Your bugs & equipment, and reappear when they return.'
   ]},
@@ -5061,19 +5064,21 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25&_=${Date.now()}`, { headers: lbHeaders(), cache: 'no-store' });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
     if (loadId !== leaderboardLoadId) return;
-    if (res.status === 400) {
-      lbRows.innerHTML = '<li class="lb-empty"><strong>This record is on its way.</strong>The leaderboard database needs its update before this record can be shown.</li>';
-      lbStatus.textContent = 'Other records are available now.';
-      return;
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed (${res.status})`);
     }
-    if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
     if (loadId !== leaderboardLoadId) return;
     lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
     lbStatus.textContent = 'Updated just now';
-  } catch (err) { if (loadId === leaderboardLoadId) lbStatus.textContent = `Could not load leaderboard: ${err.message}`; }
+  } catch (err) {
+    if (loadId !== leaderboardLoadId) return;
+    lbRows.innerHTML = '<li class="lb-empty"><strong>Could not load this record.</strong>Try Refresh again in a moment.</li>';
+    lbStatus.textContent = `Could not load leaderboard: ${err.message}`;
+  }
 }
 let liveChallenges = [];
 const liveChallengeClaimsInFlight = new Set();
