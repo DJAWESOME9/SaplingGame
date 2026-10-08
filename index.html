@@ -1124,6 +1124,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-longer-expeditions', date:'October 8, 2026', title:'Longer critter expeditions', notes:[
+    'Expedition trips now take twice as long. Offers show the updated trip time before you send critters.'
+  ] },
   { id:'2026-10-08-admin-resource-controls', date:'October 8, 2026', title:'Admins can adjust more resources', notes:[
     'Admins can now grant or remove acorns, rings, and amber from a player account, with the same optional message as sap and resin adjustments. Open resource panels refresh when a queued adjustment is applied at the player’s next online check-in.'
   ] },
@@ -6784,6 +6787,7 @@ const miniDock = document.getElementById('minidock');
 const pantheonBtn = document.getElementById('pantheonbtn');
 const expeditionBtn = document.getElementById('expeditionbtn');
 const expeditionPanel = document.getElementById('expeditions');
+const EXPEDITION_DURATION_MULTIPLIER = 2;
 const EXPEDITION_TYPES = [
   { name:'Canopy Forage', critters:1, sap:[1,2], resin:[0,0], ring:false, acorn:false },
   { name:'Resin Trail', critters:1, sap:[0.5,1], resin:[1,2], ring:false, acorn:false },
@@ -6808,7 +6812,7 @@ function newExpeditionOffer() {
   const roll = Math.random();
   const t = pool[roll < 0.04 ? pool.length - 1 : Math.floor(Math.random() * (pool.length - 1))];
   const rewardHours = (t.sap[0] + t.sap[1] + t.resin[0] + t.resin[1]) / 2;
-  const duration = Math.round(Math.max(1800, (rewardHours * 0.48 + (t.ring ? 0.5 : 0) + (t.acorn ? 1.5 : 0)) * 3600));
+  const duration = Math.round(Math.max(1800, (rewardHours * 0.48 + (t.ring ? 0.5 : 0) + (t.acorn ? 1.5 : 0)) * 3600 * EXPEDITION_DURATION_MULTIPLIER));
   return { kind: EXPEDITION_TYPES.indexOf(t), duration };
 }
 function ensureExpeditionOffers() {
