@@ -939,7 +939,7 @@
 <div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
   <div class="expbox">
     <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
-    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. They leave the hub as soon as a trip starts, freeing those spaces, and return with experience. Higher levels make trips up to 15% faster. Trips advance at your offline production rate while you are away.</p>
+    <p class="expsub">Send stored critters for sap, resin, rings, rare acorns, and possible buffs. Sap and resin rewards use your current unbuffed production when critters return. They leave the hub as soon as a trip starts, freeing those spaces, and return with experience. Higher levels make trips up to 15% faster. Trips advance at your offline production rate while you are away.</p>
     <div id="expSlots" class="expgrid"></div>
   </div>
 </div>
@@ -1134,6 +1134,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-08-current-expedition-rewards', date:'October 8, 2026', title:'Expedition rewards follow your current tree', notes:[
+    'Expedition sap and resin rewards now use your current tree’s production without temporary buffs when the critters return, including trips already underway. Earlier production rates no longer carry over after changing or cutting your tree.'
+  ]},
   { id:'2026-10-08-quest-milestone-achievements', date:'October 8, 2026', title:'Quest completion achievements', notes:[
     'Earn achievements for completing 1, 5, 10, 25, 50, 100, 250, and 500 quests. The new Quests section in Achievements shows your progress, and previously completed quests saved on this profile count too.',
     'Quest milestone achievements contribute to Accolades and Laurels, just like other non-secret achievements.'
@@ -7167,9 +7170,8 @@ function startExpedition(i) {
   if (expeditionAvailable() < t.critters) { toast(`Need ${t.critters} critters in the hub.`); return; }
   const team=availableBugs().slice(0,t.critters);
   const speed=1+Math.min(.15,team.reduce((sum,b)=>sum+(b.level-1)*.01,0)/team.length);
-  const { sap:baseSap, resin:baseResin } = expeditionBaseRates();
   const [ringMin, ringMax] = expeditionRingRange();
-  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration/speed, bugIds:team.map(b=>b.id), progress:0, critters:t.critters, crittersDeparted:true, baseSap, baseResin, ringMin, ringMax };
+  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration/speed, bugIds:team.map(b=>b.id), progress:0, critters:t.critters, crittersDeparted:true, ringMin, ringMax };
   slot.offer = null; syncHubBugs();
   META.expeditions.lastTickAt = Date.now();
   renderCritterHub(); saveMeta(); renderExpeditions(); sfx('buy');
@@ -7192,8 +7194,9 @@ function advanceExpeditions(seconds, now = Date.now()) {
     }
     const t = EXPEDITION_TYPES[a.kind];
     const between = (lo, hi) => lo + Math.random() * (hi - lo);
-    const sap = a.baseSap * 3600 * between(t.sap[0], t.sap[1]);
-    const resin = a.baseResin * 3600 * between(t.resin[0], t.resin[1]);
+    const rates = expeditionBaseRates();
+    const sap = rates.sap * 3600 * between(t.sap[0], t.sap[1]);
+    const resin = rates.resin * 3600 * between(t.resin[0], t.resin[1]);
     const rings = t.ring ? Math.floor(between(a.ringMin, a.ringMax + 1)) : 0;
     const acorn = t.acorn && Math.random() < 0.2 ? 1 : 0;
     const buff = Math.random() < 0.3;
