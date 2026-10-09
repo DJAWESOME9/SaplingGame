@@ -407,6 +407,8 @@
   #adventures.open { display:block; }
   #adventures label { display:block; font-size:12px; margin-top:10px; text-transform:capitalize; }
   #adventures select { display:block; box-sizing:border-box; width:100%; min-width:0; background:#101e15; border:1px solid #6b965f; color:#edf8df; padding:9px 4px; border-radius:7px; margin-top:5px; }
+  #viewBugs,#bugReturns { position:fixed; inset:0; display:none; z-index:57; background:rgba(6,12,8,.88); backdrop-filter:blur(5px); overflow-y:auto; padding:24px 12px; box-sizing:border-box; }
+  #viewBugs.open,#bugReturns.open { display:block; }
   #advClose { padding:8px 12px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
   @media(max-width:600px) { #adventures .expbox { padding:14px; } #adventures .expgrid { grid-template-columns:1fr; } #adventures button { min-height:40px; } }
   /* ---- Intro overlay: shown on first play / after hard reset ---- */
@@ -742,7 +744,7 @@
 <body>
 <canvas id="cv"></canvas>
 <div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubMin" title="Minimize critter hub">−</button></span></div>
-<div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubAdventures" type="button">Bugs &amp; adventures</button><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
+<div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubAdventures" type="button">View bugs</button><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
 <div id="carriedBug" aria-hidden="true">🪲</div>
 <div id="blightvignette"></div>
 <div id="intro" role="dialog" aria-labelledby="introTitle">
@@ -944,6 +946,8 @@
   </div>
 </div>
 <div id="adventures" role="dialog" aria-modal="true" aria-labelledby="advTitle"><div class="expbox"><div class="exphead"><h2 id="advTitle">⚔️ Bug Adventures</h2><button id="advClose" type="button" aria-label="Close adventures">✕</button></div><p id="advSummary" class="expsub"></p><h3>Journeys</h3><div id="advSlots" class="expgrid"></div><h3>Your bugs &amp; equipment</h3><div id="advBugs" class="expgrid"></div></div></div>
+<div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><div id="bugRoster" class="expgrid"></div></div></div>
+<div id="bugReturns" role="dialog" aria-modal="true" aria-labelledby="returnsTitle"><div class="expbox"><div class="exphead"><h2 id="returnsTitle">🪲 Your hub is full</h2></div><p id="returnsSummary" class="expsub"></p><div id="returnChoices" class="expgrid"></div><button id="returnExpand" type="button" class="expcard">Expand hub</button></div></div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
     <div class="panhead"><h2 id="panTitle">🏛️ The Pantheon</h2><button id="panClose">✕</button></div>
@@ -1134,6 +1138,13 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-thicker-branches-spacing', date:'October 9, 2026', title:'More room for thicker branches', notes:[
+    'The tree now gently spreads crowded branches as they grow thicker, making the canopy easier to read.'
+  ]},
+  { id:'2026-10-09-bug-hub-adventure-status', date:'October 9, 2026', title:'Bug hub and adventure updates', notes:[
+    'The Adventures button now shows active trips and alerts you when a bug reaches an enemy. The Bug Hub’s View bugs screen lets you rename and release bugs.',
+    'Returning bugs wait for space when the hub is full. Expand the hub or choose bugs to release before adding the returning bugs.'
+  ]},
   { id:'2026-10-08-current-expedition-rewards', date:'October 8, 2026', title:'Expedition rewards follow your current tree', notes:[
     'Expedition sap and resin rewards now use your current tree’s production without temporary buffs when the critters return, including trips already underway. Earlier production rates no longer carry over after changing or cutting your tree.'
   ]},
@@ -1517,7 +1528,8 @@ function loadMeta() {
   if (typeof META.acorns !== 'number') META.acorns = 0;
   if (!META.critterHub || typeof META.critterHub !== 'object') META.critterHub = { bugs: 0, extra: 0, x: null, y: null, minimized: false };
   META.critterHub.extra = clamp(Math.floor(Number(META.critterHub.extra) || 0), 0, 10);
-  META.critterHub.bugs = clamp(Math.floor(Number(META.critterHub.bugs) || 0), 0, 3 + META.critterHub.extra);
+  META.critterHub.bugs = Math.max(0, Math.floor(Number(META.critterHub.bugs) || 0));
+  if (!Array.isArray(META.critterHub.pendingReturns)) META.critterHub.pendingReturns = [];
   if (!META.expeditions || typeof META.expeditions !== 'object') META.expeditions = { slots: 1, entries: [], lastTickAt: Date.now() };
   META.expeditions.slots = clamp(Math.floor(Number(META.expeditions.slots) || 1), 1, 3);
   if (!Array.isArray(META.expeditions.entries)) META.expeditions.entries = [];
@@ -2308,9 +2320,9 @@ function layout() {
 }
 // The radial fan gives crowded branch tips very narrow wedges, so sibling leaves
 // can land almost on top of one another. Relax the whole tree: repeatedly push
-// apart any pair of nodes closer than their combined radii until nothing overlaps
-// (the loop is monotonic — pure separation — so it early-breaks once settled). The
-// core stays pinned and edges just bend to follow. Runs on layout, never per frame.
+// apart any pair of nodes closer than their node radii plus their incoming branch
+// widths. The core stays pinned and edges just bend to follow. Runs on layout,
+// never per frame.
 function relaxNodes(iters) {
   iters = iters || 80;
   const ns = [];
@@ -2324,7 +2336,9 @@ function relaxNodes(iters) {
         const a = ns[i], b = ns[j];
         let dx = b.tx - a.tx, dy = b.ty - a.ty;
         let d = Math.hypot(dx, dy);
-        const min = nodeRadius(a) + nodeRadius(b) + PAD;
+        const aBranch = a.parent == null ? 0 : (2.2 + (a.edgeLvl || 0) * 1.5) / 2;
+        const bBranch = b.parent == null ? 0 : (2.2 + (b.edgeLvl || 0) * 1.5) / 2;
+        const min = nodeRadius(a) + nodeRadius(b) + aBranch + bBranch + PAD;
         if (d >= min) continue;
         if (d < 0.0001) { dx = jitter(a.id) || 1; dy = jitter(b.id); d = Math.hypot(dx, dy) || 1; }
         const push = (min - d) / 2, ux = dx / d, uy = dy / d;
@@ -2586,6 +2600,7 @@ function thicken(id) {
   sfx('buy');
   pulseNode(n, 0.55, 0.4);
   spawnBurst(n.x, n.y, '#f0c469', 9, 60, 0.6);
+  layout();
   buildPanel(); save();
 }
 function graft(id) {
@@ -6832,10 +6847,11 @@ const ADVENTURE_ROUTES = [
 ];
 function makeBug() {
   const kind = Math.floor(Math.random()*BUG_KINDS.length);
-  return {id:crypto.randomUUID(), kind, level:1, xp:0, hpBonus:Math.floor(Math.random()*5), attackBonus:Math.floor(Math.random()*3), defenseBonus:Math.floor(Math.random()*2), gear:{}};
+  return {id:crypto.randomUUID(), kind, name:BUG_KINDS[kind].name, level:1, xp:0, hpBonus:Math.floor(Math.random()*5), attackBonus:Math.floor(Math.random()*3), defenseBonus:Math.floor(Math.random()*2), gear:{}};
 }
 function ensureAdventures() {
   const h = META.critterHub;
+  if (!Array.isArray(h.pendingReturns)) h.pendingReturns=[];
   if (!Array.isArray(h.roster)) {
     h.roster = Array.from({length:h.bugs}, makeBug);
     for (const slot of META.expeditions.entries) if (slot?.active) {
@@ -6856,14 +6872,39 @@ function ensureAdventures() {
   for (const b of h.roster) {
     b.level=clamp(Math.floor(Number(b.level)||1),1,100); b.xp=Math.max(0,Number(b.xp)||0); b.gear=b.gear||{};
     if (!BUG_KINDS[b.kind]) b.kind=0;
+    if(typeof b.name!=='string'||!b.name.trim()) b.name=BUG_KINDS[b.kind].name;
   }
   syncHubBugs();
+  while(availableBugs().length>hubCapacity()) {
+    const b=availableBugs().at(-1), at=h.roster.indexOf(b);
+    h.roster.splice(at,1); h.pendingReturns.push(b);
+  }
+  if(h.pendingReturns.length) { renderBugReturns(); document.getElementById('bugReturns').classList.add('open'); }
 }
 function bugBusy(id) {
   return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id);
 }
 function availableBugs() { return META.critterHub.roster.filter(b=>!bugBusy(b.id)); }
 function syncHubBugs() { META.critterHub.bugs=availableBugs().length; }
+function storeReturningBug(b) {
+  const h=META.critterHub;
+  if(availableBugs().length<hubCapacity()) { if(!h.roster.some(x=>x.id===b.id)) h.roster.push(b); }
+  else { const at=h.roster.findIndex(x=>x.id===b.id); if(at>=0) h.roster.splice(at,1); h.pendingReturns.push(b); renderBugReturns(); document.getElementById('bugReturns').classList.add('open'); }
+  syncHubBugs();
+}
+function renderBugReturns() {
+  const h=META.critterHub, pending=h.pendingReturns||[];
+  document.getElementById('returnsSummary').textContent=`${pending.length} bug${pending.length===1?' is':'s are'} waiting to return. Expand the hub or release a bug that is home to make room.`;
+  document.getElementById('returnChoices').innerHTML=availableBugs().map(b=>`<section class="expcard"><label><input type="checkbox" data-release="${b.id}"> Release ${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level}</label></section>`).join('')||'<p class="expsub">No bugs are available to release. Expand the hub to make room.</p>';
+  document.getElementById('returnExpand').textContent=`Expand hub · 🌰 ${h.extra+1}`;
+  document.getElementById('returnExpand').disabled=h.extra>=10||META.acorns<h.extra+1;
+}
+function settleBugReturns() {
+  const h=META.critterHub;
+  while(h.pendingReturns.length && availableBugs().length<hubCapacity()) h.roster.push(h.pendingReturns.shift());
+  syncHubBugs(); renderCritterHub(); saveMeta();
+  if(!h.pendingReturns.length) document.getElementById('bugReturns').classList.remove('open'); else renderBugReturns();
+}
 function bugStats(b) {
   const k=BUG_KINDS[b.kind], l=b.level-1;
   const stats={hp:k.hp+(b.hpBonus||0)+l*5, attack:k.attack+(b.attackBonus||0)+l*1.2, defense:k.defense+(b.defenseBonus||0)+l*.6};
@@ -6919,7 +6960,7 @@ function finishAdventure(i, won) {
     toast(`⚔️ ${r.name} complete: ${fmt(sap)} sap, ${fmt(resin)} resin, ${rings} rings${acorns?', 🌰1':''}${boost?', 5 min boost':''}, ${gear.name} (tier ${gear.tier}).`,10000);
     recordHighestBalances();
   } else { bugXp(b,5+a.stage*5); toast(`${BUG_KINDS[b.kind].name} returned safely. No loot this time; experience kept.`); }
-  META.adventures.entries[i]=null; syncHubBugs(); refreshAcorns(); renderCritterHub(); save();
+  META.adventures.entries[i]=null; storeReturningBug(b); refreshAcorns(); renderCritterHub(); save();
 }
 function adventureMove(i, move, automatic=false) {
   const a=META.adventures.entries[i]; if(!a || a.enemyHp===null || frozenOn() || !['strike','heavy','guard','rest'].includes(move)) return;
@@ -6959,6 +7000,7 @@ function advanceAdventures(seconds, now=Date.now()) {
         if(a.travel<leg) break;
         if(a.stage>=r.foes.length) {finishAdventure(i,true); break;}
         a.enemyHp=adventureEnemy(a).hp; a.autoTime=0; a.log='Enemy spotted — choose your move!';
+        if(!metaLvl('bugtactics')) toast(`⚔️ ${BUG_KINDS[META.critterHub.roster.find(b=>b.id===a.bugId).kind].name} reached an enemy in ${r.name}!`,9000);
       }
     }
   }
@@ -6973,17 +7015,26 @@ function renderAdventures() {
     const b=roster.find(b=>b.id===trip.bugId), r=ADVENTURE_ROUTES[trip.route], stats=bugStats(b), fighting=trip.enemyHp!==null, enemy=fighting?adventureEnemy(trip):null;
     return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,trip.journeySeconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
   }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
-  document.getElementById('advBugs').innerHTML=roster.filter(b=>!META.expeditions.entries.some(slot=>slot?.active?.bugIds?.includes(b.id))).map(b=> {
-    const k=BUG_KINDS[b.kind], s=bugStats(b), busy=bugBusy(b.id);
-    return `<section class="expcard"><h3>${k.icon} ${k.name} ${b.id.slice(0,4)} · Lv ${b.level}</h3><p>♥ ${s.hp} · ATK ${s.attack} · DEF ${s.defense}</p><p>XP ${b.xp}/${b.level*30} · ${busy?'Away':'Ready'} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear).includes(g.id)))).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}</section>`;
-  }).join('')||(roster.length?'<p class="expsub">Your bugs are on expeditions. They will appear here when they return.</p>':'<p class="expsub">Drag bugs from your tree into the hub to recruit your first adventurer.</p>');
+  document.getElementById('advBugs').innerHTML='Manage bugs and their equipment with View bugs at the hub.';
   for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value&&!o.disabled)) el.value=value; }
   if(focusAction) adventurePanel.querySelector(`[data-adv="${focusAction}"][data-slot="${focusSlot}"]`)?.focus({preventScroll:true});
-  document.getElementById('advSummary').textContent=`${a.completed} adventures completed · ${META.bugGear.length} gear pieces · next loot tier ${1+Math.floor(a.completed/8)}. Bugs gain XP from battles and trips, level automatically, and return safely after defeat. Bugs, gear and journeys survive tree cuts. Away bugs free hub spaces; returning bugs are always kept, even if the hub is full.`;
+  document.getElementById('advSummary').textContent=`${a.entries.filter(Boolean).length} active adventure${a.entries.filter(Boolean).length===1?'':'s'} · ${a.completed} completed · ${META.bugGear.length} gear pieces. Active journeys and enemy encounters appear below; manual battles alert you when an enemy is reached.`;
 }
 function openAdventures() { renderAdventures(); adventurePanel.classList.add('open'); document.getElementById('advClose').focus(); }
 adventureBtn.addEventListener('click',openAdventures);
-document.getElementById('hubAdventures').addEventListener('click',openAdventures);
+function renderBugRoster() {
+  const roster=META.critterHub.roster;
+  document.getElementById('bugsSummary').textContent=`${availableBugs().length}/${hubCapacity()} bugs in the hub · ${roster.filter(b=>bugBusy(b.id)).length} away · ${META.critterHub.pendingReturns.length} waiting to return.`;
+  document.getElementById('bugRoster').innerHTML=roster.map(b=>`<section class="expcard"><h3>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level} · ${bugBusy(b.id)?'Away':'In hub'}</h3><label>Name<input type="text" maxlength="24" value="${escapeHtml(b.name||BUG_KINDS[b.kind].name)}" data-rename="${b.id}"></label><p>♥ ${bugStats(b).hp} · ATK ${bugStats(b).attack} · DEF ${bugStats(b).defense} · XP ${b.xp}/${b.level*30} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${bugBusy(b.id)?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear||{}).includes(g.id))||b.gear[slot]===g.id)).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}<button type="button" data-delete-bug="${b.id}" ${bugBusy(b.id)?'disabled':''}>Release bug</button></section>`).join('')||'<p class="expsub">No bugs yet. Drag one into the hub to recruit it.</p>';
+}
+document.getElementById('hubAdventures').addEventListener('click',()=>{ renderBugRoster(); document.getElementById('viewBugs').classList.add('open'); });
+document.getElementById('bugsClose').addEventListener('click',()=>document.getElementById('viewBugs').classList.remove('open'));
+document.getElementById('viewBugs').addEventListener('click',e=>{if(e.target.id==='viewBugs') e.currentTarget.classList.remove('open');});
+document.getElementById('bugRoster').addEventListener('change',e=>{const id=e.target.dataset.rename;if(!id)return;const b=META.critterHub.roster.find(x=>x.id===id);if(!b)return;b.name=e.target.value.trim().slice(0,24)||BUG_KINDS[b.kind].name;saveMeta();renderBugRoster();});
+document.getElementById('bugRoster').addEventListener('change',e=>{const el=e.target,b=META.critterHub.roster.find(x=>x.id===el.dataset.bug),slot=el.dataset.gearSlot;if(!b||bugBusy(b.id)||!['weapon','armor','charm'].includes(slot))return;if(el.value&&(!META.bugGear.some(g=>g.id===el.value&&g.slot===slot)||META.critterHub.roster.some(o=>o.id!==b.id&&Object.values(o.gear||{}).includes(el.value))))return;b.gear[slot]=el.value;saveMeta();renderBugRoster();});
+document.getElementById('bugRoster').addEventListener('click',e=>{const id=e.target.dataset.deleteBug;if(!id)return;const at=META.critterHub.roster.findIndex(b=>b.id===id);if(at<0||bugBusy(id))return;META.critterHub.roster.splice(at,1);if(META.critterHub.pendingReturns.length)settleBugReturns();else{syncHubBugs();saveMeta();renderCritterHub();}renderBugRoster();});
+document.getElementById('returnChoices').addEventListener('change',e=>{if(!e.target.matches('[data-release]'))return;const selected=[...document.querySelectorAll('#returnChoices [data-release]:checked')].map(x=>x.dataset.release);for(const id of selected){const at=META.critterHub.roster.findIndex(b=>b.id===id);if(at>=0&&!bugBusy(id))META.critterHub.roster.splice(at,1);}settleBugReturns();});
+document.getElementById('returnExpand').addEventListener('click',()=>{const h=META.critterHub,cost=h.extra+1;if(h.extra>=10||META.acorns<cost)return;META.acorns-=cost;h.extra++;refreshAcorns();settleBugReturns();});
 adventurePanel.addEventListener('click',e=> {
   if(e.target===adventurePanel || e.target.closest('#advClose')) { adventurePanel.classList.remove('open'); adventureBtn.focus(); return; }
   const btn=e.target.closest('[data-adv]'); if(!btn) return;
@@ -7208,8 +7259,11 @@ function advanceExpeditions(seconds, now = Date.now()) {
     recordHighestBalances();
     const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
     news.push(`Slot ${i + 1} complete: ${rewards || 'critters returned'}`);
-    for(const id of a.bugIds||[]) { const b=META.critterHub.roster.find(b=>b.id===id); if(b) bugXp(b,20); }
-    slot.active = null; syncHubBugs(); slot.offer = newExpeditionOffer();
+    const returned=(a.bugIds||[]).map(id=>META.critterHub.roster.find(b=>b.id===id)).filter(Boolean);
+    for(const b of returned) { bugXp(b,20); META.critterHub.roster.splice(META.critterHub.roster.indexOf(b),1); }
+    slot.active = null;
+    for(const b of returned) storeReturningBug(b);
+    slot.offer = newExpeditionOffer();
     renderCritterHub(); refreshAcorns(); saveMeta(); save();
     toast(`🧭 ${t.name} complete — ${rewards}`);
   }
@@ -7252,7 +7306,7 @@ function refreshMiniDock() {
   // Dock is visible whenever it holds at least one available minigame.
   const showExpeditions = metaLvl('critterhub') > 0;
   adventureBtn.style.display = showExpeditions ? '' : 'none';
-  adventureBtn.textContent = `⚔️ Adventures${META.adventures.entries.some(a=>a && a.enemyHp!==null)?' · battle!':''}`;
+  adventureBtn.textContent = `⚔️ Adventures${META.adventures.entries.some(a=>a && a.enemyHp!==null)?' · enemy!':META.adventures.entries.some(Boolean)?' · active':''}`;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
   const showSpells = acornsUnlocked() || spellbookOwned();
