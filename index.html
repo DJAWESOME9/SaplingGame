@@ -26,10 +26,19 @@
     flex-wrap:wrap; row-gap:8px;
     padding:max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
     pointer-events:none; user-select:none; }
-  /* Contextual items (blooms, channel, pesticide, acorns) take a full-width slim
-     second row so the cards + controls above always stay on one line. flex-basis
-     forces the wrap; JS hides this entirely when no item inside is active. */
-  #topextra { display:none; flex-basis:100%; flex-wrap:wrap; align-items:center; gap:8px 10px; pointer-events:none; }
+  /* Seasons and contextual items take a full-width second row. Keep it present
+     at boot so the default quest bar is placed below the season badge. */
+  #topextra { display:flex; flex-basis:100%; flex-wrap:wrap; align-items:center; gap:8px 10px; pointer-events:none; }
+  #seasonbtn { pointer-events:auto; flex:0 0 auto; border:1px solid #75a575; background:#16291c;
+    color:#b7dfac; border-radius:8px; padding:6px 10px; min-height:32px; cursor:pointer; font-size:12px; font-variant-numeric:tabular-nums; }
+  #seasonGuide { width:min(680px, calc(100vw - 24px)); box-sizing:border-box; padding:20px;
+    max-height:calc(100dvh - 32px); overflow:auto; background:#152319; color:#e5eadc; border:1px solid #5b7658; border-radius:18px; }
+  #seasonGuide::backdrop { background:rgba(6,12,8,.84); backdrop-filter:blur(5px); }
+  #seasonClose, #advanceSeason { border:1px solid #5b7658; border-radius:8px; background:#203528; color:#e5eadc; padding:9px 12px; cursor:pointer; min-height:40px; }
+  #advanceSeason:disabled { opacity:.5; cursor:default; }
+  #seasonCards { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #seasonCards .current { border-color:var(--season-color); box-shadow:inset 0 0 0 1px var(--season-color); }
+  @media(max-width:600px) { #seasonGuide { padding:14px; } #seasonCards { grid-template-columns:1fr; } #seasonbtn { min-height:36px; } }
   #topbar .title { font-weight:700; letter-spacing:.12em; color:#9db89f; font-size:13px; text-transform:uppercase; }
   #topbar .statcard { pointer-events:auto; min-width:180px; padding:8px 12px 9px; border-radius:12px;
     border:1px solid rgba(58,74,60,.9); background:rgba(16,24,18,.72); backdrop-filter:blur(6px);
@@ -839,9 +848,9 @@
   <button id="lbbtn" aria-label="Leaderboard" title="Leaderboard">🌿</button>
   <button id="challengebtn" aria-label="Quests" title="Quests">🏁</button>
   <button id="gear" aria-label="Settings">⚙</button>
-  <!-- Contextual items live on their own slim second row so they never break up
-       the resource cards / controls when they appear. Hidden entirely when empty. -->
+  <!-- Seasons and contextual items live on their own row below resources. -->
   <div id="topextra">
+    <button id="seasonbtn" type="button" aria-label="Seasons" aria-haspopup="dialog">🌱 Spring</button>
     <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
@@ -941,6 +950,15 @@
   </div>
 </div>
 
+<dialog id="seasonGuide" aria-labelledby="seasonTitle">
+  <div class="exphead"><h2 id="seasonTitle">🌱 Seasons</h2><button id="seasonClose" type="button" aria-label="Close season guide">✕</button></div>
+  <p class="expsub">Each season lasts one real-world hour: Spring → Summer → Autumn → Winter. The four-hour cycle continues through tree cuts, reloads, time away, and Freeze. Seasonal bonuses stack with your species, Roots, Grove upgrades, and Pantheon.</p>
+  <p id="seasonSummary" class="expsub"></p>
+  <div id="seasonCards" class="expgrid"></div>
+  <p id="seasonTurningNote" class="expsub"></p>
+  <button id="advanceSeason" type="button" hidden>Advance season</button>
+</dialog>
+
 <div id="expeditions" role="dialog" aria-modal="true" aria-labelledby="expTitle">
   <div class="expbox">
     <div class="exphead"><h2 id="expTitle">🧭 Critter Expeditions</h2><button id="expClose" type="button" aria-label="Close expeditions">✕</button></div>
@@ -999,8 +1017,28 @@ const CFG = {
   // Gentle soft cap on a single node's amber: below the knee (in amber units) the
   // ^0.40 curve is untouched; above it, growth rolls over into slow log accrual so
   // very high-lifetime branches keep paying more, just with shrinking returns.
-  amberSoftKnee: 6, amberSoftScale: 18,
+  amberSoftKnee: 6, amberSoftScale: 15,
 };
+// ---------- seasons: one hour each, anchored in persistent meta ----------
+const SEASON_MS = 60 * 60 * 1000;
+const SEASONS = [
+  { name:'Spring', glyph:'🌱', color:'#a4d99b', growth:0.85, leaf:1, edge:1.2, resin:1, acorn:1, amber:1,
+    desc:'New nodes cost 15% less. Branch capacity +20%.', tip:'Expand your tree and establish new production branches.' },
+  { name:'Summer', glyph:'☀️', color:'#f0cf75', growth:1, leaf:1.2, edge:1.2, resin:1, acorn:1, amber:1,
+    desc:'Leaf production +20%. Branch capacity +20%, plus 5% per Wood root level (up to +25% extra).', tip:'Strong leaves and Wood roots work together to deliver the summer surge.' },
+  { name:'Autumn', glyph:'🍂', color:'#e9ad77', growth:1, leaf:1, edge:1, resin:1, acorn:1.5, amber:1.25,
+    desc:'Acorns ripen 50% faster once unlocked. Pruning yields 25% more amber.', tip:'Bank ripe acorns and harvest mature branches for Roots upgrades.' },
+  { name:'Winter', glyph:'❄️', color:'#a6d7ed', growth:1, leaf:1, edge:1.25, resin:1.25, acorn:1, amber:1,
+    desc:'Refinery resin yield +25%. Branch capacity +25%.', tip:'Feed your refineries, then invest resin in polish, capacitors, or bug training.' },
+];
+const NEUTRAL_SEASON = { growth:1, leaf:1, edge:1, resin:1, acorn:1, amber:1 };
+let seasonEvaluationAt = null;
+const seasonIndexAt = at => at < META.seasonStartedAt ? -1 : Math.floor((at - META.seasonStartedAt) / SEASON_MS) % SEASONS.length;
+const seasonNow = () => SEASONS[seasonIndexAt(seasonEvaluationAt ?? Date.now())] || NEUTRAL_SEASON;
+const nextSeasonAt = at => at < META.seasonStartedAt ? META.seasonStartedAt
+  : META.seasonStartedAt + (Math.floor((at - META.seasonStartedAt) / SEASON_MS) + 1) * SEASON_MS;
+const seasonEdgeMult = () => seasonNow().edge + (seasonNow() === SEASONS[1] ? Math.min(0.25, 0.05 * rootLvl('wood')) : 0);
+
 // ---------- the grove: prestige meta-progression (persists across cut-downs) ----------
 // Each species is a set of multipliers folded into the live formulas (1 = no effect).
 const SPECIES = {
@@ -1021,6 +1059,7 @@ const SPECIES = {
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
+  seasonturning: { name:'Season Turning', glyph:'🗓️', tier:4, parent:'patience', max:1, cost:_=>120, desc:'Unlocks Advance season in the season guide. Pay 1 hour of this tree’s highest unbuffed resin production (minimum 50,000 resin) to begin the next season with a full hour remaining.' },
   spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
   manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellstudy', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
   manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellstudy', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills while the game is open; Freeze pauses it.' },
@@ -1142,6 +1181,15 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-pruning-amber-taper', date:'October 9, 2026', title:'Pruning amber balance', notes:[
+    'Amber from pruning now tapers a little more at high amounts. Early pruning gains are unchanged.'
+  ]},
+  { id:'2026-10-09-seasons', date:'October 9, 2026', title:'The turning seasons', notes:[
+    'Spring, Summer, Autumn, and Winter now rotate every hour in a four-hour cycle. Tap the season badge for the countdown, bonuses, and planning guide. Seasons continue through cuts, reloads, time away, and Freeze.',
+    'Spring makes new nodes 15% cheaper and adds 20% branch capacity. Summer adds 20% leaf production and 20% capacity, plus 5% extra capacity per Wood root level up to 25%. Autumn ripens acorns 50% faster and gives 25% more pruning amber. Winter adds 25% refinery yield and branch capacity.',
+    'Offline production and acorn growth account for the seasons crossed while away. Existing saves begin in Spring without changing past earnings.',
+    'Season Turning is a late Grove upgrade after Patience. Advance to the next season for 1 hour of this tree’s highest unbuffed resin production, with a 50,000 resin minimum. Each paid advance starts a full new hour.'
+  ]},
   { id:'2026-10-09-bug-training-quests', date:'October 9, 2026', title:'Train your bugs', notes:[
     'Unlock Bug Training for 1 acorn, then buy a second slot for 3 acorns and a third for 5. Choose a bug and pay mostly resin plus sap to gain one level; every tenth target level also needs amber.',
     'Higher-level training takes longer. Levels improve health, attack, and defense. Sessions survive tree cuts and reloads, progress offline, and pause during Freeze.',
@@ -1426,7 +1474,7 @@ const UPDATE_LOG = [
     'You can revisit every update from Settings → Update log.'
   ] }
 ];
-const newMeta = () => ({ rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], pendingChallengeEvents: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
+const newMeta = () => ({ seasonStartedAt: Date.now(), rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], pendingChallengeEvents: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
 // ---------- acorns + pantheon ----------
 const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
@@ -1499,7 +1547,7 @@ const acornsUnlocked = () => !!(META && META.acornsOnce)
   || acornsBanked() > 0 || acornsRipe() > 0;
 function tickAcorns(ms) {
   if (!META || !META.canopy) return;
-  META.canopy.growMs -= ms;
+  META.canopy.growMs -= ms * seasonNow().acorn;
   const cap = acornRipeCap(), interval = acornInterval();
   while (META.canopy.growMs <= 0 && META.canopy.ripe < cap) {
     META.canopy.ripe++;
@@ -1522,7 +1570,16 @@ function fmtAcornTimer(ms) {
 function acornTimerLabel() {
   if (!META || !META.canopy) return '';
   if (META.canopy.ripe >= acornRipeCap()) return 'full';
-  return fmtAcornTimer(META.canopy.growMs);
+  // Forecast across upcoming seasons rather than promising today's autumn
+  // speed for an entire multi-hour acorn. This is active-play time as before.
+  let remaining = Math.max(0, META.canopy.growMs), at = Date.now(), total = 0;
+  while (remaining > 0) {
+    const season = SEASONS[seasonIndexAt(at)] || NEUTRAL_SEASON;
+    const duration = Math.min(nextSeasonAt(at) - at, remaining / season.acorn);
+    remaining = Math.max(0, remaining - duration * season.acorn);
+    total += duration; at += duration;
+  }
+  return fmtAcornTimer(total);
 }
 
 function loadMeta() {
@@ -1541,6 +1598,7 @@ function loadMeta() {
     } catch (e) { /* try the next slot */ }
   }
   if (!META || typeof META !== 'object') META = newMeta();
+  if (!Number.isFinite(META.seasonStartedAt) || META.seasonStartedAt <= 0 || META.seasonStartedAt > Date.now()) META.seasonStartedAt = Date.now();
   META.up = META.up || {};
   META.achievements = META.achievements || {};
   META.liveChallengeAchievements = META.liveChallengeAchievements || {};
@@ -1859,7 +1917,7 @@ const achBonusCount = () => Object.keys((META && META.achievements) || {})
     (ACHIEVEMENTS[k] || META.liveChallengeAchievements[k]).cat !== 'secret').length;
 const accoladesMult = () => metaLvl('accolades') > 0 ? 1 + 0.01 * achBonusCount() : 1;
 const laurelsMult   = () => metaLvl('laurels')   > 0 ? 1 + 0.01 * achBonusCount() : 1;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (1 + 0.1 * metaLvl('sapheart')) * (1 + 0.1 * metaLvl('starfall')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (1 + 0.1 * metaLvl('sapheart')) * (1 + 0.1 * metaLvl('starfall')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf * seasonNow().leaf;
 const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * (1 + 0.1 * metaLvl('deepcanopy')) * laurelsMult() * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * (1 + 0.15 * metaLvl('ringweaver')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
@@ -2047,7 +2105,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1) * seasonEdgeMult();
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -2164,7 +2222,7 @@ const ROOTS = {
   raincatcher: { name: 'Raincatcher',   x: 495,  y: 730, parent: 'ironwood',  max: 5, cost: l => 24 * Math.pow(2, l),
                  desc: 'Each level: refinery resin yield ×1.2', gated: 'rootstock', gatedLevel: 4 },
 };
-const thriftMult = () => Math.pow(0.88, rootLvl('thrift')) * SP().cost;
+const thriftMult = () => Math.pow(0.88, rootLvl('thrift')) * SP().cost * seasonNow().growth;
 const purityMult = () => 1 + 0.1 * rootLvl('purity');
 const typeMax = t =>
   t === 'amp' ? 3 + 2 * rootLvl('grove') + 2 * metaLvl('amplifiergrove') :
@@ -2252,7 +2310,7 @@ const pruneGainRaw = n => {
     total += lifeAmber(nodeAmberLife(cur));
     for (const id of cur.children) stack.push(N(id));
   }
-  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult() * (S.spells ? S.spells.amber : 1);
+  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult() * seasonNow().amber * (S.spells ? S.spells.amber : 1);
 };
 // Amber is integer but cuts are fractional — carry the remainder between cuts so
 // small branches don't round their sub-1 payouts away.
@@ -2423,7 +2481,7 @@ function computeFlow(dt) {
     else {
       for (const id of n.children) { const o = rec(N(id)); s += o.s; r += o.r; }
       if (n.type === 'amp') { const m = ampMult(n); s *= m; r *= m; }
-      else if (n.type === 'ref') { n.inFlow = s + r; const made = (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * Math.pow(1.2, rootLvl('raincatcher')) * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult(); r += made; refineryResinRate += made; s = 0; }
+      else if (n.type === 'ref') { n.inFlow = s + r; const made = (s / refRatio(n)) * purityMult() * SP().ref * bloomRefMult() * Math.pow(1.2, rootLvl('raincatcher')) * (1 + 0.10 * metaLvl('bountiful')) * (1 + 0.2 * metaLvl('resinwell')) * (metaLvl('godseed') > 0 ? 3 : 1) * pantheonRefMult() * seasonNow().resin; r += made; refineryResinRate += made; s = 0; }
       else if (n.type === 'cap') {
         n.inFlow = s + r;
         if (dt > 0) {
@@ -4697,6 +4755,7 @@ for (const id of ['bloombadge', 'touchbadge']) {
   el.addEventListener('mouseleave', hideBoostTip);
 }
 function refreshHud() {
+  refreshSeason();
   let leafOut = 0, refOut = 0;
   for (const id in S.nodes) {
     const n = N(id);
@@ -4897,6 +4956,58 @@ function refreshHud() {
   checkLiveChallengeClaims();
 }
 
+// ---------- season guide / paid season turning ----------
+const seasonBtn = document.getElementById('seasonbtn');
+const seasonGuide = document.getElementById('seasonGuide');
+const seasonAdvanceCost = () => Math.max(50000, Math.ceil(3600 * baseResinRate()));
+let seasonHudSecond = -1, seasonHudIndex = null;
+function renderSeasonGuide() {
+  const at = Date.now(), index = seasonIndexAt(at), current = SEASONS[index];
+  document.getElementById('seasonSummary').textContent = `${current.glyph} ${current.name} · ${fmtAcornTimer(nextSeasonAt(at) - at)} until ${SEASONS[(index + 1) % 4].name}.`;
+  document.getElementById('seasonCards').innerHTML = SEASONS.map((season, i) => `<section class="expcard ${i === index ? 'current' : ''}" style="--season-color:${season.color}"><h3>${season.glyph} ${season.name}${i === index ? ' · now' : ''}</h3><p>${season.desc}</p><p>${season.tip}</p></section>`).join('');
+  const owned = metaLvl('seasonturning') > 0, cost = seasonAdvanceCost();
+  document.getElementById('seasonTurningNote').textContent = owned
+    ? 'Advance starts the next season with a full hour remaining. Cost: one hour of this tree’s highest unbuffed resin production, minimum 50,000 resin.'
+    : 'Unlock Season Turning in the Grove after Patience to advance a season with resin.';
+  const button = document.getElementById('advanceSeason');
+  button.hidden = !owned;
+  button.disabled = S.resin < cost;
+  button.textContent = `Advance to ${SEASONS[(index + 1) % 4].name} · ${fmt(cost)} resin`;
+}
+function refreshSeason() {
+  const at = Date.now(), second = Math.floor(at / 1000);
+  if (second === seasonHudSecond) return;
+  seasonHudSecond = second;
+  const index = seasonIndexAt(at), season = SEASONS[index];
+  seasonBtn.textContent = `${season.glyph} ${season.name} · ${fmtAcornTimer(nextSeasonAt(at) - at)}`;
+  seasonBtn.style.color = season.color; seasonBtn.style.borderColor = season.color;
+  seasonBtn.title = `${season.desc} Tap for the season guide.`;
+  if (seasonHudIndex !== null && seasonHudIndex !== index) {
+    toast(`${season.glyph} ${season.name} begins. ${season.desc}`);
+    if (selected != null || selectedRoot != null) buildPanel();
+  }
+  seasonHudIndex = index;
+  if (seasonGuide.open) renderSeasonGuide();
+}
+seasonBtn.addEventListener('click', () => { renderSeasonGuide(); seasonGuide.showModal(); });
+document.getElementById('seasonClose').addEventListener('click', () => seasonGuide.close());
+seasonGuide.addEventListener('click', e => {
+  const rect = seasonGuide.getBoundingClientRect();
+  if (e.target === seasonGuide && (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom)) seasonGuide.close();
+});
+document.getElementById('advanceSeason').addEventListener('click', () => {
+  if (metaLvl('seasonturning') <= 0) return;
+  const cost = seasonAdvanceCost();
+  if (S.resin < cost) return;
+  const index = (seasonIndexAt(Date.now()) + 1) % SEASONS.length;
+  S.resin -= cost;
+  S.pristine = false;
+  META.seasonStartedAt = Date.now() - index * SEASON_MS;
+  computeFlow(0); buildPanel(); save();
+  seasonHudSecond = -1;
+  refreshSeason(); renderSeasonGuide(); sfx('buy');
+});
+
 // ---------- save / load ----------
 const KEY = 'sapling-save-v1';
 function save() {
@@ -4944,18 +5055,30 @@ function creditOffline(awaySecRaw) {
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   const rate = offlineRateNow();
-  let sap = 0, resin = 0, remaining = away;
-  // Split offline income at spell expirations so a 30-second surge cannot pay
-  // boosted production for an entire night. Existing bloom behavior is preserved.
-  while (remaining > 0) {
-    computeFlow(0);
-    const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
-    const segment = Math.min(remaining, ...timers);
-    const end = liveChallengeNow() - remaining * 1000 + segment * 1000;
-    accrueChallengeWindow(end - segment * 1000, end, challengeProductionRates(rate), true);
-    sap += S.incomeS * segment * rate; resin += S.incomeR * segment * rate;
-    advanceSpellTimers(segment); remaining = Math.max(0, remaining - segment);
-  }
+  let sap = 0, resin = 0, remaining = away, growthMs = 0;
+  const beforeAcorns = acornsRipe(), growAcorns = acornsUnlocked();
+  let cursor = Date.now() - elapsed * 1000;
+  // Split at both season boundaries and spell expirations. Credit the first
+  // capped interval after departure, without applying today's season to the gap.
+  try {
+    while (remaining > 0) {
+      seasonEvaluationAt = cursor;
+      computeFlow(0);
+      const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
+      const segment = Math.min(remaining, (nextSeasonAt(cursor) - cursor) / 1000, ...timers);
+      const end = cursor + segment * 1000 + liveChallengeClockOffsetMs;
+      accrueChallengeWindow(end - segment * 1000, end, challengeProductionRates(rate), true);
+      sap += S.incomeS * segment * rate; resin += S.incomeR * segment * rate;
+      if (growAcorns) {
+        const ms = segment * 1000 * 0.1;
+        growthMs += ms * seasonNow().acorn;
+        tickAcorns(ms);
+      }
+      advanceSpellTimers(segment);
+      remaining = Math.max(0, remaining - segment);
+      cursor += segment * 1000;
+    }
+  } finally { seasonEvaluationAt = null; }
   advanceSpellTimers(elapsed - away);
   computeFlow(0);
   recordProduction(sap, resin);
@@ -4965,14 +5088,7 @@ function creditOffline(awaySecRaw) {
     recordHighestBalances();
     grantAchievement('offline');
   }
-  // Offline acorn ripening — 10% of the away time counts toward growth.
-  let acornsRipened = 0, growthMs = 0;
-  if (acornsUnlocked()) {
-    growthMs = away * 1000 * 0.1;
-    const before = acornsRipe();
-    tickAcorns(growthMs);
-    acornsRipened = acornsRipe() - before;
-  }
+  const acornsRipened = acornsRipe() - beforeAcorns;
   const expeditionNews = advanceExpeditions(expeditionElapsed * offlineRateNow());
   showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs, expeditionNews });
 }
@@ -8022,7 +8138,7 @@ function frame(now) {
     if (META && META.canopy && acornsUnlocked()) {
       const gm = dt * 1000 * (idle ? 0.1 : 1);
       tickAcorns(gm);
-      if (idle) idleGrowth += gm;
+      if (idle) idleGrowth += gm * seasonNow().acorn;
     }
     // Hacker mode: refill pools every frame so purchases never drain them.
     if (META && META.hacks) {

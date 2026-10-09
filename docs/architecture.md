@@ -39,6 +39,16 @@ The Spellbook appears beside the Pantheon and expeditions in the minigame dock o
 
 Spell timers expire offline unless frozen. `creditOffline` splits income at those expiration times so short production spells cannot boost an entire offline interval. Sap and resin spell windfalls count as earned resources rather than tree production. Spell surges share a ×2 leaf multiplier; they can combine with existing blooms but do not multiply one another. Bark Ward prevents critter penalties, spawning, and Blight damage across the tree; its backfire removes one terminal node and never the Core. Amber Echo affects the prune preview and is consumed by the next actual prune. Expedition reward estimates temporarily remove spell effects along with other transient boosts.
 
+## Seasons
+
+`SEASONS` defines Spring → Summer → Autumn → Winter, each lasting one real-world hour. `META.seasonStartedAt` anchors the four-hour cycle across cuts, reloads, and save-code export/import; old saves receive a fresh Spring anchor. The season badge opens a touch and keyboard accessible native dialog with the current countdown, all bonuses, and planning tips. Freeze does not stop the season clock.
+
+Spring discounts new-node costs and supports branch capacity. Summer boosts leaves and capacity, with extra capacity from Wood roots. Autumn boosts acorn growth and pruning amber. Winter boosts refinery yield and capacity. Seasonal bonuses feed existing economy helpers, so previews, actual purchases, routing losses, and species/Grove/Pantheon combinations use the same formulas. Acorns retain their existing growth timer; seasons change progress speed instead of resetting it.
+
+`creditOffline` splits production and acorn progress at season boundaries and spell expirations using `seasonEvaluationAt`, cleared in a `finally` block. It credits the first capped interval after departure and leaves pre-feature time neutral. Existing offline rates and caps still apply.
+
+The tier-4 `seasonturning` Grove upgrade branches from Patience. `seasonAdvanceCost` charges `max(50000, ceil(3600 × baseResinRate()))`, using this tree's recorded highest unbuffed resin rate. A paid advance shifts the persistent anchor to begin the next season with a full hour, spends resin, commits the tree, and immediately saves both run and meta state.
+
 ## Subsystem landmarks
 
 | Subsystem | Main code landmarks |
