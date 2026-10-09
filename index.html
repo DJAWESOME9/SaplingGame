@@ -163,6 +163,7 @@
   .live-challenge button:disabled { opacity:.55; cursor:default; }
   .live-challenge .live-complete { display:inline-block; margin-top:6px; padding:3px 7px; border:1px solid #526d43; border-radius:6px; color:#cce1b7; background:#1b2b1c; }
   #settings input[type=range] { flex:1; accent-color:#9fd9a8; }
+  #branchWidthCapValue { min-width:42px; color:#9fd9a8; text-align:right; font-variant-numeric:tabular-nums; }
   #restore { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade;
     border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #restore:hover { border-color:#6f9a75; background:#243827; }
@@ -866,6 +867,7 @@
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
+  <div class="srow"><label for="branchWidthCap">Branch cap</label><input type="range" id="branchWidthCap" min="4" max="40" step="1"><output id="branchWidthCapValue" for="branchWidthCap">20 px</output></div>
   <button id="restore">Restore backup</button>
   <button id="showintro" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">📖 Show intro</button>
   <button id="updateLogButton" type="button">📋 Update log</button>
@@ -1138,8 +1140,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-adventure-battle-healing', date:'October 9, 2026', title:'Adventure battle healing', notes:[
+    'Bugs no longer regain health automatically after defeating an adventure enemy. Use Recover during a battle to restore health.'
+  ]},
   { id:'2026-10-09-branch-thickness-cap', date:'October 9, 2026', title:'Branch thickness stays readable', notes:[
-    'Branch upgrades still increase capacity, while branch visuals now stop thickening after a modest limit so the tree stays easier to read.'
+    'Choose the branch visual thickness cap in Settings. It defaults to 20 px; branch upgrades still increase capacity beyond the visual cap.'
   ]},
   { id:'2026-10-09-thicker-branches-spacing', date:'October 9, 2026', title:'More room for thicker branches', notes:[
     'The tree now gently spreads crowded branches as they grow thicker, making the canopy easier to read.'
@@ -3684,9 +3689,10 @@ function nodeRadius(n) {
   if (n.type === 'funnel') return 14;
   return 8.5 + Math.min(n.lvl, 6) * 1.2;
 }
-// Keep the branches visually distinct at high upgrade levels. Capacity still
-// scales with every edge level; only the canvas stroke has a visual ceiling.
-const edgeVisualLvl = n => Math.min(n.edgeLvl || 0, 4);
+// Capacity scales with every edge level; the player-controlled cap only limits
+// how wide branch strokes are drawn.
+let branchWidthCap = 20;
+const branchStrokeWidth = (n, extra=0) => Math.min(2.2 + (n.edgeLvl || 0) * 1.5 + extra, branchWidthCap);
 // Draw a leaf's gold-leaf indicator (extracted so it can run in a top pass).
 function drawGift(n, px, py, rr, time) {
   if (!n.giftGain) return;
@@ -3817,23 +3823,23 @@ function draw(time) {
     ctx.moveTo(sx0, sy0);
     ctx.quadraticCurveTo(sx(c.cx), sy(c.cy), sx1, sy1);
     ctx.lineCap = 'round';
-    ctx.lineWidth = (2.2 + edgeVisualLvl(n) * 1.5) * cam.scale;
+    ctx.lineWidth = branchStrokeWidth(n) * cam.scale;
     ctx.strokeStyle = '#5d4a33';
     ctx.stroke();
     if (selected === n.id) {
-      ctx.lineWidth = (3.8 + edgeVisualLvl(n) * 1.6) * cam.scale;
+      ctx.lineWidth = branchStrokeWidth(n,1.6) * cam.scale;
       ctx.strokeStyle = '#e8e4d8';
       ctx.setLineDash([6, 6]);
       ctx.lineDashOffset = -time * 18;
       ctx.stroke();
       ctx.setLineDash([]);
     } else if (hovered === n.id) {
-      ctx.lineWidth = (3.0 + edgeVisualLvl(n) * 1.5) * cam.scale;
+      ctx.lineWidth = branchStrokeWidth(n,0.8) * cam.scale;
       ctx.strokeStyle = 'rgba(232,228,216,0.4)';
       ctx.stroke();
     }
     if (n.waste > 0.01) {
-      ctx.lineWidth = (2.2 + edgeVisualLvl(n) * 1.5 + 2) * cam.scale;
+      ctx.lineWidth = branchStrokeWidth(n,2) * cam.scale;
       ctx.strokeStyle = `rgba(226,90,74,${0.25 + 0.2 * Math.sin(time * 6)})`;
       ctx.stroke();
     }
@@ -5066,6 +5072,15 @@ try { rightClickAction.value = localStorage.getItem('sapling-right-click-action'
 catch (e) { rightClickAction.value = 'polish'; }
 rightClickAction.addEventListener('change', () => {
   try { localStorage.setItem('sapling-right-click-action', rightClickAction.value); } catch (e) {}
+});
+const branchWidthCapSlider=document.getElementById('branchWidthCap'), branchWidthCapValue=document.getElementById('branchWidthCapValue');
+try { branchWidthCap=clamp(Math.round(Number(localStorage.getItem('sapling-branch-width-cap'))||20),4,40); } catch(e) { branchWidthCap=20; }
+branchWidthCapSlider.value=branchWidthCap;
+branchWidthCapValue.value=`${branchWidthCap} px`;
+branchWidthCapSlider.addEventListener('input',()=>{
+  branchWidthCap=clamp(Math.round(Number(branchWidthCapSlider.value)||20),4,40);
+  branchWidthCapValue.value=`${branchWidthCap} px`;
+  try { localStorage.setItem('sapling-branch-width-cap',String(branchWidthCap)); } catch(e) {}
 });
 const lbButton = document.getElementById('lbbtn');
 // Public Supabase project URL and anon key can be injected here at deployment.
@@ -6975,7 +6990,7 @@ function adventureMove(i, move, automatic=false) {
   a.turns++; a.log=`${move==='rest'?'Recovered health':`${move}: ${damage} damage`}.`;
   if(a.enemyHp<=0) {
     bugXp(b,8+ADVENTURE_ROUTES[a.route].tier*2); a.stage++; a.enemyHp=null; a.travel=0; a.turns=0; a.autoTime=0;
-    a.hp=Math.min(bugStats(b).hp,a.hp+Math.ceil(bugStats(b).hp*.15)); a.log='Enemy defeated! Continuing the journey.';
+    a.log='Enemy defeated! Continuing the journey.';
   } else {
     const hit=Math.max(1,Math.round(e.attack*(a.turns%3===0?1.5:1)-stats.defense)*(move==='guard'?.35:1));
     a.hp=Math.max(0,a.hp-hit); a.log+=` ${e.name} dealt ${Math.round(hit)}${a.turns%3===0?' (heavy attack)':''}.`;
