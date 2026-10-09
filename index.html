@@ -1140,6 +1140,15 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-achievement-groups', date:'October 9, 2026', title:'Achievements grouped by type', notes:[
+    'The Achievements screen now keeps related milestones together, including production, lifetime sap, single-tree sap, and prestige tiers.'
+  ]},
+  { id:'2026-10-09-production-achievements', date:'October 9, 2026', title:'More production achievements', notes:[
+    'Earn new achievements for reaching higher sap production rates and producing more sap across your lifetime.'
+  ]},
+  { id:'2026-10-09-branch-capacity-bloom', date:'October 9, 2026', title:'A boost leaf for branch capacity', notes:[
+    'Big gold leaves can now grant a temporary bloom that triples branch capacity.'
+  ]},
   { id:'2026-10-09-adventure-battle-healing', date:'October 9, 2026', title:'Adventure battle healing', notes:[
     'Bugs no longer regain health automatically after defeating an adventure enemy. Use Recover during a battle to restore health.'
   ]},
@@ -1621,10 +1630,7 @@ function recordProduction(sap = 0, resin = 0) {
 }
 const metaLvl = k => (META && META.up[k]) || 0;
 const ACHIEVEMENTS = {
-  // Discovery
-  hacker:     { name:'Hacker',           glyph:'💻', cat:'secret', desc:'Discovered the dev cheat code.' },
-  sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', cat:'secret', desc:'Summoned the purple one.' },
-  // Lifetime quest completion milestones; distinct claimed quests count once.
+  // Quest completions
   quests1: { name:'First Quest', glyph:'🏁', cat:'quest', quests:1, desc:'Complete 1 quest.' },
   quests5: { name:'Quest Regular', glyph:'📜', cat:'quest', quests:5, desc:'Complete 5 quests.' },
   quests10: { name:'Quest Seeker', glyph:'🧭', cat:'quest', quests:10, desc:'Complete 10 quests.' },
@@ -1633,27 +1639,7 @@ const ACHIEVEMENTS = {
   quests100: { name:'Quest Legend', glyph:'👑', cat:'quest', quests:100, desc:'Complete 100 quests.' },
   quests250: { name:'Quest Master', glyph:'🌟', cat:'quest', quests:250, desc:'Complete 250 quests.' },
   quests500: { name:'Quest Luminary', glyph:'💫', cat:'quest', quests:500, desc:'Complete 500 quests.' },
-  // Early-game milestones
-  firstLeaf:  { name:'Sprout',           glyph:'🌱', desc:'Grew your very first leaf.' },
-  firstAmp:   { name:'Loud and Clear',   glyph:'⚡', desc:'Grew your first amplifier.' },
-  firstRef:   { name:'Distillation',     glyph:'🧪', desc:'Grew your first refinery.' },
-  firstCap:   { name:'Charge Up',        glyph:'🔋', desc:'Grew your first capacitor.' },
-  firstGraft: { name:'Grafter',          glyph:'🪡', desc:'Bought your first graft slot.' },
-  firstLock:  { name:'Locked Down',      glyph:'🔒', desc:'Locked a node from upgrades.' },
-  firstPolish:{ name:'Glossy Touch',     glyph:'✨', desc:'Polished a node for the first time.' },
-  firstThicken:{name:'Wider Channels',   glyph:'➖', desc:'Thickened a branch to widen its throughput.' },
-  // Production / scale
-  leafCount10:{ name:'Leafy Greens',     glyph:'🍃', desc:'Own 10 leaves at once.' },
-  ampCount5:  { name:'Amp Stack',        glyph:'📈', desc:'Own 5 amplifiers at once.' },
-  refCount4:  { name:'Refinery Row',     glyph:'⚗️', desc:'Own 4 refineries at once.' },
-  capCount4:  { name:'Power Bank',       glyph:'🔌', desc:'Own 4 capacitors at once.' },
-  nodes30:    { name:'Sapling Grown',    glyph:'🌳', desc:'Reach 30 nodes on a tree.' },
-  nodes60:    { name:'Mighty Oak',       glyph:'🌲', desc:'Reach 60 nodes on a tree.' },
-  // Resources
-  sap10k:     { name:'Sap Hoarder',      glyph:'💧', desc:'Bank 10k sap at once.' },
-  sap1m:      { name:'Ocean of Sap',     glyph:'🌊', desc:'Bank 1M sap at once.' },
-  sap1b:      { name:'Sap Singularity',  glyph:'🌌', desc:'Bank 1B sap at once.' },
-  // Speed-run milestones — timed from a freshly planted tree.
+  // Fresh-tree speed runs
   speedSap1:  { name:'Fast Sprout',      glyph:'⏱️', cat:'challenge', desc:'Reach 1,000 sap within 2 minutes of a fresh tree.' },
   speedSap2:  { name:'Sap Sprinter',     glyph:'🏃', cat:'challenge', desc:'Reach 100k sap within 10 minutes of a fresh tree.' },
   speedSap3:  { name:'Sapspeed',         glyph:'⚡', cat:'challenge', desc:'Reach 10M sap within 20 minutes of a fresh tree.' },
@@ -1669,153 +1655,171 @@ const ACHIEVEMENTS = {
   speedSap13: { name:'Living Legend',    glyph:'✨', cat:'challenge', desc:'Reach 10B sap within 2 hours of a fresh tree.' },
   speedSap14: { name:'Ancient Sprint',   glyph:'🪵', cat:'challenge', desc:'Reach 100B sap within 4 hours of a fresh tree.' },
   speedSap15: { name:'Worlds Apart',     glyph:'🌍', cat:'challenge', desc:'Reach 1T sap within 8 hours of a fresh tree.' },
-  channeler:  { name:'Channeler',        glyph:'🫳', desc:'Channel a leaf with Verdant Touch.' },
+  // Sap production rate
+  rate1k:     { name:'Steady Flow',      glyph:'🚰', desc:'Produce 1,000 sap/second.' },
+  rate100k:   { name:'Gusher',           glyph:'⛲', desc:'Produce 100k sap/second.' },
+  rate1m:     { name:'Sap Torrent',      glyph:'🌧️', desc:'Produce 1M sap/second.' },
+  rate10m:    { name:'Sap Geyser',       glyph:'🌋', desc:'Produce 10M sap/second.' },
+  rate100m:   { name:'Sap Cataract',     glyph:'💦', desc:'Produce 100M sap/second.' },
+  rate1b:     { name:'Sap Maelstrom',    glyph:'🌪️', desc:'Produce 1B sap/second.' },
+  rate1t:     { name:'Sap Tsunami',      glyph:'🌊', desc:'Produce 1 trillion sap/second.' },
+  rate10t:    { name:'Sap Supercell',    glyph:'🌪️', desc:'Produce 10 trillion sap/second.' },
+  rate100t:   { name:'Sap Singularity',  glyph:'🌀', desc:'Produce 100 trillion sap/second.' },
+  rate1q:     { name:'Sap Event Horizon',glyph:'🌌', desc:'Produce 1 quadrillion sap/second.' },
+  // Lifetime sap produced
+  life1m:     { name:'Lifetime Tapper',  glyph:'🩸', desc:'Produce 1M sap over your lifetime.' },
+  life100m:   { name:'Lifetime River',   glyph:'🏞️', desc:'Produce 100M sap over your lifetime.' },
+  life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', desc:'Produce 1B sap over your lifetime.' },
+  life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', desc:'Produce 1 trillion sap over your lifetime.' },
+  life1q:     { name:'Lifetime Ocean',   glyph:'🏔️', desc:'Produce 1 quadrillion sap over your lifetime.' },
+  life10q:    { name:'Lifetime Cosmos',  glyph:'🌌', desc:'Produce 10 quadrillion sap over your lifetime.' },
+  life100q:   { name:'Lifetime Eternity',glyph:'♾️', desc:'Produce 100 quadrillion sap over your lifetime.' },
+  life1Qi:    { name:'Lifetime Beyond',  glyph:'🌠', desc:'Produce 1 quintillion sap over your lifetime.' },
+  // Sap produced by one tree
+  tree1m:     { name:'One and Done',     glyph:'🌳', desc:'Produce 1M sap from a single tree.' },
+  tree100m:   { name:'Sole Survivor',    glyph:'🌴', desc:'Produce 100M sap from a single tree.' },
+  tree10b:    { name:'Eternal Tree',     glyph:'🪵', desc:'Produce 10B sap from a single tree.' },
+  tree1t:     { name:'World Tree',       glyph:'🌍', desc:'Produce 1 trillion sap from a single tree.' },
+  tree1q:     { name:'Cosmic Tree',      glyph:'🌌', desc:'Produce 1 quadrillion sap from a single tree.' },
+  // Banked resources
+  acornBank:  { name:'Squirrel',         glyph:'🌰', desc:'Bank your first ripe acorn.' },
   acorn10:    { name:'Acorn Hoard',      glyph:'🐿️', desc:'Bank 10 acorns at once.' },
-  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', desc:'Fill every Pantheon pedestal at once.' },
-  puppy:      { name:'Good Boy',         glyph:'🐶', cat:'secret', desc:'Summon the puppy.' },
-  resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
   amber50:    { name:'Amber Eye',        glyph:'🟧', desc:'Collect 50 amber.' },
+  acorn50:    { name:'Hoarder Squirrel', glyph:'🐿️', desc:'Bank 50 acorns at once.' },
+  acorn100:   { name:'Acorn Empire',     glyph:'🌰', desc:'Bank 100 acorns at once.' },
+  acorn250:   { name:'Acorn Dynasty',    glyph:'🌰', desc:'Bank 250 acorns at once.' },
   amber500:   { name:'Amber Lord',       glyph:'👑', desc:'Collect 500 amber.' },
-  // Prestige
+  resin1k:    { name:'Sticky Fingers',   glyph:'🫙', desc:'Bank 1k resin at once.' },
+  amber5000:  { name:'Amber Vault',      glyph:'🏛️', desc:'Collect 5,000 amber.' },
+  sap10k:     { name:'Sap Hoarder',      glyph:'💧', desc:'Bank 10k sap at once.' },
+  amber50k:   { name:'Amber Dynasty',    glyph:'👑', desc:'Collect 50,000 amber.' },
+  resin100k:  { name:'Resin Reserve',    glyph:'🛢️', desc:'Bank 100k resin at once.' },
+  sap100k:    { name:'Sap Reservoir',    glyph:'🪣', desc:'Bank 100k sap at once.' },
+  amber500k:  { name:'Amber Cosmos',     glyph:'🟠', desc:'Collect 500,000 amber.' },
+  sap1m:      { name:'Ocean of Sap',     glyph:'🌊', desc:'Bank 1M sap at once.' },
+  resin1m:    { name:'Resin Ocean',      glyph:'🛢️', desc:'Bank 1M resin at once.' },
+  sap1b:      { name:'Sap Singularity',  glyph:'🌌', desc:'Bank 1B sap at once.' },
+  sap1t:      { name:'Sap Eternal',      glyph:'♾️', desc:'Bank 1 trillion sap at once.' },
+  sap10t:     { name:'Sap Eternity',   glyph:'♾️', desc:'Bank 10 quadrillion sap at once.' },
+  sap1q:      { name:'Sap Cosmos',       glyph:'🌠', desc:'Bank 1 quadrillion sap at once.' },
+  // Tree size and building counts
+  oneOfEach:  { name:'Diversified',      glyph:'🧩', desc:'Own a leaf, amp, refinery, capacitor and funnel at once.' },
+  refCount4:  { name:'Refinery Row',     glyph:'⚗️', desc:'Own 4 refineries at once.' },
+  capCount4:  { name:'Power Bank',       glyph:'🔌', desc:'Own 4 capacitors at once.' },
+  ampCount5:  { name:'Amp Stack',        glyph:'📈', desc:'Own 5 amplifiers at once.' },
+  funnel5:    { name:'Switchboard',      glyph:'🧰', desc:'Route flow through 5 funnels at once.' },
+  leafCount10:{ name:'Leafy Greens',     glyph:'🍃', desc:'Own 10 leaves at once.' },
+  refCount10: { name:'Refinery District',glyph:'🏭', desc:'Own 10 refineries at once.' },
+  capCount10: { name:'Capacitor Array',  glyph:'🪫', desc:'Own 10 capacitors at once.' },
+  funnel10:   { name:'Grand Junction',   glyph:'🛤️', desc:'Route flow through 10 funnels at once.' },
+  ampCount15: { name:'Amp Wall',         glyph:'📊', desc:'Own 15 amplifiers at once.' },
+  leafCount25:{ name:'Full Canopy',      glyph:'🌳', desc:'Own 25 leaves at once.' },
+  nodes30:    { name:'Sapling Grown',    glyph:'🌳', desc:'Reach 30 nodes on a tree.' },
+  ampCount30: { name:'Amp Fortress',     glyph:'📉', desc:'Own 30 amplifiers at once.' },
+  leafCount50:{ name:'Leaf Sea',         glyph:'🌿', desc:'Own 50 leaves at once.' },
+  nodes60:    { name:'Mighty Oak',       glyph:'🌲', desc:'Reach 60 nodes on a tree.' },
+  ampCount60: { name:'Thunderhead',    glyph:'🌩️', desc:'Own 60 amplifiers at once.' },
+  nodes100:   { name:'Elder Tree',       glyph:'🎄', desc:'Reach 100 nodes on a tree.' },
+  leafCount100:{name:'Verdant Wall',     glyph:'🌳', desc:'Own 100 leaves at once.' },
+  nodes150:   { name:'Ancient Giant',    glyph:'🌲', desc:'Reach 150 nodes on a tree.' },
+  nodes200:   { name:'Colossus',         glyph:'🗿', desc:'Reach 200 nodes on a tree.' },
+  nodes250:   { name:'Titan',            glyph:'🗿', desc:'Reach 250 nodes on a tree.' },
+  leafCount250:{name:'Leaf Sea',       glyph:'🍃', desc:'Own 250 leaves at once.' },
+  nodes500:   { name:'Canopy Colossus', glyph:'🌲', desc:'Reach 500 nodes on a tree.' },
+  // Growing and improving the tree
+  firstLeaf:  { name:'Sprout',           glyph:'🌱', desc:'Grew your very first leaf.' },
+  firstAmp:   { name:'Loud and Clear',   glyph:'⚡', desc:'Grew your first amplifier.' },
+  firstRef:   { name:'Distillation',     glyph:'🧪', desc:'Grew your first refinery.' },
+  firstCap:   { name:'Charge Up',        glyph:'🔋', desc:'Grew your first capacitor.' },
+  firstGraft: { name:'Grafter',          glyph:'🪡', desc:'Bought your first graft slot.' },
+  firstLock:  { name:'Locked Down',      glyph:'🔒', desc:'Locked a node from upgrades.' },
+  firstPolish:{ name:'Glossy Touch',     glyph:'✨', desc:'Polished a node for the first time.' },
+  firstThicken:{name:'Wider Channels',   glyph:'➖', desc:'Thickened a branch to widen its throughput.' },
+  channeler:  { name:'Channeler',        glyph:'🫳', desc:'Channel a leaf with Verdant Touch.' },
+  polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
+  firstFunnel:{ name:'Routing Engineer', glyph:'🪣', desc:'Grow your first Funnel.' },
+  maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its highest possible level (Verdance + Verdure maxed).' },
+  maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its highest possible level (Vigor maxed).' },
+  ampX50:     { name:'Overdrive',        glyph:'🚀', desc:'Push an amplifier to ×50 or higher.' },
+  maxRoot:    { name:'Taproot',          glyph:'🕸️', desc:'Max out any single root advancement.' },
+  graft10:    { name:'Master Grafter',   glyph:'🧵', desc:'Buy 10 graft slots in a single run.' },
+  polish5:    { name:'Showroom Shine',   glyph:'🪟', desc:'Keep 5 polished nodes at once.' },
+  graft25:    { name:'Grandmaster Grafter',glyph:'🪢', desc:'Buy 25 graft slots in a single run.' },
+  // Prestige and rings
   firstCut:   { name:'First Felling',    glyph:'🪓', desc:'Cut down your first tree.' },
   cut5:       { name:'Repeat Forester',  glyph:'🌲', desc:'Cut down 5 trees.' },
   cut25:      { name:'Lumberjack',       glyph:'🪵', desc:'Cut down 25 trees.' },
+  cut50:      { name:'Veteran Forester', glyph:'🪓', desc:'Cut down 50 trees.' },
   rings100:   { name:'Ring Collector',   glyph:'⭕', desc:'Bank 100 rings.' },
+  cut100:     { name:'Clearcutter',      glyph:'🪵', desc:'Cut down 100 trees.' },
+  cut250:     { name:'Woodcutter’s Guild',glyph:'🪓', desc:'Cut down 250 trees.' },
+  cut500:     { name:'Deforester',       glyph:'🪚', desc:'Cut down 500 trees.' },
   rings1000:  { name:'Ring Hoarder',     glyph:'💍', desc:'Bank 1000 rings.' },
+  cut1000:    { name:'Timber Baron',     glyph:'🏭', desc:'Cut down 1,000 trees.' },
+  cut2500:    { name:'Ancient Woodsman',glyph:'🪵', desc:'Cut down 2,500 trees.' },
+  rings10000: { name:'Ring Dynasty',     glyph:'💎', desc:'Bank 10,000 rings.' },
+  rings100k:  { name:'Ring Empire',      glyph:'💠', desc:'Bank 100,000 rings.' },
+  rings1m:    { name:'Ring Galaxy',      glyph:'🌌', desc:'Bank 1,000,000 rings.' },
+  rings10m:   { name:'Ring Universe',  glyph:'💫', desc:'Bank 10,000,000 rings.' },
   // Roots
   rootUnlock: { name:'Underground',      glyph:'🪴', desc:'Bought your first root advancement.' },
   rootTier3:  { name:'Deeper Roots',     glyph:'🕳️', desc:'Unlock a tier-3 root node.' },
   rootTier5:  { name:'Heart of the Tree',glyph:'❤️‍🔥', desc:'Unlock a tier-5 root node.' },
-  // Grove / species
+  startingRoots:{ name:'Three Pillars',  glyph:'🪨', desc:'Unlock Amplify, Rich soil, and Keen shears.' },
+  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', desc:'Unlock every single root advancement.' },
+  // Grove and species
   species2:   { name:'Cultivar',         glyph:'🍎', desc:'Unlock a second tree species.' },
   speciesAll: { name:'Botanist',         glyph:'🌷', desc:'Unlock every tree species.' },
   groveT4:    { name:'Ascendant',        glyph:'🌌', desc:'Bought a Tier-4 grove upgrade.' },
-  // Bloom variants — each unlocks on its own kind
+  // Gold-leaf blooms
   bloomBasic: { name:'Bloom Catcher',    glyph:'🌟', desc:'Harvested a big gold leaf.' },
   bloomSurge: { name:'Surge Rider',      glyph:'⚡', desc:'Roll a Surge bloom.' },
   bloomReso:  { name:'In Resonance',     glyph:'🌀', desc:'Roll a Resonance bloom.' },
   bloomVerd:  { name:'Verdure',          glyph:'🌿', desc:'Roll a Verdure bloom.' },
   bloomRefn:  { name:'Refined',          glyph:'🧪', desc:'Roll a Refinement bloom.' },
   bloomOver:  { name:'Overcharged',      glyph:'🔋', desc:'Roll an Overcharge bloom.' },
-  // Critters
+  allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', desc:'Roll every bloom variant.' },
+  // Critters and boosts
   scare10:    { name:'Pest Control',     glyph:'🐛', desc:'Scare off 10 critters.' },
   scare100:   { name:'Exterminator',     glyph:'💀', desc:'Scare off 100 critters.' },
   scare500:   { name:'Pestbane',         glyph:'🪲', desc:'Scare off 500 critters.' },
   pesticide:  { name:'Sprayed',          glyph:'🧴', desc:'Activated the Pesticide toggle.' },
   frozen:     { name:'Cold Snap',        glyph:'❄️', desc:'Froze the tree to bank your buffs.' },
   forced:     { name:'Forced Bloom',     glyph:'🌺', desc:'Armed Forced Bloom for ×3 production.' },
-  // Polish depth
-  polishMax:  { name:'Fully Glazed',     glyph:'🪞', desc:'Polish a single node to the cap.' },
-  // Offline
+  // Acorns and Pantheon
+  fullPantheon:{ name:'Full Pantheon',   glyph:'🏛️', desc:'Fill every Pantheon pedestal at once.' },
   offline:    { name:'Welcome Back',     glyph:'😴', desc:'Earned sap while away from the game.' },
-  acornBank:  { name:'Squirrel',         glyph:'🌰', desc:'Bank your first ripe acorn.' },
   pantheonOpen: { name:'Pantheon Stirs', glyph:'🏛️', desc:'Wake the Pantheon by banking enough acorns.' },
   godSlotted: { name:'Devotee',          glyph:'🙏', desc:'Slot a tree-god into a pedestal.' },
   founders:   { name:'Founders',         glyph:'🌳', desc:'Summon every founder.' },
-  chocolatier:{ name:'Chocolatier',      glyph:'🍫', cat:'secret', desc:'Unlock the Chocolate species.' },
-  chocoholic: { name:'Chocoholic',       glyph:'🍩', cat:'secret', desc:'Trigger the Chocoholic blast.' },
-  firstFunnel:{ name:'Routing Engineer', glyph:'🪣', desc:'Grow your first Funnel.' },
-  startingRoots:{ name:'Three Pillars',  glyph:'🪨', desc:'Unlock Amplify, Rich soil, and Keen shears.' },
-  allRoots:   { name:'Mycelium Mind',    glyph:'🍄', desc:'Unlock every single root advancement.' },
-  silksong:   { name:'Silksong',         glyph:'🪡', cat:'secret', desc:'Trace the echoes of a long-awaited song.' },
-  // Hints
-  hint25:     { name:'Curious',          glyph:'🧐', desc:'Dismiss 25 hints.' },
-  hint50:     { name:'Knows the Ropes',  glyph:'📖', desc:'Dismiss 50 hints.' },
-  // Blight (hard) mode
+  // Gold leaves harvested
+  gold100:    { name:'Gold Rush',        glyph:'🪙', desc:'Harvest 100 gold leaves.' },
+  gold1000:   { name:'Midas Touch',      glyph:'💰', desc:'Harvest 1,000 gold leaves.' },
+  gold10000:  { name:'King Midas',       glyph:'👑', desc:'Harvest 10,000 gold leaves.' },
+  // Play time
+  playtime10h:{ name:'Dedicated Gardener',glyph:'⏳', desc:'Play for 10 hours in total.' },
+  playtime50h:{ name:'Rooted In',        glyph:'⌛', desc:'Play for 50 hours in total.' },
+  playtime100h:{name:'Lifelong Gardener',glyph:'🕰️', desc:'Play for 100 hours in total.' },
+  playtime250h:{name:'Keeper of the Grove',glyph:'🌳', desc:'Play for 250 hours in total.' },
+  // Blight mode
   blightStart:{ name:'Into the Blight',  glyph:'🥀', cat:'blight', desc:'Begin a run in Blight mode.' },
   blightCut:  { name:'Thorn Forester',   glyph:'🪓', cat:'blight', desc:'Fell a tree in Blight mode.' },
   blightSap:  { name:'Bloom in Blight',  glyph:'🌹', cat:'blight', desc:'Bank 1M sap during a Blight-mode run.' },
-  // Extra scale / prestige
-  nodes100:   { name:'Elder Tree',       glyph:'🎄', desc:'Reach 100 nodes on a tree.' },
-  cut100:     { name:'Clearcutter',      glyph:'🪵', desc:'Cut down 100 trees.' },
-  sap1t:      { name:'Sap Eternal',      glyph:'♾️', desc:'Bank 1 trillion sap at once.' },
-  rings10000: { name:'Ring Dynasty',     glyph:'💎', desc:'Bank 10,000 rings.' },
-  allBlooms:  { name:'Kaleidoscope',     glyph:'🌈', desc:'Roll every bloom variant.' },
-  // Sap-per-second challenges — sustained production rate.
-  rate1k:     { name:'Steady Flow',      glyph:'🚰', desc:'Produce 1,000 sap/second.' },
-  rate100k:   { name:'Gusher',           glyph:'⛲', desc:'Produce 100k sap/second.' },
-  rate10m:    { name:'Sap Geyser',       glyph:'🌋', desc:'Produce 10M sap/second.' },
-  // Lifetime sap challenges — total sap ever produced, across every tree.
-  life1m:     { name:'Lifetime Tapper',  glyph:'🩸', desc:'Produce 1M sap over your lifetime.' },
-  life1b:     { name:'Lifetime Wellspring',glyph:'🏞️', desc:'Produce 1B sap over your lifetime.' },
-  life1t:     { name:'Lifetime Deluge',  glyph:'🌧️', desc:'Produce 1 trillion sap over your lifetime.' },
-  // One-tree challenges — sap produced by a single tree, no cutting allowed.
-  tree1m:     { name:'One and Done',     glyph:'🌳', desc:'Produce 1M sap from a single tree.' },
-  tree100m:   { name:'Sole Survivor',    glyph:'🌴', desc:'Produce 100M sap from a single tree.' },
-  tree10b:    { name:'Eternal Tree',     glyph:'🪵', desc:'Produce 10B sap from a single tree.' },
-  // Blight (hard) mode: bugs that linger devour leaves.
   leafEaten:  { name:'Devoured',         glyph:'🐛', cat:'blight', desc:'Let a Blight bug eat one of your leaves.' },
-  // Deep late-game scale — even bigger numbers.
-  sap1q:      { name:'Sap Cosmos',       glyph:'🌠', desc:'Bank 1 quadrillion sap at once.' },
-  life1q:     { name:'Lifetime Ocean',   glyph:'🏔️', desc:'Produce 1 quadrillion sap over your lifetime.' },
-  rate1b:     { name:'Sap Maelstrom',    glyph:'🌪️', desc:'Produce 1B sap/second.' },
-  rings100k:  { name:'Ring Empire',      glyph:'💠', desc:'Bank 100,000 rings.' },
-  cut500:     { name:'Deforester',       glyph:'🪚', desc:'Cut down 500 trees.' },
-  funnel5:    { name:'Switchboard',      glyph:'🧰', desc:'Route flow through 5 funnels at once.' },
-  // Reach the ceiling on a single thing.
-  maxLeaf:    { name:'Crown Leaf',       glyph:'🍀', desc:'Grow a leaf to its highest possible level (Verdance + Verdure maxed).' },
-  maxAmp:     { name:'Apex Amplifier',   glyph:'🔺', desc:'Strengthen an amplifier to its highest possible level (Vigor maxed).' },
-  ampX50:     { name:'Overdrive',        glyph:'🚀', desc:'Push an amplifier to ×50 or higher.' },
-  maxRoot:    { name:'Taproot',          glyph:'🕸️', desc:'Max out any single root advancement.' },
-  // More milestones
-  resin100k:  { name:'Resin Reserve',    glyph:'🛢️', desc:'Bank 100k resin at once.' },
-  amber5000:  { name:'Amber Vault',      glyph:'🏛️', desc:'Collect 5,000 amber.' },
-  acorn50:    { name:'Hoarder Squirrel', glyph:'🐿️', desc:'Bank 50 acorns at once.' },
-  leafCount25:{ name:'Full Canopy',      glyph:'🌳', desc:'Own 25 leaves at once.' },
-  nodes150:   { name:'Ancient Giant',    glyph:'🌲', desc:'Reach 150 nodes on a tree.' },
-  rate100m:   { name:'Sap Cataract',     glyph:'💦', desc:'Produce 100M sap/second.' },
-  cut1000:    { name:'Timber Baron',     glyph:'🏭', desc:'Cut down 1,000 trees.' },
-  tree1t:     { name:'World Tree',       glyph:'🌍', desc:'Produce 1 trillion sap from a single tree.' },
-  gold100:    { name:'Gold Rush',        glyph:'🪙', desc:'Harvest 100 gold leaves.' },
-  gold1000:   { name:'Midas Touch',      glyph:'💰', desc:'Harvest 1,000 gold leaves.' },
-  playtime10h:{ name:'Dedicated Gardener',glyph:'⏳', desc:'Play for 10 hours in total.' },
-  // Even deeper scale
-  nodes200:   { name:'Colossus',         glyph:'🗿', desc:'Reach 200 nodes on a tree.' },
-  cut250:     { name:'Woodcutter’s Guild',glyph:'🪓', desc:'Cut down 250 trees.' },
-  rate1t:     { name:'Sap Tsunami',      glyph:'🌊', desc:'Produce 1 trillion sap/second.' },
-  amber50k:   { name:'Amber Dynasty',    glyph:'👑', desc:'Collect 50,000 amber.' },
-  acorn100:   { name:'Acorn Empire',     glyph:'🌰', desc:'Bank 100 acorns at once.' },
-  playtime50h:{ name:'Rooted In',        glyph:'⌛', desc:'Play for 50 hours in total.' },
-  tree1q:     { name:'Cosmic Tree',      glyph:'🌌', desc:'Produce 1 quadrillion sap from a single tree.' },
-  // Blight (hard) mode — the wither fight
   withered:   { name:'Left to Rot',      glyph:'🥀', cat:'blight', desc:'Let a node wither away from neglect.' },
   lastgleam:  { name:'Last Gleam',       glyph:'✨', cat:'blight', desc:'Burn a node’s polish to save it from withering.' },
   tended:     { name:'Green-Fingered',   glyph:'🤲', cat:'blight', desc:'Hold a withering node alive with the Tending Hand.' },
   blightSap1b:{ name:'Garden of Thorns', glyph:'🌹', cat:'blight', desc:'Bank 1B sap during a Blight-mode run.' },
-  // Bigger per-building counts — pack a tree with one kind of building.
-  leafCount50:{ name:'Leaf Sea',         glyph:'🌿', desc:'Own 50 leaves at once.' },
-  ampCount15: { name:'Amp Wall',         glyph:'📊', desc:'Own 15 amplifiers at once.' },
-  refCount10: { name:'Refinery District',glyph:'🏭', desc:'Own 10 refineries at once.' },
-  capCount10: { name:'Capacitor Array',  glyph:'🪫', desc:'Own 10 capacitors at once.' },
-  funnel10:   { name:'Grand Junction',   glyph:'🛤️', desc:'Route flow through 10 funnels at once.' },
-  // Building variety and depth.
-  oneOfEach:  { name:'Diversified',      glyph:'🧩', desc:'Own a leaf, amp, refinery, capacitor and funnel at once.' },
-  graft10:    { name:'Master Grafter',   glyph:'🧵', desc:'Buy 10 graft slots in a single run.' },
-  polish5:    { name:'Showroom Shine',   glyph:'🪟', desc:'Keep 5 polished nodes at once.' },
-  // Filling the gaps between existing milestone tiers.
-  sap100k:    { name:'Sap Reservoir',    glyph:'🪣', desc:'Bank 100k sap at once.' },
-  rate1m:     { name:'Sap Torrent',      glyph:'🌧️', desc:'Produce 1M sap/second.' },
-  life100m:   { name:'Lifetime River',   glyph:'🏞️', desc:'Produce 100M sap over your lifetime.' },
-  cut50:      { name:'Veteran Forester', glyph:'🪓', desc:'Cut down 50 trees.' },
-  rings1m:    { name:'Ring Galaxy',      glyph:'🌌', desc:'Bank 1,000,000 rings.' },
-  resin1m:    { name:'Resin Ocean',      glyph:'🛢️', desc:'Bank 1M resin at once.' },
-  amber500k:  { name:'Amber Cosmos',     glyph:'🟠', desc:'Collect 500,000 amber.' },
-  acorn250:   { name:'Acorn Dynasty',    glyph:'🌰', desc:'Bank 250 acorns at once.' },
-  gold10000:  { name:'King Midas',       glyph:'👑', desc:'Harvest 10,000 gold leaves.' },
-  playtime100h:{name:'Lifelong Gardener',glyph:'🕰️', desc:'Play for 100 hours in total.' },
-  nodes250:   { name:'Titan',            glyph:'🗿', desc:'Reach 250 nodes on a tree.' },
-  // Even bigger per-building counts.
-  leafCount100:{name:'Verdant Wall',     glyph:'🌳', desc:'Own 100 leaves at once.' },
-  ampCount30: { name:'Amp Fortress',     glyph:'📉', desc:'Own 30 amplifiers at once.' },
-  graft25:    { name:'Grandmaster Grafter',glyph:'🪢', desc:'Buy 25 graft slots in a single run.' },
-  // Long-run milestones for players who have cleared the current endgame tiers.
-  nodes500:   { name:'Canopy Colossus', glyph:'🌲', desc:'Reach 500 nodes on a tree.' },
-  leafCount250:{name:'Leaf Sea',       glyph:'🍃', desc:'Own 250 leaves at once.' },
-  ampCount60: { name:'Thunderhead',    glyph:'🌩️', desc:'Own 60 amplifiers at once.' },
-  sap10t:     { name:'Sap Eternity',   glyph:'♾️', desc:'Bank 10 quadrillion sap at once.' },
-  rings10m:   { name:'Ring Universe',  glyph:'💫', desc:'Bank 10,000,000 rings.' },
-  cut2500:    { name:'Ancient Woodsman',glyph:'🪵', desc:'Cut down 2,500 trees.' },
-  playtime250h:{name:'Keeper of the Grove',glyph:'🌳', desc:'Play for 250 hours in total.' },
+  // Hints
+  hint25:     { name:'Curious',          glyph:'🧐', desc:'Dismiss 25 hints.' },
+  hint50:     { name:'Knows the Ropes',  glyph:'📖', desc:'Dismiss 50 hints.' },
+  // Secrets
+  hacker:     { name:'Hacker',           glyph:'💻', cat:'secret', desc:'Discovered the dev cheat code.' },
+  sethatubby: { name:'Sethatubby Awakens',glyph:'🟣', cat:'secret', desc:'Summoned the purple one.' },
+  puppy:      { name:'Good Boy',         glyph:'🐶', cat:'secret', desc:'Summon the puppy.' },
+  chocolatier:{ name:'Chocolatier',      glyph:'🍫', cat:'secret', desc:'Unlock the Chocolate species.' },
+  chocoholic: { name:'Chocoholic',       glyph:'🍩', cat:'secret', desc:'Trigger the Chocoholic blast.' },
+  silksong:   { name:'Silksong',         glyph:'🪡', cat:'secret', desc:'Trace the echoes of a long-awaited song.' },
 };
 function grantAchievement(k) {
   if (!ACHIEVEMENTS[k]) return;
@@ -1861,6 +1865,7 @@ const BLOOMS = {
   verdure:    { name:'Verdure',    icon:'🌿', color:'#90e09b', dur:30, weight:5,  leafMult:()=>goldBloomMult(1+0.08*S.counts.leaf), descOf:()=>`each leaf boosts production (×${goldBloomMult(1+0.08*S.counts.leaf).toFixed(1)})` },
   refinement: { name:'Refinement', icon:'🧪', color:'#f0b07e', dur:30, weight:4,  refMult:()=>goldBloomMult(2),  relevant:()=>(S.counts.ref||0)>0, descOf:()=>`refineries ×${goldBloomMult(2).toFixed(1)} yield` },
   overcharge: { name:'Overcharge', icon:'🔋', color:'#7fe3ee', dur:25, weight:4,  capMult:()=>goldBloomMult(1.6), relevant:()=>(S.counts.cap||0)>0, descOf:()=>`capacitors burst ×${goldBloomMult(1.6).toFixed(2)}` },
+  heartwood:  { name:'Heartwood',  icon:'🌳', color:'#bb9565', dur:30, weight:4,  edgeMult:()=>3, descOf:()=>'branch capacity ×3' },
   expedition: { name:'Expedition Blessing', icon:'🧭', color:'#a8d988', dur:300, weight:0, leafMult:()=>1.25, refMult:()=>1.25, descOf:()=>'+25% leaf and refinery production' },
 };
 function pickBloom() {
@@ -1899,6 +1904,7 @@ const bloomLeafMult  = () => activeBlooms().reduce((m, x) => m * (x.kind !== 'ch
 const channelMult    = n => (S.channeling && n && n.id != null && (metaLvl('verdanttide') > 0 || n.id === S.channelNode)) ? touchMult() : 1;
 const bloomRefMult   = () => bloomProductOf('refMult');
 const bloomCapMult   = () => bloomProductOf('capMult');
+const bloomEdgeMult  = () => bloomProductOf('edgeMult');
 // Pesticide: toggle that blocks critters at a constant production penalty. In
 // Blight mode the Pesticide / Symbiosis grove nodes are repurposed (see below), so
 // the critter toggle only exists outside Blight.
@@ -2033,7 +2039,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1);
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -2548,7 +2554,7 @@ function harvestLeaf(id) {
     grantAchievement('bloomBasic');
     const kind = pickBloom();
     const b = BLOOMS[kind];
-    grantAchievement(({bloom3:null, surge5:'bloomSurge', resonance:'bloomReso', verdure:'bloomVerd', refinement:'bloomRefn', overcharge:'bloomOver'})[kind]);
+    grantAchievement(({bloom3:null, surge5:'bloomSurge', resonance:'bloomReso', verdure:'bloomVerd', refinement:'bloomRefn', overcharge:'bloomOver', heartwood:null})[kind]);
     applyBloom(kind);
     toast(`${b.icon} ${b.name}! ${b.descOf()} for ${b.dur}s`);
     spawnBurst(n.x, n.y, b.color, 26, 170, 1.15);
@@ -4815,13 +4821,20 @@ function refreshHud() {
     if (rate >= 1e6) grantAchievement('rate1m');
     if (rate >= 1e7) grantAchievement('rate10m');
     if (rate >= 1e8) grantAchievement('rate100m');
-    if (rate >= 1e12) grantAchievement('rate1t'); }
+    if (rate >= 1e12) grantAchievement('rate1t');
+    if (rate >= 1e13) grantAchievement('rate10t');
+    if (rate >= 1e14) grantAchievement('rate100t');
+    if (rate >= 1e15) grantAchievement('rate1q'); }
   // Lifetime sap milestones — total ever produced across every tree.
   { const life = (META && META.lifetimeSap) || 0;
     if (life >= 1e6) grantAchievement('life1m');
     if (life >= 1e8) grantAchievement('life100m');
     if (life >= 1e9) grantAchievement('life1b');
-    if (life >= 1e12) grantAchievement('life1t'); }
+    if (life >= 1e12) grantAchievement('life1t');
+    if (life >= 1e15) grantAchievement('life1q');
+    if (life >= 1e16) grantAchievement('life10q');
+    if (life >= 1e17) grantAchievement('life100q');
+    if (life >= 1e18) grantAchievement('life1Qi'); }
   // One-tree milestones — sap produced by the current tree since it was planted.
   { const ts = (S && S.treeSap) || 0;
     if (ts >= 1e6) grantAchievement('tree1m');
@@ -4832,7 +4845,6 @@ function refreshHud() {
   // Deep late-game scale milestones.
   if (S.sap >= 1e15) grantAchievement('sap1q');
   if (S.sap >= 1e16) grantAchievement('sap10t');
-  if (((META && META.lifetimeSap) || 0) >= 1e15) grantAchievement('life1q');
   if (((S.ema && S.ema.s) || 0) >= 1e9) grantAchievement('rate1b');
   if (META.rings >= 1e5) grantAchievement('rings100k');
   if ((META.treesCut || 0) >= 50) grantAchievement('cut50');
