@@ -1181,6 +1181,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-deepen-roots-double-capacity', date:'October 9, 2026', title:'Deepen Roots grows stronger', notes:[
+    'Deepen Roots now doubles branch capacity while active, up from ×1.5.'
+  ]},
   { id:'2026-10-09-pruning-amber-taper', date:'October 9, 2026', title:'Pruning amber balance', notes:[
     'Amber from pruning now tapers a little more at high amounts. Early pruning gains are unchanged.'
   ]},
@@ -6762,7 +6765,7 @@ const SPELLS = {
   sunlight: { name:'Call Sunlight', icon:'☀️', cost:45, study:0, good:'Ripen one gold leaf immediately, with a 50% chance it is a big boost leaf that grants a Bloom.', bad:'Delay unripe gold leaves by 60 seconds.' },
   sapdraw: { name:'Sap Draw', icon:'💧', cost:57, study:0, good:'Gain five minutes of current sap production.', bad:'Lose up to five minutes of sap, capped at 30% of your bank.' },
   surge: { name:'Sap Surge', icon:'🌿', cost:80, study:0, good:'×2 leaf production for 30 seconds.', bad:'Half leaf production for 30 seconds.' },
-  roots: { name:'Deepen Roots', icon:'🌱', cost:68, study:1, good:'×1.5 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
+  roots: { name:'Deepen Roots', icon:'🌱', cost:68, study:1, good:'×2 branch capacity for three minutes.', bad:'Half branch capacity for three minutes.' },
   growth: { name:'Wild Growth', icon:'🍃', cost:68, study:1, good:'Give your selected leaf one free level.', bad:'Your selected leaf loses one level (minimum level 1).' },
   amber: { name:'Amber Echo', icon:'🧡', cost:68, study:1, good:'The next prune gives ×1.5 amber.', bad:'The next prune gives half amber.' },
   ward: { name:'Bark Ward', icon:'🛡️', cost:75, study:1, good:'Protect the whole tree from critters and Blight for five minutes. Critters on the tree leave.', bad:'Immediately wither one random terminal node. The Core is immune.' },
@@ -6806,7 +6809,7 @@ function advanceSpellTimers(dt) {
 }
 const spellWardOn = () => !!(S && S.spells && S.spells.ward > 0);
 const spellLeafMult = () => S.spells ? ((S.spells.surge > 0 || S.spells.greatsurge > 0) ? 2 : 1) * (S.spells.drought > 0 ? 0.5 : 1) : 1;
-const spellEdgeMult = () => S.spells ? (S.spells.rootward > 0 ? 1.5 : 1) * (S.spells.rootblight > 0 ? 0.5 : 1) : 1;
+const spellEdgeMult = () => S.spells ? (S.spells.rootward > 0 ? 2 : 1) * (S.spells.rootblight > 0 ? 0.5 : 1) : 1;
 const spellProductionActive = () => !!(S.spells && ['surge','greatsurge','drought','rootward','rootblight'].some(k => S.spells[k] > 0));
 function ripenGoldLeaf(n, bigChance = 0.15 + 0.03 * metaLvl('gildedcanopy')) {
   n.giftAge = 0;
@@ -6922,7 +6925,7 @@ function renderSpellbook() {
   const mana = META.spellbook.mana;
   document.getElementById('spellMana').textContent = `${mana.toFixed(1)} / ${manaCap()} mana · ${frozenOn() ? 'Frozen' : mana >= manaCap() ? 'Full' : `Full in ${fmtAcornTimer((manaCap()-mana)/manaRate()*1000)}`}`;
   const meter = document.getElementById('spellMeter'); meter.max = manaCap(); meter.value = mana;
-  const labels = {surge:'Sap Surge ×2',greatsurge:'Great Sap Surge ×2',drought:'Sap drought ×0.5',rootward:'Capacity ×1.5',rootblight:'Capacity ×0.5',ward:'Whole-tree Bark Ward',goldblock:'Gold leaves suppressed'};
+  const labels = {surge:'Sap Surge ×2',greatsurge:'Great Sap Surge ×2',drought:'Sap drought ×0.5',rootward:'Capacity ×2',rootblight:'Capacity ×0.5',ward:'Whole-tree Bark Ward',goldblock:'Gold leaves suppressed'};
   const active = SPELL_TIMERS.filter(k => S.spells[k] > 0).map(k => `${labels[k]} · ${fmtAcornTimer(S.spells[k]*1000)}`);
   if (S.spells.amber !== 1) active.push(`Next prune: ×${S.spells.amber} amber`);
   document.getElementById('spellEffects').textContent = active.join(' · ') || 'No active spells. Surges overlap at ×2; recasting refreshes duration.';
