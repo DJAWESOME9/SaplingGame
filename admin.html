@@ -38,7 +38,9 @@
   .challenge-form { display:grid; max-width:none; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:12px; }
   .challenge-form input, .challenge-form select { width:100%; }
   .challenge-form label { display:grid; gap:4px; color:#c8d9c9; font-size:12px; }
+  .goal-level-label[hidden] { display:none; }
   .goal-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:8px; align-items:end; margin-bottom:8px; }
+  .goal-row.bug-level-goal { grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto; }
   .goal-row button { height:38px; }
   .challenge-form label small { color:#8fa891; line-height:1.35; }
   .challenge-form fieldset { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; min-width:0; margin:0; padding:12px; border:1px solid #2e3f31; border-radius:8px; }
@@ -54,7 +56,7 @@
   .achievement-item p { margin:4px 0 0; color:#9db89f; font-size:12px; }
   .achievement-category { color:#8fa891; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
   #message { min-height:20px; color:#f0d9a0; font-size:13px; }
-  @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } .challenge-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .challenge-form .wide { grid-column:span 2; } .challenge-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); } .goal-row { grid-template-columns:1fr 1fr; } .goal-row button { grid-column:1 / -1; } }
+  @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } .challenge-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .challenge-form .wide { grid-column:span 2; } .challenge-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); } .goal-row,.goal-row.bug-level-goal { grid-template-columns:1fr 1fr; } .goal-row button { grid-column:1 / -1; } }
 </style>
 </head>
 <body>
@@ -68,11 +70,11 @@
   <section id="dashboard" hidden>
     <div class="toolbar"><input id="search" placeholder="Filter players by name or ID"><button id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
     <div class="card"><h2>Achievements <span class="muted" id="achievementCount"></span></h2><p class="muted">Full game achievement catalog, including secret achievements. This is a read-only view.</p><div class="toolbar"><input id="achievementSearch" placeholder="Filter achievements by name, ID, or description"><button id="refreshAchievements" type="button">Refresh achievements</button></div><div id="achievementList" aria-live="polite"></div></div>
-    <div class="card"><h2>Live challenges</h2><p class="muted">You can run several challenges at once. Publishing starts each clock immediately. Progress starts at zero for each player when the challenge opens. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
+    <div class="card"><h2>Live challenges</h2><p class="muted">You can run several challenges at once. Publishing starts each clock immediately. Production and action goals start at zero when the challenge opens. Bug-level goals count bugs currently owned, including existing bugs. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
       <form id="challengeForm" class="challenge-form">
         <label class="wide">Challenge title<input id="challengeTitle" maxlength="60" placeholder="Example: Forest sprint" required></label>
         <label class="wide">Description players see<input id="challengeDescription" maxlength="240" placeholder="Explain the goal in plain language" required></label>
-        <div class="wide" id="challengeGoals"><div class="goal-row"><label>Goal<select class="goal-type"><option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option></select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div></div>
+        <div class="wide" id="challengeGoals"><div class="goal-row"><label>Goal<select class="goal-type"><option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option><option value="bug_level">Have bugs at level or higher</option></select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div></div>
         <button id="addGoal" type="button">Add another goal</button>
         <label>Runs for (hours)<input id="challengeHours" type="number" min="0.01" max="8760" step="any" value="24" required></label>
         <p id="challengeGoalHelp" class="muted" style="grid-column:1 / -1; margin:0" aria-live="polite"></p>
@@ -146,12 +148,36 @@ async function refreshAchievements() {
     renderAchievements();
   } catch(e) { $('achievementList').innerHTML=`<p class="muted">Could not load achievements: ${escapeHtml(e.message)}</p>`; }
 }
-const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',oak_sap:'Sap produced by leaf nodes while Oak is planted.',apple_sap:'Sap produced by leaf nodes while Apple is planted.',peach_sap:'Sap produced by leaf nodes while Peach is planted.',grape_sap:'Sap produced by leaf nodes while Grape is planted.',maple_sap:'Sap produced by leaf nodes while Maple is planted.',pine_sap:'Sap produced by leaf nodes while Pine is planted.',chocolate_sap:'Sap produced by leaf nodes while Chocolate is planted.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',channel:'Time spent actively channeling Verdant Touch, in seconds.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.'};
-const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option>';
-function updateGoalRow(row) { const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'); input.step=['expeditions','amber','rings','bugs'].includes(type)?'1':'any'; input.min=['expeditions','amber','rings','bugs'].includes(type)?'1':'0.000001'; input.placeholder=type==='channel'?'Seconds':'Goal amount'; input.setAttribute('aria-label',type==='channel'?'Seconds of channeling':'Goal amount needed'); input.closest('label').firstChild.textContent=type==='channel'?'Seconds of channeling':'Amount needed'; row.title=challengeGoalHelp[type]; }
-function updateGoalRows() { document.querySelectorAll('.goal-row').forEach(updateGoalRow); document.querySelectorAll('.remove-goal').forEach(b=>b.disabled=document.querySelectorAll('.goal-row').length<2); }
+const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',oak_sap:'Sap produced by leaf nodes while Oak is planted.',apple_sap:'Sap produced by leaf nodes while Apple is planted.',peach_sap:'Sap produced by leaf nodes while Peach is planted.',grape_sap:'Sap produced by leaf nodes while Grape is planted.',maple_sap:'Sap produced by leaf nodes while Maple is planted.',pine_sap:'Sap produced by leaf nodes while Pine is planted.',chocolate_sap:'Sap produced by leaf nodes while Chocolate is planted.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',channel:'Time spent actively channeling Verdant Touch, in seconds.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.',bug_level:'Currently owned bugs at this level or higher, including training, travelling, and waiting returns. Existing bugs count; released bugs do not.'};
+const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option><option value="bug_level">Have bugs at level or higher</option>';
+function updateGoalRow(row) {
+  const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'), isBugs=type==='bug_level';
+  const whole=['expeditions','amber','rings','bugs','bug_level'].includes(type);
+  input.step=whole?'1':'any'; input.min=whole?'1':'0.000001';
+  input.placeholder=type==='channel'?'Seconds':isBugs?'Number of bugs':'Goal amount';
+  const label=type==='channel'?'Seconds of channeling':isBugs?'Bugs needed':'Amount needed';
+  input.setAttribute('aria-label',label); input.closest('label').firstChild.textContent=label;
+  let level=row.querySelector('.goal-level');
+  if(!level) {
+    const label=document.createElement('label'); label.className='goal-level-label'; label.textContent='Minimum bug level';
+    level=document.createElement('input'); level.className='goal-level'; level.type='number'; level.min='1'; level.max='100'; level.step='1'; level.value='2'; level.setAttribute('aria-label','Minimum bug level');
+    label.append(level); row.insertBefore(label,row.querySelector('.remove-goal'));
+  }
+  level.closest('label').hidden=!isBugs; level.disabled=!isBugs; level.required=isBugs;
+  row.classList.toggle('bug-level-goal',isBugs); row.title=challengeGoalHelp[type];
+}
+function updateGoalRows() { document.querySelectorAll('.goal-row').forEach(updateGoalRow); $('challengeGoalHelp').textContent=[...document.querySelectorAll('.goal-type')].map(el=>challengeGoalHelp[el.value]).join(' '); document.querySelectorAll('.remove-goal').forEach(b=>b.disabled=document.querySelectorAll('.goal-row').length<2); }
 function addGoalRow() { const row=document.createElement('div'); row.className='goal-row'; row.innerHTML=`<label>Goal<select class="goal-type">${goalOptions}</select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button">Remove</button>`; $('challengeGoals').append(row); updateGoalRows(); }
-function readGoals() { return [...document.querySelectorAll('.goal-row')].map(row=>({type:row.querySelector('.goal-type').value,target:Number(row.querySelector('.goal-target').value||0)})); }
+function readGoals() {
+  return [...document.querySelectorAll('.goal-row')].map(row=> {
+    const goal={type:row.querySelector('.goal-type').value,target:Number(row.querySelector('.goal-target').value||0)};
+    if(goal.type==='bug_level') {
+      goal.level=Number(row.querySelector('.goal-level').value);
+      if(!Number.isInteger(goal.target)||goal.target<1||!Number.isInteger(goal.level)||goal.level<1||goal.level>100) throw new Error('Bug goals need a whole bug count and a level from 1 to 100.');
+    }
+    return goal;
+  });
+}
 function duration(ms) { let s=Math.floor((Number(ms)||0)/1000); const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); return `${d}d ${h}h ${m}m`; }
 function when(value) { return value ? new Date(value).toLocaleString() : 'Not recorded yet'; }
 function record(player, key) { return leaderboardRecords.get(player.player_id)?.[key] ?? player[key]; }
@@ -195,7 +221,7 @@ async function refreshChallenges() {
       const first=c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)}` : 'No finisher yet';
       const status=active ? `LIVE · closes ${new Date(c.closes_at).toLocaleString()}` : c.ended_at ? `Ended ${new Date(c.ended_at).toLocaleString()}` : `Expired ${new Date(c.closes_at).toLocaleString()}`;
       const goals=Array.isArray(c.goals)&&c.goals.length?c.goals:[{type:c.target_type,target:c.target_sap}];
-      const goal=goals.map(g=>`${n(g.target)} ${({banked_sap:'banked sap',sap:'sap made',leaf_sap:'sap made by leaves',resin:'resin made',refinery_resin:'resin made by refineries',expeditions:'expeditions completed',amber:'amber made',rings:'rings made',bugs:'bugs killed'})[g.type]||g.type}`).join(' + ');
+      const goal=goals.map(g=>g.type==='bug_level'?`Have ${n(g.target)} bugs at level ${n(g.level)} or higher`:`${n(g.target)} ${({banked_sap:'banked sap',sap:'sap made',leaf_sap:'sap made by leaves',resin:'resin made',refinery_resin:'resin made by refineries',expeditions:'expeditions completed',amber:'amber made',rings:'rings made',bugs:'bugs killed'})[g.type]||g.type}`).join(' + ');
       const reward=prefix=>['sap','resin','acorns','rings','amber'].map(k=>Number(c[`${prefix}_${k}`])?`${n(c[`${prefix}_${k}`])} ${k}`:'').filter(Boolean).concat((c[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name))).join(' + ')||'achievement only';
       return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} ${goal} · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Every finisher: ${reward('reward')} · First bonus: ${reward('first_bonus')}</p></div>${active?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
     }).join('') || '<p class="muted">No challenges published yet.</p>';

@@ -381,12 +381,12 @@
   #minidock { position:fixed; z-index:40; pointer-events:none;
     left:max(12px, env(safe-area-inset-left));
     bottom:calc(12px + env(safe-area-inset-bottom));
-    display:flex; align-items:center; gap:8px; }
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px; max-width:calc(100vw - 112px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
   #minidock .docklabel { pointer-events:none; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
     color:#6f7d92; align-self:center; }
   #minidock button { pointer-events:auto; background:rgba(20,14,30,.82); border:1px solid #3a2d56; color:#caa6e0;
     border-radius:10px; padding:9px 14px; font-size:14px; cursor:pointer; line-height:1; backdrop-filter:blur(6px);
-    font-family:inherit; white-space:nowrap; transition:border-color .14s ease, color .14s ease, background .14s ease; }
+    font-family:inherit; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:border-color .14s ease, color .14s ease, background .14s ease; }
   #minidock button:hover { border-color:#a374df; color:#f0d9ff; background:rgba(40,28,58,.92); }
   @media (max-width:600px) { #minidock { flex-direction:column; align-items:flex-start; gap:4px; } #minidock button { padding:7px 10px; font-size:12px; } }
   #expeditions { position:fixed; inset:0; display:none; z-index:55; background:rgba(6,12,8,.84); backdrop-filter:blur(5px); overflow-y:auto; padding:24px 16px; box-sizing:border-box; }
@@ -404,14 +404,14 @@
   .expcard button:disabled { opacity:.45; cursor:default; }
   .expprogress { height:8px; overflow:hidden; border-radius:6px; background:#0d1a12; margin:12px 0 8px; }
   .expprogress span { display:block; height:100%; background:#99ca79; }
-  #adventures { position:fixed; inset:0; display:none; z-index:55; background:#060c08dd; backdrop-filter:blur(5px); overflow-y:auto; padding:24px 12px; box-sizing:border-box; }
-  #adventures.open { display:block; }
-  #adventures label { display:block; font-size:12px; margin-top:10px; text-transform:capitalize; }
-  #adventures select { display:block; box-sizing:border-box; width:100%; min-width:0; background:#101e15; border:1px solid #6b965f; color:#edf8df; padding:9px 4px; border-radius:7px; margin-top:5px; }
+  #adventures,#training { position:fixed; inset:0; display:none; z-index:55; background:#060c08dd; backdrop-filter:blur(5px); overflow-y:auto; padding:24px 12px; box-sizing:border-box; }
+  #adventures.open,#training.open { display:block; }
+  #adventures label,#training label { display:block; font-size:12px; margin-top:10px; text-transform:capitalize; }
+  #adventures select,#training select { display:block; box-sizing:border-box; width:100%; min-width:0; background:#101e15; border:1px solid #6b965f; color:#edf8df; padding:9px 4px; border-radius:7px; margin-top:5px; }
   #viewBugs,#bugReturns { position:fixed; inset:0; display:none; z-index:57; background:rgba(6,12,8,.88); backdrop-filter:blur(5px); overflow-y:auto; padding:24px 12px; box-sizing:border-box; }
   #viewBugs.open,#bugReturns.open { display:block; }
-  #advClose { padding:8px 12px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
-  @media(max-width:600px) { #adventures .expbox { padding:14px; } #adventures .expgrid { grid-template-columns:1fr; } #adventures button { min-height:40px; } }
+  #advClose,#trainingClose { padding:8px 12px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
+  @media(max-width:600px) { #adventures .expbox,#training .expbox { padding:14px; } #adventures .expgrid,#training .expgrid { grid-template-columns:1fr; } #adventures button,#training button { min-height:40px; } }
   /* ---- Intro overlay: shown on first play / after hard reset ---- */
   #intro { position:fixed; inset:0; display:none; z-index:60; background:rgba(6,10,7,.9);
     backdrop-filter:blur(5px); overflow-y:auto; overscroll-behavior:contain; padding:32px 16px; }
@@ -918,6 +918,7 @@
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
   <button id="spellbookbtn" title="Spend regenerating mana on tree magic" style="display:none">📖 Spellbook</button>
+  <button id="trainingbtn" style="display:none">🏋️ Training · 🌰1</button>
   <button id="adventurebtn" style="display:none">⚔️ Adventures</button>
   <button id="expeditionbtn" title="Send stored critters on expeditions" style="display:none">🧭 Expeditions</button>
 </div>
@@ -948,6 +949,7 @@
   </div>
 </div>
 <div id="adventures" role="dialog" aria-modal="true" aria-labelledby="advTitle"><div class="expbox"><div class="exphead"><h2 id="advTitle">⚔️ Bug Adventures</h2><button id="advClose" type="button" aria-label="Close adventures">✕</button></div><p id="advSummary" class="expsub"></p><h3>Journeys</h3><div id="advSlots" class="expgrid"></div><h3>Your bugs &amp; equipment</h3><div id="advBugs" class="expgrid"></div></div></div>
+<div id="training" role="dialog" aria-modal="true" aria-labelledby="trainingTitle"><div class="expbox"><div class="exphead"><h2 id="trainingTitle">🏋️ Bug Training</h2><button id="trainingClose" type="button" aria-label="Close training">✕</button></div><p class="expsub">Choose a bug and pay for a session to gain one level and a little health, attack, and defense. Training costs mostly resin plus sap; every tenth target level also costs amber. Higher levels need longer sessions. Bugs cannot adventure, explore, change equipment, or be released while training. Training survives cuts and reloads, advances at your offline production rate while away, and pauses during Freeze. Returning bugs wait if the hub is full.</p><p id="trainingSummary" class="expsub" aria-live="polite"></p><div id="trainingSlots" class="expgrid"></div></div></div>
 <div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><div id="bugRoster" class="expgrid"></div></div></div>
 <div id="bugReturns" role="dialog" aria-modal="true" aria-labelledby="returnsTitle"><div class="expbox"><div class="exphead"><h2 id="returnsTitle">🪲 Your hub is full</h2></div><p id="returnsSummary" class="expsub"></p><div id="returnChoices" class="expgrid"></div><button id="returnExpand" type="button" class="expcard">Expand hub</button></div></div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
@@ -1140,6 +1142,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-bug-training-quests', date:'October 9, 2026', title:'Train your bugs', notes:[
+    'Unlock Bug Training for 1 acorn, then buy a second slot for 3 acorns and a third for 5. Choose a bug and pay mostly resin plus sap to gain one level; every tenth target level also needs amber.',
+    'Higher-level training takes longer. Levels improve health, attack, and defense. Sessions survive tree cuts and reloads, progress offline, and pause during Freeze.',
+    'The minigame dock wraps on smaller screens to keep its buttons within reach.',
+    'Quests can now require owning a chosen number of bugs at a specified level or higher, including bugs training or travelling.'
+  ]},
   { id:'2026-10-09-achievement-groups', date:'October 9, 2026', title:'Achievements grouped by type', notes:[
     'The Achievements screen now keeps related milestones together, including production, lifetime sap, single-tree sap, and prestige tiers.'
   ]},
@@ -4929,6 +4937,7 @@ function creditOffline(awaySecRaw) {
   META.spellbook.lastTickAt = Date.now();
   const elapsed = Math.max(0, awaySecRaw);
   const away = Math.min(elapsed, offlineCapSecNow());
+  advanceTraining(Math.max(0,(Date.now()-META.training.lastTickAt)/1000)*offlineRateNow());
   advanceAdventures(Math.max(0,(Date.now()-META.adventures.lastTickAt)/1000)*offlineRateNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
   if (away <= 30) { advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
@@ -5199,7 +5208,7 @@ function renderEventHud() {
   document.getElementById('eventHudGoals').innerHTML = goals.map((goal, i) => {
     const target = Number(goal.target), value = values[i];
     const percent = challenge.player_completed || target <= 0 ? 100 : Math.max(0, Math.min(100, value / target * 100));
-    const label = escapeHtml(CHALLENGE_LABELS[goal.type] || goal.type);
+    const label = escapeHtml(challengeGoalLabel(goal));
     const count = `${fmt(value)} / ${fmt(target)} ${CHALLENGE_UNITS[goal.type] || 'units'}`;
     return `<div class="event-goal"><div class="event-goal-label"><span>${label}</span><span>${count}${percent >= 100 ? ' ✓' : ''}</span></div><div class="event-goal-track" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(1)}" aria-valuetext="${count}"><span class="event-goal-fill" style="width:${percent}%"></span></div></div>`;
   }).join('');
@@ -5251,8 +5260,9 @@ document.getElementById('eventHudNext')?.addEventListener('click', () => {
   head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
 }
 window.addEventListener('resize', clampEventHud);
-const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', channel:'seconds', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs'};
-const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', channel:'Channel Verdant Touch', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed'};
+const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', channel:'seconds', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs', bug_level:'bugs'};
+const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', channel:'Channel Verdant Touch', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed', bug_level:'Bugs at level'};
+function challengeGoalLabel(goal) { return goal.type==='bug_level' ? `Bugs at level ${Number(goal.level)} or higher` : CHALLENGE_LABELS[goal.type] || goal.type; }
 const challengeSpeciesTypes = Object.keys(SPECIES).map(id => `${id}_sap`);
 function challengeProductionRates(mult = 1) {
   const rates = {sap:S.incomeS * mult, leaf_sap:S.leafSapRate * mult, resin:S.incomeR * mult, refinery_resin:S.refineryResinRate * mult};
@@ -5275,10 +5285,13 @@ function addChallengeProgress(challenge, amount) {
 function challengeGoals(challenge) {
   return Array.isArray(challenge.goals) && challenge.goals.length ? challenge.goals : [{ type:challenge.target_type || 'banked_sap', target:Number(challenge.target_sap) || 0 }];
 }
+function ownedBugsAtLevel(level) {
+  const bugs=[...(META.critterHub.roster||[]),...(META.critterHub.pendingReturns||[])];
+  return new Set(bugs.filter(b=>b.level>=level).map(b=>b.id)).size;
+}
 function challengeProgressValues(challenge) {
-  const goals = challengeGoals(challenge), raw = META.liveChallengeProgress?.[challenge.id];
-  if (Array.isArray(raw)) return goals.map((g, i) => g.type === 'banked_sap' ? Number(S.sap) || 0 : Number(raw[i]) || 0);
-  return goals.map((g, i) => g.type === 'banked_sap' ? Number(S.sap) || 0 : i === 0 && typeof raw === 'number' ? raw : 0);
+  const goals=challengeGoals(challenge), raw=META.liveChallengeProgress?.[challenge.id];
+  return goals.map((g,i)=>g.type==='banked_sap' ? Number(S.sap)||0 : g.type==='bug_level' ? ownedBugsAtLevel(Number(g.level)) : Array.isArray(raw) ? Number(raw[i])||0 : i===0&&typeof raw==='number' ? raw : 0);
 }
 function challengeReady(challenge) { return challengeGoals(challenge).every((g, i) => challengeProgressValues(challenge)[i] >= Number(g.target)); }
 function challengeProgressPayload(challenge) { return challengeProgressValues(challenge); }
@@ -5334,7 +5347,7 @@ function renderLiveChallenges() {
     const action = claimed
       ? '<small class="live-complete">Completed ✓</small>'
       : `<button type="button" data-live-claim="${escapeHtml(c.id)}" ${!ready || restricted ? 'disabled' : ''}>${restricted ? 'Unavailable for hacked saves' : ready ? 'Claim quest' : `Need ${goals.filter((g,i)=>current[i] < Number(g.target)).length} goal${goals.filter((g,i)=>current[i] < Number(g.target)).length===1?'':'s'} remaining`}</button>`;
-    const goalText=goals.map((g,i)=>`${escapeHtml(CHALLENGE_LABELS[g.type]||g.type)}: ${fmt(current[i])}/${fmt(Number(g.target))} ${CHALLENGE_UNITS[g.type]||'units'}`).join(' · ');
+    const goalText=goals.map((g,i)=>`${escapeHtml(challengeGoalLabel(g))}: ${fmt(current[i])}/${fmt(Number(g.target))} ${CHALLENGE_UNITS[g.type]||'units'}`).join(' · ');
     return `<article class="live-challenge"><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.description)}</p><small>${goalText} · ${liveChallengeTime(c.closes_at)}</small><br><small>Reward: ${reward} · First finisher bonus: ${bonus}</small><br><small>${first}</small>${action}</article>`;
   }).join('') || '<div class="lb-status">No active quests right now. Check back later.</div>';
 }
@@ -6846,6 +6859,93 @@ spellPanel.addEventListener('keydown', e => {
   }
 });
 
+// ---------- bug training (persistent across trees) ----------
+function ensureTraining() {
+  if (!META.training || typeof META.training !== 'object') META.training={slots:0,entries:[],completed:0,lastTickAt:Date.now()};
+  const t=META.training;
+  t.slots=clamp(Math.floor(Number(t.slots)||0),0,3);
+  t.completed=Math.max(0,Math.floor(Number(t.completed)||0));
+  if (!Number.isFinite(t.lastTickAt)) t.lastTickAt=Date.now();
+  const used=new Set();
+  t.entries=Array.from({length:t.slots},(_,i)=> {
+    const a=Array.isArray(t.entries)?t.entries[i]:null;
+    if (!a || !META.critterHub.roster.some(b=>b.id===a.bugId) || used.has(a.bugId) || META.adventures.entries.some(x=>x?.bugId===a.bugId) || META.expeditions.entries.some(x=>x?.active?.bugIds?.includes(a.bugId)) || !Number.isFinite(a.duration) || a.duration<=0) return null;
+    used.add(a.bugId);
+    return {bugId:a.bugId,duration:a.duration,progress:clamp(Number(a.progress)||0,0,a.duration)};
+  });
+}
+function trainingQuote(b) {
+  const scale=Math.pow(b.level,1.6);
+  return {sap:Math.ceil(20*scale),resin:Math.ceil(80*scale),amber:(b.level+1)%10===0?Math.ceil((b.level+1)/10):0,duration:Math.ceil(300*Math.pow(b.level,1.2))};
+}
+function startTraining(slot, id) {
+  const t=META.training, b=META.critterHub.roster.find(b=>b.id===id);
+  if (!Number.isInteger(slot) || slot<0 || slot>=t.slots || t.entries[slot] || !b || bugBusy(id) || b.level>=100 || frozenOn()) return;
+  const q=trainingQuote(b);
+  if (S.sap<q.sap || S.resin<q.resin || S.amber<q.amber) { toast('Need more resources to train this bug.'); return; }
+  S.sap-=q.sap; S.resin-=q.resin; S.amber-=q.amber;
+  t.entries[slot]={bugId:id,duration:q.duration,progress:0};
+  t.lastTickAt=Date.now(); syncHubBugs(); save(); renderCritterHub(); refreshHud(); sfx('buy');
+}
+function advanceTraining(seconds, now=Date.now()) {
+  const t=META.training; t.lastTickAt=now;
+  if (frozenOn() || !(seconds>0)) return;
+  let completed=false;
+  for (let i=0;i<t.slots;i++) {
+    const a=t.entries[i]; if (!a) continue;
+    a.progress=Math.min(a.duration,a.progress+seconds);
+    if (a.progress<a.duration) continue;
+    const b=META.critterHub.roster.find(b=>b.id===a.bugId);
+    t.entries[i]=null;
+    if (!b) continue;
+    bugXp(b,b.level*30-b.xp); t.completed++; completed=true;
+    META.critterHub.roster.splice(META.critterHub.roster.indexOf(b),1);
+    storeReturningBug(b);
+    toast(`🏋️ ${b.name} finished training — level ${b.level}!`,6000);
+  }
+  if (completed) { saveMeta(); renderCritterHub(); if(document.getElementById('viewBugs').classList.contains('open')) renderBugRoster(); }
+}
+const trainingPanel=document.getElementById('training'), trainingBtn=document.getElementById('trainingbtn');
+let trainingRenderAt=0;
+function renderTraining() {
+  const t=META.training, choices=new Map([...trainingPanel.querySelectorAll('select')].map(el=>[el.id,el.value]));
+  const focus=document.activeElement, action=focus?.dataset.training, slot=focus?.dataset.slot, selectId=focus?.matches('select')?focus.id:null;
+  const bugs=availableBugs().filter(b=>b.level<100);
+  document.getElementById('trainingSummary').textContent=`${t.entries.filter(Boolean).length}/${t.slots} sessions active · ${t.completed} completed · ${fmt(S.sap)} sap · ${fmt(S.resin)} resin · ${fmt(S.amber)} amber${frozenOn()?' · Frozen':''}`;
+  document.getElementById('trainingSlots').innerHTML=t.entries.map((a,i)=> {
+    if (a) {
+      const b=META.critterHub.roster.find(b=>b.id===a.bugId), percent=Math.min(100,a.progress/a.duration*100);
+      return `<section class="expcard"><h3>Training ${i+1}</h3><p>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)} · Lv ${b.level} → ${b.level+1}</p><div class="expprogress" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(1)}"><span style="width:${percent}%"></span></div><p>${fmtAcornTimer((a.duration-a.progress)*1000)} left · ${Math.floor(percent)}% done${frozenOn()?' · Frozen':''}</p></section>`;
+    }
+    const id=`trainingBug${i}`, b=bugs.find(b=>b.id===choices.get(id))||bugs[0], q=b?trainingQuote(b):null;
+    const before=b?bugStats(b):null, after=b?bugStats({...b,level:b.level+1}):null;
+    return `<section class="expcard"><h3>Training ${i+1}</h3><label>Bug<select id="${id}" ${bugs.length?'':'disabled'}>${bugs.map(x=>`<option value="${x.id}" ${x.id===b.id?'selected':''}>${BUG_KINDS[x.kind].icon} ${escapeHtml(x.name)} · ${x.id.slice(0,4)} · Lv ${x.level}</option>`).join('')}</select></label>${q?`<p>Lv ${b.level} → ${b.level+1} · ${fmtAcornTimer(q.duration*1000)}</p><p>♥ ${before.hp} → ${after.hp} · ATK ${before.attack} → ${after.attack} · DEF ${before.defense} → ${after.defense}</p><p>Cost: ${fmt(q.resin)} resin + ${fmt(q.sap)} sap${q.amber?` + ${q.amber} amber`:''}</p>`:'<p>No eligible bugs. Recruit one at the Critter Hub, or wait for a busy bug to return. Maximum level is 100.</p>'}<button type="button" data-training="start" data-slot="${i}" ${!q||frozenOn()||S.sap<q.sap||S.resin<q.resin||S.amber<q.amber?'disabled':''}>Pay &amp; train</button></section>`;
+  }).join('')+(t.slots<3?`<section class="expcard"><h3>${t.slots?'Another training slot':'Unlock Bug Training'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][t.slots]}.</p><button type="button" data-training="unlock" ${META.acorns<[1,3,5][t.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][t.slots]}</button></section>`:'');
+  if(selectId) document.getElementById(selectId)?.focus({preventScroll:true});
+  if(action) trainingPanel.querySelector(`[data-training="${action}"]${slot?`[data-slot="${slot}"]`:''}`)?.focus({preventScroll:true});
+}
+function closeTraining() { trainingPanel.classList.remove('open'); trainingBtn.focus(); }
+trainingBtn.addEventListener('click',()=>{ renderTraining(); trainingPanel.classList.add('open'); document.getElementById('trainingClose').focus(); });
+trainingPanel.addEventListener('change',e=>{if(e.target.matches('select')) renderTraining();});
+trainingPanel.addEventListener('click',e=> {
+  if(e.target===trainingPanel || e.target.closest('#trainingClose')) { closeTraining(); return; }
+  const button=e.target.closest('[data-training]'); if(!button) return;
+  if(button.dataset.training==='unlock') {
+    const t=META.training, cost=[1,3,5][t.slots];
+    if(!cost || META.acorns<cost || !confirm(`Unlock a permanent training slot for 🌰 ${cost}?`)) return;
+    META.acorns-=cost; t.slots++; t.entries.push(null); saveMeta(); refreshAcorns(); refreshMiniDock(); sfx('buy');
+  } else { const i=Number(button.dataset.slot); startTraining(i,document.getElementById(`trainingBug${i}`)?.value); }
+  renderTraining();
+});
+trainingPanel.addEventListener('keydown',e=> {
+  if(e.key==='Escape') { e.preventDefault(); closeTraining(); }
+  if(e.key==='Tab') {
+    const controls=[...trainingPanel.querySelectorAll('button:not(:disabled),select:not(:disabled)')], first=controls[0], last=controls.at(-1);
+    if(e.shiftKey && document.activeElement===first) { e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last) { e.preventDefault(); first.focus(); }
+  }
+});
+
 // ---------- bug roster, gear, and adventures (persistent across trees) ----------
 const BUG_KINDS = [
   {name:'Ladybug', icon:'🐞', hp:44, attack:10, defense:4},
@@ -6903,6 +7003,7 @@ function ensureAdventures() {
     if (!BUG_KINDS[b.kind]) b.kind=0;
     if(typeof b.name!=='string'||!b.name.trim()) b.name=BUG_KINDS[b.kind].name;
   }
+  ensureTraining();
   syncHubBugs();
   while(availableBugs().length>hubCapacity()) {
     const b=availableBugs().at(-1), at=h.roster.indexOf(b);
@@ -6911,7 +7012,7 @@ function ensureAdventures() {
   if(h.pendingReturns.length) { renderBugReturns(); document.getElementById('bugReturns').classList.add('open'); }
 }
 function bugBusy(id) {
-  return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id);
+  return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id) || META.training?.entries.some(t=>t?.bugId===id);
 }
 function availableBugs() { return META.critterHub.roster.filter(b=>!bugBusy(b.id)); }
 function syncHubBugs() { META.critterHub.bugs=availableBugs().length; }
@@ -7054,7 +7155,7 @@ adventureBtn.addEventListener('click',openAdventures);
 function renderBugRoster() {
   const roster=META.critterHub.roster;
   document.getElementById('bugsSummary').textContent=`${availableBugs().length}/${hubCapacity()} bugs in the hub · ${roster.filter(b=>bugBusy(b.id)).length} away · ${META.critterHub.pendingReturns.length} waiting to return.`;
-  document.getElementById('bugRoster').innerHTML=roster.map(b=>`<section class="expcard"><h3>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level} · ${bugBusy(b.id)?'Away':'In hub'}</h3><label>Name<input type="text" maxlength="24" value="${escapeHtml(b.name||BUG_KINDS[b.kind].name)}" data-rename="${b.id}"></label><p>♥ ${bugStats(b).hp} · ATK ${bugStats(b).attack} · DEF ${bugStats(b).defense} · XP ${b.xp}/${b.level*30} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${bugBusy(b.id)?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear||{}).includes(g.id))||b.gear[slot]===g.id)).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}<button type="button" data-delete-bug="${b.id}" ${bugBusy(b.id)?'disabled':''}>Release bug</button></section>`).join('')||'<p class="expsub">No bugs yet. Drag one into the hub to recruit it.</p>';
+  document.getElementById('bugRoster').innerHTML=roster.map(b=>`<section class="expcard"><h3>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level} · ${META.training.entries.some(t=>t?.bugId===b.id)?'Training':bugBusy(b.id)?'Away':'In hub'}</h3><label>Name<input type="text" maxlength="24" value="${escapeHtml(b.name||BUG_KINDS[b.kind].name)}" data-rename="${b.id}"></label><p>♥ ${bugStats(b).hp} · ATK ${bugStats(b).attack} · DEF ${bugStats(b).defense} · XP ${b.xp}/${b.level*30} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${bugBusy(b.id)?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear||{}).includes(g.id))||b.gear[slot]===g.id)).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}<button type="button" data-delete-bug="${b.id}" ${bugBusy(b.id)?'disabled':''}>Release bug</button></section>`).join('')||'<p class="expsub">No bugs yet. Drag one into the hub to recruit it.</p>';
 }
 document.getElementById('hubAdventures').addEventListener('click',()=>{ renderBugRoster(); document.getElementById('viewBugs').classList.add('open'); });
 document.getElementById('bugsClose').addEventListener('click',()=>document.getElementById('viewBugs').classList.remove('open'));
@@ -7338,6 +7439,9 @@ function refreshMiniDock() {
   adventureBtn.textContent = `⚔️ Adventures${META.adventures.entries.some(a=>a && a.enemyHp!==null)?' · enemy!':META.adventures.entries.some(Boolean)?' · active':''}`;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
+  const showTraining = showExpeditions || META.training.slots>0;
+  trainingBtn.style.display = showTraining ? '' : 'none';
+  trainingBtn.textContent = `🏋️ Training${META.training.slots===0?' · 🌰1':META.training.entries.some(Boolean)?' · active':''}`;
   const showSpells = acornsUnlocked() || spellbookOwned();
   spellBtn.style.display = showSpells ? '' : 'none';
   if (showSpells && !spellbookOwned()) {
@@ -7348,7 +7452,7 @@ function refreshMiniDock() {
     const active = SPELL_TIMERS.some(k => S.spells[k] > 0) || S.spells.amber !== 1;
     spellBtn.textContent = `📖 Spellbook · ${Math.floor(META.spellbook.mana)}/${manaCap()}${active ? ' · active' : ''}`;
   }
-  miniDock.style.display = showPantheon || showExpeditions || showSpells ? '' : 'none';
+  miniDock.style.display = showPantheon || showExpeditions || showSpells || showTraining ? '' : 'none';
 }
 pantheonBtn?.addEventListener('click', tryOpenPantheon);
 pantheon?.addEventListener('click', e => {
@@ -7870,6 +7974,8 @@ function frame(now) {
     // Per-tree production resets with each newGame() and powers one-tree challenges.
     recordProduction(sapInc, resinInc);
     if (!document.hidden) {
+      advanceTraining(dt * prod);
+      if(trainingPanel.classList.contains('open') && Date.now()-trainingRenderAt>1000 && !document.activeElement.matches('#training select')) { renderTraining(); trainingRenderAt=Date.now(); }
       advanceAdventures(dt * prod);
       if(adventurePanel.classList.contains('open') && Date.now()-adventureRenderAt>1000 && !document.activeElement.matches('#adventures select')) { renderAdventures(); adventureRenderAt=Date.now(); }
       const expeditionNews = advanceExpeditions(dt * prod);

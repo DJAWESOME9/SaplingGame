@@ -14,7 +14,7 @@ alter table public.live_challenge_completions
   add column if not exists reward_amber bigint not null default 0 check (reward_amber >= 0);
 alter table public.live_challenges drop constraint if exists live_challenges_target_type_check;
 alter table public.live_challenges add constraint live_challenges_target_type_check
-  check (target_type in ('banked_sap', 'sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'channel', 'expeditions', 'amber', 'rings', 'bugs'));
+  check (target_type in ('banked_sap', 'sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'channel', 'expeditions', 'amber', 'rings', 'bugs', 'bug_level'));
 
 drop function if exists public.get_live_challenges(uuid);
 create function public.get_live_challenges(p_player_id uuid)
@@ -118,7 +118,10 @@ begin
   clean_title := left(trim(coalesce(p_title, '')), 60);
   if clean_title = '' or char_length(trim(coalesce(p_description, ''))) not between 1 and 240
     or p_goals is null or jsonb_typeof(p_goals) <> 'array' or jsonb_array_length(p_goals) < 1 or jsonb_array_length(p_goals) > 8
-    or exists (select 1 from jsonb_array_elements(p_goals) g where (g->>'type') is null or (g->>'type') not in ('sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'channel', 'expeditions', 'amber', 'rings', 'bugs') or (g->>'target') is null or (g->>'target')::double precision <= 0 or (g->>'target')::double precision > 1e100 or ((g->>'type') in ('expeditions', 'amber', 'rings', 'bugs') and (g->>'target')::double precision <> floor((g->>'target')::double precision)))
+    or exists (select 1 from jsonb_array_elements(p_goals) g where (g->>'type') is null or (g->>'type') not in ('sap', 'leaf_sap', 'oak_sap', 'apple_sap', 'peach_sap', 'grape_sap', 'maple_sap', 'pine_sap', 'chocolate_sap', 'resin', 'refinery_resin', 'channel', 'expeditions', 'amber', 'rings', 'bugs', 'bug_level') or (g->>'target') is null or (g->>'target')::double precision <= 0 or (g->>'target')::double precision > 1e100 or ((g->>'type') in ('expeditions', 'amber', 'rings', 'bugs', 'bug_level') and (g->>'target')::double precision <> floor((g->>'target')::double precision)))
+    or exists (select 1 from jsonb_array_elements(p_goals) g where g->>'type' = 'bug_level' and
+      (jsonb_typeof(g->'level') is distinct from 'number' or (g->>'level')::double precision < 1
+        or (g->>'level')::double precision > 100 or (g->>'level')::double precision <> floor((g->>'level')::double precision)))
     or p_duration_hours is null or p_duration_hours <= 0 or p_duration_hours > 8760
     or p_reward_sap is null or p_reward_resin is null or p_first_bonus_sap is null or p_first_bonus_resin is null
     or p_reward_acorns is null or p_reward_rings is null or p_reward_amber is null
