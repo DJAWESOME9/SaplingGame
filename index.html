@@ -1138,6 +1138,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-09-branch-thickness-cap', date:'October 9, 2026', title:'Branch thickness stays readable', notes:[
+    'Branch upgrades still increase capacity, while branch visuals now stop thickening after a modest limit so the tree stays easier to read.'
+  ]},
   { id:'2026-10-09-thicker-branches-spacing', date:'October 9, 2026', title:'More room for thicker branches', notes:[
     'The tree now gently spreads crowded branches as they grow thicker, making the canopy easier to read.'
   ]},
@@ -2320,9 +2323,8 @@ function layout() {
 }
 // The radial fan gives crowded branch tips very narrow wedges, so sibling leaves
 // can land almost on top of one another. Relax the whole tree: repeatedly push
-// apart any pair of nodes closer than their node radii plus their incoming branch
-// widths. The core stays pinned and edges just bend to follow. Runs on layout,
-// never per frame.
+// apart any pair of nodes closer than their combined radii until nothing overlaps.
+// The core stays pinned and edges just bend to follow. Runs on layout, never per frame.
 function relaxNodes(iters) {
   iters = iters || 80;
   const ns = [];
@@ -2336,9 +2338,7 @@ function relaxNodes(iters) {
         const a = ns[i], b = ns[j];
         let dx = b.tx - a.tx, dy = b.ty - a.ty;
         let d = Math.hypot(dx, dy);
-        const aBranch = a.parent == null ? 0 : (2.2 + (a.edgeLvl || 0) * 1.5) / 2;
-        const bBranch = b.parent == null ? 0 : (2.2 + (b.edgeLvl || 0) * 1.5) / 2;
-        const min = nodeRadius(a) + nodeRadius(b) + aBranch + bBranch + PAD;
+        const min = nodeRadius(a) + nodeRadius(b) + PAD;
         if (d >= min) continue;
         if (d < 0.0001) { dx = jitter(a.id) || 1; dy = jitter(b.id); d = Math.hypot(dx, dy) || 1; }
         const push = (min - d) / 2, ux = dx / d, uy = dy / d;
@@ -2600,7 +2600,6 @@ function thicken(id) {
   sfx('buy');
   pulseNode(n, 0.55, 0.4);
   spawnBurst(n.x, n.y, '#f0c469', 9, 60, 0.6);
-  layout();
   buildPanel(); save();
 }
 function graft(id) {
@@ -3685,6 +3684,9 @@ function nodeRadius(n) {
   if (n.type === 'funnel') return 14;
   return 8.5 + Math.min(n.lvl, 6) * 1.2;
 }
+// Keep the branches visually distinct at high upgrade levels. Capacity still
+// scales with every edge level; only the canvas stroke has a visual ceiling.
+const edgeVisualLvl = n => Math.min(n.edgeLvl || 0, 4);
 // Draw a leaf's gold-leaf indicator (extracted so it can run in a top pass).
 function drawGift(n, px, py, rr, time) {
   if (!n.giftGain) return;
@@ -3815,23 +3817,23 @@ function draw(time) {
     ctx.moveTo(sx0, sy0);
     ctx.quadraticCurveTo(sx(c.cx), sy(c.cy), sx1, sy1);
     ctx.lineCap = 'round';
-    ctx.lineWidth = (2.2 + n.edgeLvl * 1.5) * cam.scale;
+    ctx.lineWidth = (2.2 + edgeVisualLvl(n) * 1.5) * cam.scale;
     ctx.strokeStyle = '#5d4a33';
     ctx.stroke();
     if (selected === n.id) {
-      ctx.lineWidth = (3.8 + n.edgeLvl * 1.6) * cam.scale;
+      ctx.lineWidth = (3.8 + edgeVisualLvl(n) * 1.6) * cam.scale;
       ctx.strokeStyle = '#e8e4d8';
       ctx.setLineDash([6, 6]);
       ctx.lineDashOffset = -time * 18;
       ctx.stroke();
       ctx.setLineDash([]);
     } else if (hovered === n.id) {
-      ctx.lineWidth = (3.0 + n.edgeLvl * 1.5) * cam.scale;
+      ctx.lineWidth = (3.0 + edgeVisualLvl(n) * 1.5) * cam.scale;
       ctx.strokeStyle = 'rgba(232,228,216,0.4)';
       ctx.stroke();
     }
     if (n.waste > 0.01) {
-      ctx.lineWidth = (2.2 + n.edgeLvl * 1.5 + 2) * cam.scale;
+      ctx.lineWidth = (2.2 + edgeVisualLvl(n) * 1.5 + 2) * cam.scale;
       ctx.strokeStyle = `rgba(226,90,74,${0.25 + 0.2 * Math.sin(time * 6)})`;
       ctx.stroke();
     }
