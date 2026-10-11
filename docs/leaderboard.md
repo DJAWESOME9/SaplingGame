@@ -42,6 +42,12 @@ Sapling has no account system or cloud saves today. The player ID is stored in t
 
 Admin pages are protected by Supabase Auth and the `admin_emails` database allowlist. A link to `admin.html` is visible in Settings, but it grants no access by itself. The anonymous/public API key in `leaderboard-config.js` is not an admin secret. Do not add a service-role key to client files.
 
+## Daily leaderboard lightning
+
+Apply [leaderboard_daily_lightning.sql](../supabase/leaderboard_daily_lightning.sql) after leaderboard and weather setup. A database Cron job snapshots all seven boards at midnight Eastern (including daylight saving changes). Each board's top three rows receive one queued lightning strike each; placements stack across boards, up to seven strikes per player daily. Only fresh reported scores qualify, matching the public rankings and excluding hidden linked-device duplicates. Equal scores are ordered by player ID to select exactly three players, or fewer when fewer profiles qualify. The snapshot includes zero scores, just as the public boards do.
+
+A private daily marker prevents repeat or concurrent execution from queuing duplicates. Queue insertion and the marker commit atomically. Strikes use the existing persistent weather queue and wait for online check-in and active play, including for offline winners; they do not consume Admin Lite's allowance. The owner can call `private.queue_leaderboard_daily_lightning()` to initialize today's snapshot or retry a failed run; it returns zero after a successful run that day. Missed days are not backfilled from newer scores. Public clients cannot call this function or alter its daily marker.
+
 ## Admin Lite
 
 Run [`../supabase/admin_lite.sql`](../supabase/admin_lite.sql) after the challenge, quest gear, and `admin_weather.sql` setup. Rerun it on existing installations to add the lightning allowance. In `admin.html`, enter `AdminLite` in the admin email field and the assigned code in the password/code field. No email confirmation or Supabase Auth account is needed for Lite access.

@@ -7,7 +7,6 @@
 <link rel="icon" type="image/svg+xml" href="bookmark-icon.svg?v=2">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
-<link rel="apple-touch-icon" href="bookmark-icon.svg">
 <style>
   html, body { margin:0; height:100%; overflow:hidden; background:#0b110d; color:#e8e4d8;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -1102,7 +1101,6 @@
     <button id="cloudSave" type="button">Use this device’s save</button>
     <button id="cloudLoad" type="button">Load cloud save</button>
     <button id="cloudRestoreLocal" type="button">Restore previous local save</button>
-    <button id="cloudRestoreLocal" type="button">Restore previous local save</button>
     <button id="accountSignOut" type="button">Sign out</button>
   </div>
   <p id="accountStatus" role="status" aria-live="polite">Sign in on each device with the same account. Play on one device at a time.</p>
@@ -1296,6 +1294,17 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-daily-leaderboard-lightning', date:'October 10, 2026', title:'Lightning for the leaderboard leaders', notes:[
+    'Each day at midnight Eastern, the top three players on each of the seven leaderboards receive one lightning strike per placement. Place on several boards to receive several strikes.',
+    'Strikes wait for your next online check-in and active play. Each can remove one outer node; your Core and last leaf remain protected. Tied scores use player ID to select exactly three players per board.'
+  ]},
+  { id:'2026-10-10-account-leaderboard', date:'October 10, 2026', title:'One account, one leaderboard player', notes:[
+    'Devices signed into the same account now share one leaderboard profile and username. Refresh each device to link its existing entry; duplicate rankings are hidden and your best lifetime records are preserved.',
+    'Your local and cloud game progress are unchanged by leaderboard linking.'
+  ] },
+  { id:'2026-10-10-storm-reload', date:'October 10, 2026', title:'Storms survive reloads', notes:[
+    'Rainstorms and lightning now resume after reloading with their remaining time, rain level, and hit limits preserved. Weather still pauses while you are away.'
+  ] },
   { id:'2026-10-10-cloud-reload', date:'October 10, 2026', title:'Cloud progress refreshes on reload', notes:[
     'Reloading a device connected to your account now loads newer cloud progress automatically. Your previous local progress is kept as a backup.',
     'If the cloud is unavailable, you can keep playing from your local save. Use Restore previous local save in the account panel to recover progress from before a cloud load.'
@@ -4081,7 +4090,7 @@ function drawSeasonBackdrop(time) {
   ctx.restore();
 }
 // ---------- natural events: active-play weather, separate from saved buffs ----------
-// Weather never catches up offline. Only actual lightning/wind damage enters the run save.
+// Weather progress is saved, but never catches up offline. Strike visuals are transient.
 const weatherBadge = document.getElementById('weatherbadge');
 const ADMIN_WEATHER_KEY = 'sapling-admin-weather-v1';
 function pendingAdminWeather() {
@@ -4117,6 +4126,25 @@ function randomRainLevel() {
   return roll < .45 ? 1 : roll < .75 ? 2 : roll < .90 ? 3 : roll < .98 ? 4 : 5;
 }
 const naturalWeather = { level:2, hazardAt:10, lightningHits:0, windHits:0, adminId:null, next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
+function savedWeather() {
+  const {level, hazardAt, lightningHits, windHits, adminId, next, kind, age, duration, struck} = naturalWeather;
+  return {level, hazardAt, lightningHits, windHits, adminId, next, kind, age, duration, struck};
+}
+function restoreWeather(data) {
+  const d = data && typeof data === 'object' ? data : {};
+  const number = (key, fallback, max) => Number.isFinite(d[key]) ? clamp(d[key], 0, max) : fallback;
+  const level = rainLevel(d.level);
+  const kind = d.kind === 'rain' || d.kind === 'lightning' ? d.kind : null;
+  const duration = kind === 'rain' ? RAIN_LEVELS[level].seconds : kind === 'lightning' ? 8 : 0;
+  Object.assign(naturalWeather, {level, kind, duration, age:number('age', 0, duration),
+    next:number('next', 45 + Math.random() * 45, 360),
+    hazardAt:number('hazardAt', 10, 70),
+    lightningHits:Math.floor(number('lightningHits', 0, RAIN_LEVELS[level].maxLightning)),
+    windHits:Math.floor(number('windHits', 0, RAIN_LEVELS[level].maxWind)),
+    adminId:typeof d.adminId === 'string' ? d.adminId : null, struck:!!d.struck, strike:null});
+  // A delivered event may still be queued if the page closed just after its save.
+  if (naturalWeather.adminId && (kind === 'rain' || naturalWeather.struck)) finishAdminWeather();
+}
 function startNaturalEvent(kind, level = 2) {
   naturalWeather.kind = kind;
   naturalWeather.age = 0;
@@ -4157,6 +4185,7 @@ function strikeTree(cause = 'lightning') {
   naturalWeather.strike = strike;
   if (cause !== 'wind') illuminateLightning(hit.x, hit.y);
   if (protectedTree) {
+    save();
     toast(`${cause === 'wind' ? '💨 Wind gusts!' : '⚡ Lightning hits!'} The Core and your last leaf are safe.`);
     return;
   }
@@ -4187,9 +4216,10 @@ function tickNaturalEvents(dt) {
         startNaturalEvent(queued.kind, queued.level);
         w.adminId = queued.id;
         // Rain is delivered on start; lightning stays pending until damage is saved.
+        save();
         if (queued.kind === 'rain') finishAdminWeather();
       } else w.next -= dt;
-      if (!w.kind && w.next <= 0) startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning', randomRainLevel());
+      if (!w.kind && w.next <= 0) { startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning', randomRainLevel()); save(); }
     } else {
       w.age += dt;
       if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); finishAdminWeather(); }
@@ -4198,13 +4228,13 @@ function tickNaturalEvents(dt) {
         const rain = RAIN_LEVELS[w.level]; w.hazardAt += 10;
         // At most one hazard per check; lightning takes priority over wind.
         if (w.lightningHits < rain.maxLightning && Math.random() < rain.lightning) {
-          strikeTree(); w.lightningHits++;
+          w.lightningHits++; strikeTree();
         } else if (w.windHits < rain.maxWind && Math.random() < rain.wind) {
-          strikeTree('wind'); w.windHits++;
+          w.windHits++; strikeTree('wind');
         }
       }
       if (w.age >= w.duration) {
-        w.kind = null; w.strike = null; w.next = 180 + Math.random() * 180;
+        w.kind = null; w.strike = null; w.next = 180 + Math.random() * 180; save();
       }
     }
   }
@@ -5543,7 +5573,7 @@ function save() {
     witherGraceOffset: n.witherGraceOffset || 0,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
-    birds: savedBirds(),
+    weather: savedWeather(), birds: savedBirds(),
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, spells: S.spells, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, peakBuffS: S.peakBuffS || 0, peakBuffR: S.peakBuffR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, touch: { charge: Math.max(0, Number(S.touch && S.touch.charge) || 0) }, nodes }));
@@ -5636,7 +5666,8 @@ function showWelcomeBack(s) {
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
-  if (!d || (d.v !== 1 && d.v !== 2)) { newGame(); return; }
+  if (!d || (d.v !== 1 && d.v !== 2)) { restoreWeather(null); newGame(); return; }
+  restoreWeather(d.weather);
   S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, blooms: Array.isArray(d.blooms)
     ? d.blooms.filter(x => x && BLOOMS[x.kind]).map(x => ({ kind: x.kind, t: x.t || 0 }))
     : (d.bloomT > 0 ? [{ kind: d.bloomKind || 'bloom3', t: d.bloomT }] : []),
@@ -5762,7 +5793,7 @@ const lbRefresh = document.getElementById('lbRefresh');
 const lbConfigured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(LEADERBOARD_CONFIG.url || '') &&
   /^[a-z0-9._-]+$/i.test(LEADERBOARD_CONFIG.anonKey || '');
 const LB_PLAYER_KEY = 'sapling-leaderboard-player-v1';
-const lbPlayerId = (() => {
+const lbDeviceId = (() => {
   try {
     let id = localStorage.getItem(LB_PLAYER_KEY);
     if (!/^[0-9a-f-]{36}$/i.test(id || '')) {
@@ -5775,6 +5806,8 @@ const lbPlayerId = (() => {
     return id;
   } catch (e) { return ''; }
 })();
+// Pause online writes until the saved account has resolved its shared profile.
+let lbPlayerId = '';
 const lbHeaders = () => ({ apikey: LEADERBOARD_CONFIG.anonKey, Authorization: `Bearer ${LEADERBOARD_CONFIG.anonKey}`, 'Content-Type': 'application/json' });
 // ---------- accounts and private cloud saves (Supabase Auth REST) ----------
 const ACCOUNT_KEY = 'sapling-account-session-v1', CLOUD_BINDING = 'sapling-cloud-binding-v1';
@@ -5824,8 +5857,21 @@ function bindCloud(revision) {
   cloudRevision = revision; cloudReady = true;
   localStorage.setItem(CLOUD_BINDING, JSON.stringify({ user: accountSession.user.id, revision }));
 }
+async function linkAccountLeaderboard() {
+  lbPlayerId = '';
+  await refreshAccount();
+  const profile = await accountRequest('/rest/v1/rpc/link_account_leaderboard', { p_device_id: lbDeviceId }, 'POST', true);
+  if (!/^[0-9a-f-]{36}$/i.test(profile?.player_id || '')) throw new Error('Could not link your leaderboard profile.');
+  claimedUsername = profile.display_name || '';
+  lbName.value = claimedUsername;
+  localStorage.setItem(LB_CLAIM_KEY, claimedUsername);
+  localStorage.setItem('sapling-leaderboard-name-v1', claimedUsername);
+  document.getElementById('usernamePrompt').classList.remove('open');
+  lbPlayerId = profile.player_id;
+}
 async function checkCloud(onReload = false) {
   cloudReady = false;
+  await linkAccountLeaderboard();
   const row = await readCloud();
   cloudRevision = row?.revision || 0;
   const binding = JSON.parse(localStorage.getItem(CLOUD_BINDING) || 'null');
@@ -5880,7 +5926,9 @@ async function signInAccount(create) {
   document.getElementById('accountPassword').value = '';
   if (!data?.access_token) { accountMessage('Check your email to confirm your account, then return here and sign in.'); return; }
   storeAccount(data);
+  lbPlayerId = '';
   await checkCloud();
+  submitLeaderboardScore();
 }
 document.getElementById('accountOpen').addEventListener('click', () => { accountView(); accountDialog.showModal(); if (accountSession) accountAction(checkCloud); });
 document.getElementById('accountForm').addEventListener('submit', e => { e.preventDefault(); accountAction(() => signInAccount(false)); });
@@ -5913,7 +5961,7 @@ document.getElementById('cloudRestoreLocal').addEventListener('click', () => acc
 document.getElementById('accountSignOut').addEventListener('click', () => accountAction(async () => {
   cloudReady = false;
   try { await refreshAccount(); await accountRequest('/auth/v1/logout?scope=local', {}, 'POST', true); }
-  finally { accountSession = null; localStorage.removeItem(ACCOUNT_KEY); localStorage.removeItem(CLOUD_BINDING); accountView(); accountMessage('Signed out. Your game remains saved locally.'); }
+  finally { accountSession = null; lbPlayerId = lbDeviceId; claimedUsername = ''; localStorage.removeItem(LB_CLAIM_KEY); localStorage.removeItem(ACCOUNT_KEY); localStorage.removeItem(CLOUD_BINDING); accountView(); accountMessage('Signed out. Your game remains saved locally.'); }
 }));
 async function initAccount() {
   try {
@@ -5930,6 +5978,7 @@ async function initAccount() {
       accountSession = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
     }
     accountView();
+    if (!accountSession) lbPlayerId = lbDeviceId;
     if (accountSession && lbConfigured) await accountAction(() => checkCloud(true));
   } catch (e) { cloudReady = false; accountMessage('Sign in again to reconnect cloud saving.'); }
 }
@@ -5988,7 +6037,7 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc,player_id.asc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
     if (loadId !== leaderboardLoadId) return;
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
@@ -9131,7 +9180,7 @@ if (!META.seenIntro) openIntro();
 showUnseenUpdates();
 showAdminNotice();
 
-initAccount();
+initAccount().then(() => { submitPlayerSnapshot(); submitLeaderboardScore(); loadLiveChallenges(); });
 requestAnimationFrame(frame);
 </script>
 </body>
