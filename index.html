@@ -1294,6 +1294,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-admin-saved-sign-in', date:'October 10, 2026', title:'Saved admin sign-in', notes:[
+    'Admin and Admin Lite now remember sign-in on this browser across reloads and browser restarts. Signing out clears saved access.'
+  ]},
   { id:'2026-10-10-lightning-sources', date:'October 10, 2026', title:'Where lightning comes from', notes:[
     'Lightning notifications now show whether a strike came from natural weather, daily leaderboard placements, or an admin. Leaderboard strikes include the placement and board; admin messages stay attached to their strike, including after reloads. Older admin strikes show sender unknown.'
   ]},

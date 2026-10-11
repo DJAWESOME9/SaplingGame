@@ -115,6 +115,71 @@ const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONF
 const $ = id => document.getElementById(id);
 let token = '', players = [], selected = null, leaderboardRecords = new Map();
 let achievements = [], standardGear = [], questGear = [], liteCredentials = null;
+const ADMIN_SESSION_KEY = 'sapling-admin-session-v1';
+let adminSession = null, refreshingSession = null;
+function storeAdminSession() {
+  try {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({project:base, lite:liteCredentials, session:adminSession}));
+  } catch(e) { say('Signed in, but this browser could not save your sign-in.'); }
+}
+function clearAdminSession() {
+  adminSession = null;
+  try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch(e) {}
+}
+function acceptAdminSession(session) {
+  if (!session.access_token || !session.refresh_token) throw new Error('Invalid sign-in session.');
+  adminSession = {access_token:session.access_token, refresh_token:session.refresh_token,
+    expires_at:Number(session.expires_at) || Date.now()/1000 + Number(session.expires_in || 3600)};
+  token = adminSession.access_token;
+  storeAdminSession();
+}
+async function ensureAdminSession() {
+  if (!adminSession || adminSession.expires_at > Date.now()/1000 + 60) return;
+  if (refreshingSession) return refreshingSession;
+  const current = adminSession;
+  refreshingSession = (async () => {
+    const res = await fetch(`${base}/auth/v1/token?grant_type=refresh_token`, {method:'POST',
+      headers:{apikey:CONFIG.anonKey, 'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:current.refresh_token})});
+    if (!res.ok) {
+      if (adminSession === current && (res.status === 400 || res.status === 401 || res.status === 403)) {
+        $('logout').click();
+      }
+      throw new Error('Could not refresh sign-in. Try again or sign in again.');
+    }
+    const session = await res.json();
+    if (adminSession === current) acceptAdminSession(session);
+  })();
+  try { await refreshingSession; } finally { refreshingSession = null; }
+}
+async function restoreAdminSession() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null'); }
+  catch(e) { clearAdminSession(); return; }
+  if (!saved || saved.project !== base) return;
+  say('Restoring sign-in…');
+  try {
+    if (saved.lite && typeof saved.lite.login === 'string' && typeof saved.lite.code === 'string') {
+      liteCredentials = saved.lite;
+      await loadLiteCatalog();
+      setAccess(true);
+    } else if (saved.session?.access_token && saved.session?.refresh_token) {
+      adminSession = saved.session;
+      token = adminSession.access_token;
+      await ensureAdminSession();
+      setAccess(false);
+    } else { clearAdminSession(); return; }
+    $('loginCard').hidden = true; $('dashboard').hidden = false;
+    if (liteCredentials) { await refreshLiteLightning(); await refreshLiteSap(); }
+    else await refreshPlayers();
+    await refreshChallenges(); await refreshAchievements();
+    say('Sign-in restored.');
+  } catch(e) {
+    token = ''; adminSession = null; liteCredentials = null;
+    $('dashboard').hidden = true; $('loginCard').hidden = false;
+    say(`Could not restore sign-in: ${e.message}. Reload to retry or sign in again.`);
+  }
+}
 let liteLightningRemaining = 0, liteLightningBusy = false;
 function setAccess(lite) {
   $('liteLightning').hidden = !lite;
@@ -217,9 +282,11 @@ function renderGearCatalog() {
   $('allGearList').innerHTML = visible.map(g => `<article class="achievement-item"><div><b>${escapeHtml(g.name)}</b><p>${escapeHtml(g.source)} · ${escapeHtml(g.slot)} · HP ${n(g.hp)} · ATK ${n(g.attack)} · DEF ${n(g.defense)}</p></div></article>`).join('') || '<p class="muted">No gear matches that filter.</p>';
 }
 function say(text) { $('message').textContent = text; }
+async function authenticatedHeaders() { await ensureAdminSession(); return headers(); }
 function headers() { return { apikey:CONFIG.anonKey, Authorization:`Bearer ${token || CONFIG.anonKey}`, 'Content-Type':'application/json' }; }
 async function rpc(name, body = {}) {
-  const res = await fetch(`${base}/rest/v1/rpc/${name}`, { method:'POST', headers:headers(), body:JSON.stringify(body) });
+  await ensureAdminSession();
+  const res = await fetch(`${base}/rest/v1/rpc/${name}`, { method:'POST', headers:await authenticatedHeaders(), body:JSON.stringify(body) });
   if (!res.ok) throw new Error((await res.text()).slice(0,240) || `Request failed (${res.status})`);
   return res.status === 204 ? null : res.json();
 }
@@ -310,7 +377,7 @@ async function refreshPlayers() {
     profilesLoaded = true;
     selected=players.find(p=>p.player_id===selected?.player_id)||null;
     render();
-    const res=await fetch(`${base}/rest/v1/leaderboard?select=player_id,lifetime_sap,lifetime_resin,production_sap,production_resin,highest_held_sap,highest_held_resin,gold_leaves`,{headers:headers(),cache:'no-store'});
+    const res=await fetch(`${base}/rest/v1/leaderboard?select=player_id,lifetime_sap,lifetime_resin,production_sap,production_resin,highest_held_sap,highest_held_resin,gold_leaves`,{headers:await authenticatedHeaders(),cache:'no-store'});
     if (!res.ok) throw new Error(`Leaderboard request failed (${res.status})`);
     leaderboardRecords=new Map((await res.json()).map(row=>[row.player_id,row]));
     render(); say(`Loaded ${players.length} player profiles and leaderboard records.`);
@@ -415,9 +482,10 @@ $('loginForm').addEventListener('submit',async e=>{
   say('Signing in…');
   try {
     if ($('email').value.trim().toLowerCase() === 'adminlite') {
-      token = '';
+      token = ''; adminSession = null;
       liteCredentials = {login:$('email').value.trim(), code:$('password').value};
       await loadLiteCatalog();
+      storeAdminSession();
       setAccess(true);
       $('password').value = '';
       $('loginCard').hidden=true; $('dashboard').hidden=false;
@@ -428,7 +496,7 @@ $('loginForm').addEventListener('submit',async e=>{
     liteCredentials = null;
     const res=await fetch(`${base}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:CONFIG.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
     if(!res.ok) throw new Error((await res.text()).slice(0,200));
-    const session=await res.json(); token=session.access_token; setAccess(false); $('password').value='';
+    const session=await res.json(); acceptAdminSession(session); setAccess(false); $('password').value='';
     $('loginCard').hidden=true; $('dashboard').hidden=false; await refreshPlayers(); await refreshChallenges(); await refreshAchievements();
   } catch(err) { liteCredentials = null; say(`Sign in failed: ${err.message}`); }
 });
@@ -446,7 +514,7 @@ $('createAccount').addEventListener('click',async()=>{
 $('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id]');if(!row)return;selected=players.find(p=>p.player_id===row.dataset.id)||null;render();});
 async function refreshQuestGear() {
   try {
-    const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:headers(),cache:'no-store'});
+    const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:await authenticatedHeaders(),cache:'no-store'});
     if(!res.ok) throw new Error(`Could not load gear choices (${res.status}). Sign in as an administrator and try Refresh gear catalog.`);
     const gear=await res.json();
     questGear = gear; renderGearCatalog();
@@ -487,7 +555,7 @@ $('search').addEventListener('input',render);
 $('achievementSearch').addEventListener('input',renderAchievements);
 $('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
-$('logout').addEventListener('click',()=>{token='';liteCredentials=null;liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('logout').addEventListener('click',()=>{clearAdminSession();token='';liteCredentials=null;liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
@@ -501,6 +569,7 @@ $('lightningPlayer').addEventListener('click',()=>causeWeather('lightning'));
 $('resetPlayer').addEventListener('click',()=>act('reset'));
 $('deletePlayer').addEventListener('click',deletePlayer);
 if(!validConfig) say('Supabase is not configured. See docs/leaderboard.md.');
+else restoreAdminSession();
 </script>
 </body>
 </html>
