@@ -1047,7 +1047,7 @@
 </div>
 <div id="adventures" role="dialog" aria-modal="true" aria-labelledby="advTitle"><div class="expbox"><div class="exphead"><h2 id="advTitle">⚔️ Bug Adventures</h2><button id="advClose" type="button" aria-label="Close adventures">✕</button></div><p id="advSummary" class="expsub"></p><h3>Journeys</h3><div id="advSlots" class="expgrid"></div><h3>Your bugs &amp; equipment</h3><div id="advBugs" class="expgrid"></div></div></div>
 <div id="training" role="dialog" aria-modal="true" aria-labelledby="trainingTitle"><div class="expbox"><div class="exphead"><h2 id="trainingTitle">🏋️ Bug Training</h2><button id="trainingClose" type="button" aria-label="Close training">✕</button></div><p class="expsub">Choose a bug and pay for a session to gain one level and a little health, attack, and defense. Training costs mostly resin plus sap; every tenth target level also costs amber. Higher levels need longer sessions. Bugs cannot adventure, explore, change equipment, or be released while training. Training survives cuts and reloads, advances at your offline production rate while away, and pauses during Freeze. Returning bugs wait if the hub is full.</p><p id="trainingSummary" class="expsub" aria-live="polite"></p><div id="trainingSlots" class="expgrid"></div></div></div>
-<div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><div id="bugRoster" class="expgrid"></div></div></div>
+<div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><p class="expsub">Raid training and defenses require a linked online account. Raids are casual and use reported player balances.</p><div id="bugRoster" class="expgrid"></div><section class="expcard"><h3>🛡️ Hub defense</h3><p id="bugDefenseSummary">No defenders assigned.</p><p>Assign up to four hub bugs. Each reduces incoming sap or resin raid losses by 15%, up to 60%. Defenders stay in the hub and cannot be sent away until unassigned.</p></section></div></div>
 <dialog id="birdGuide" aria-labelledby="birdTitle">
   <div class="exphead"><h2 id="birdTitle">🪺 Nests &amp; eggs</h2><button id="birdClose" type="button" aria-label="Close nests and eggs">✕</button></div>
   <p class="expsub">Once you own the Bug Hub, birds can build nests. Tap a bird or use Scare away before it finishes. A finished nest slows its branch and resists swatting and pesticide: send a hub warrior at level 2 or above to fight for an egg and XP. Battles resolve immediately using health, attack, defense, and equipment; defeated warriors return safely, but that nest needs 10 active minutes before another attempt. Nest-building and recovery pause while hidden, idle, or frozen. Nests survive reloads; pruning their branch or cutting the tree removes them.</p>
@@ -1295,6 +1295,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-bug-raids-defense',date:'2026-10-11',title:'Bug raids and hub defense',notes:[
+    'Train bugs to raid another recently active player within three bug levels and bring back a small amount of sap or resin after a one-minute trip. Raids require a linked online account and leave bugs recovering for 30 minutes.',
+    'Assign up to four bugs as hub defenders. Each defender reduces incoming raid losses by 15%, up to 60%. Raid training costs 500 sap and 250 resin and takes five minutes.'
+  ]},
   {id:'2026-10-11-berry-garden',date:'2026-10-11',title:'Bushes and berry provisions',notes:[
     'Unlock Bushes in the Grove after the Critter Hub and acorns. Plant up to four permanent bushes, harvest berries, and expand storage with Deep Baskets.',
     'Spend berries on adventure health or a free Heavy attack, faster training and expeditions, level-4 hatchlings, and nest recovery jam. Failed nest battles now recover for 10 active minutes.',
@@ -8132,6 +8136,9 @@ function ensureAdventures() {
     if(typeof b.name!=='string'||!b.name.trim()) b.name=BUG_KINDS[b.kind].name;
   }
   ensureTraining();
+  if (!META.bugRaid || typeof META.bugRaid !== 'object') META.bugRaid={defenders:[],trip:null};
+  if (!Array.isArray(META.bugRaid.defenders)) META.bugRaid.defenders=[];
+  if (!('trip' in META.bugRaid)) META.bugRaid.trip=null;
   META.birdEggs=BIRD_SPECIES.map((_,i)=>Math.max(0,Math.floor(Number(META.birdEggs?.[i])||0)));
   syncHubBugs();
   while(availableBugs().length>hubCapacity()) {
@@ -8141,7 +8148,8 @@ function ensureAdventures() {
   if(h.pendingReturns.length) { renderBugReturns(); document.getElementById('bugReturns').classList.add('open'); }
 }
 function bugBusy(id) {
-  return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id) || META.training?.entries.some(t=>t?.bugId===id);
+  const b=META.critterHub.roster.find(x=>x.id===id);
+  return META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id) || META.training?.entries.some(t=>t?.bugId===id) || META.bugRaid?.defenders?.includes(id) || META.bugRaid?.trip?.bugId===id || (b?.raidTrainingUntil>Date.now()) || (b?.raidCooldownUntil>Date.now());
 }
 function availableBugs() { return META.critterHub.roster.filter(b=>!bugBusy(b.id)); }
 function syncHubBugs() { META.critterHub.bugs=availableBugs().length; }
@@ -8171,6 +8179,11 @@ function bugStats(b) {
   for(const key of Object.keys(stats)) stats[key]=Math.round(stats[key]);
   return stats;
 }
+function settleRaidTraining() {
+  let changed=false;
+  for(const b of META.critterHub.roster) if(b.raidTrainingUntil && b.raidTrainingUntil<=Date.now()) { b.raidTrained=true; delete b.raidTrainingUntil; changed=true; }
+  if(changed) { saveMeta(); syncHubBugs(); }
+}
 function bugXp(b, amount) {
   b.xp+=amount;
   while(b.level<100 && b.xp>=b.level*30) { b.xp-=b.level*30; b.level++; }
@@ -8189,6 +8202,68 @@ function adventureGear() {
 }
 const adventurePanel=document.getElementById('adventures');
 const adventureBtn=document.getElementById('adventurebtn');
+let bugRaidTargets=[];
+const bugRaidReady=()=>!!(lbConfigured&&lbPlayerId&&accountSession?.access_token&&!META.hacks);
+const bugRaidHeaders=()=>({...lbHeaders(),Authorization:`Bearer ${accountSession?.access_token||''}`});
+async function bugRaidRpc(name,body) {
+  const res=await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/${name}`,{method:'POST',headers:bugRaidHeaders(),body:JSON.stringify(body)});
+  const result=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(result.message||'Online bug service unavailable.');
+  return result;
+}
+async function loadBugRaidTargets() {
+  if(!bugRaidReady()) { bugRaidTargets=[]; return; }
+  const highestBugLevel=Math.max(1,...META.critterHub.roster.map(b=>b.level||1));
+  await bugRaidRpc('report_bug_raid_level',{p_player_id:lbPlayerId,p_highest_bug_level:highestBugLevel});
+  bugRaidTargets=await bugRaidRpc('get_bug_raid_targets',{p_player_id:lbPlayerId})||[];
+  const state=await bugRaidRpc('get_bug_raid_trip',{p_player_id:lbPlayerId}), trip=state?.trip;
+  META.bugRaid.trip=trip?{bugId:trip.bug_id,targetId:trip.target_id,resource:trip.resource,startedAt:Date.parse(trip.started_at)}:null;
+  const cooldownUntil=Date.parse(state?.last_raid_at||'')+1800000;
+  for(const b of META.critterHub.roster) if(b.raidTrained&&cooldownUntil>Date.now()) b.raidCooldownUntil=cooldownUntil; else if(b.raidCooldownUntil<Date.now()) delete b.raidCooldownUntil;
+  saveMeta();
+}
+async function startRaidTraining(id) {
+  const b=META.critterHub.roster.find(x=>x.id===id), sap=500, resin=250;
+  if(!bugRaidReady()||!b||bugBusy(id)||b.raidTrained||S.sap<sap||S.resin<resin) return;
+  b.raidTrainingUntil=Date.now()+300000; renderBugRoster();
+  try {
+    await bugRaidRpc('start_bug_raid_training',{p_player_id:lbPlayerId,p_bug_id:id});
+    b.raidTrainingUntil=Date.now()+300000;
+    if(await processAdminActions()) return;
+    save();saveMeta();renderCritterHub();refreshHud();renderBugRoster();
+  } catch(e) { delete b.raidTrainingUntil; renderBugRoster(); toast(e.message); }
+}
+async function setBugDefender(id,enabled) {
+  if(!bugRaidReady()) { toast('Link an online account to assign defenders.'); renderBugRoster(); return; }
+  const list=META.bugRaid.defenders, old=[...list];
+  META.bugRaid.defenders=enabled?[...new Set([...list,id])]:list.filter(x=>x!==id);
+  try {
+    await bugRaidRpc('set_bug_defenders',{p_player_id:lbPlayerId,p_defender_count:Math.min(4,META.bugRaid.defenders.length)});
+    syncHubBugs();saveMeta();renderCritterHub();renderBugRoster();
+  } catch(e) { META.bugRaid.defenders=old; renderBugRoster(); toast(e.message); }
+}
+async function startBugRaid(bugId,targetId,resource) {
+  const b=META.critterHub.roster.find(x=>x.id===bugId);
+  if(!bugRaidReady()||!b?.raidTrained||bugBusy(bugId)||META.bugRaid.trip||!['sap','resin'].includes(resource)) return;
+  try {
+    const startedAt=await bugRaidRpc('start_bug_raid',{p_player_id:lbPlayerId,p_bug_id:bugId,p_target_id:targetId,p_resource:resource,p_bug_level:b.level});
+    META.bugRaid.trip={bugId,targetId,resource,startedAt:Date.parse(startedAt)||Date.now()};
+    saveMeta();renderCritterHub();renderBugRoster();
+    window.setTimeout(()=>{ if(document.getElementById('viewBugs').classList.contains('open')) renderBugRoster(); },60000);
+  } catch(e) { toast(e.message,7000); }
+}
+async function resolveBugRaid(bugId) {
+  if(!bugRaidReady()||META.bugRaid.trip?.bugId!==bugId) return;
+  try {
+    const result=await bugRaidRpc('resolve_bug_raid',{p_player_id:lbPlayerId,p_bug_id:bugId});
+    META.bugRaid.trip=null;
+    for(const raider of META.critterHub.roster) if(raider.raidTrained) raider.raidCooldownUntil=Date.now()+1800000;
+    if(await processAdminActions()) return;
+    save();saveMeta();refreshHud();renderBugRoster();
+    toast(result.success?`🪲 Raid successful: ${fmt(result.amount)} ${result.resource} stolen.`:`🛡️ ${result.message||'The defender stopped the raid.'}`,7000);
+    submitLeaderboardScore();
+  } catch(e) { toast(e.message,7000); }
+}
 function adventureEnemy(a) {
   const r=ADVENTURE_ROUTES[a.route], e=ADVENTURE_ENEMIES[r.foes[a.stage]], scale=1+r.tier*.12;
   return {name:e[0],icon:e[1],hp:Math.round(e[2]*scale),attack:Math.round(e[3]*scale),defense:Math.round(e[4]*scale)};
@@ -8284,16 +8359,35 @@ function renderAdventures() {
 function openAdventures() { renderAdventures(); adventurePanel.classList.add('open'); document.getElementById('advClose').focus(); }
 adventureBtn.addEventListener('click',openAdventures);
 function renderBugRoster() {
-  const roster=META.critterHub.roster;
-  document.getElementById('bugsSummary').textContent=`${availableBugs().length}/${hubCapacity()} bugs in the hub · ${roster.filter(b=>bugBusy(b.id)).length} away · ${META.critterHub.pendingReturns.length} waiting to return.`;
-  document.getElementById('bugRoster').innerHTML=roster.map(b=>`<section class="expcard"><h3>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level} · ${META.training.entries.some(t=>t?.bugId===b.id)?'Training':bugBusy(b.id)?'Away':'In hub'}</h3><label>Name<input type="text" maxlength="24" value="${escapeHtml(b.name||BUG_KINDS[b.kind].name)}" data-rename="${b.id}"></label><p>♥ ${bugStats(b).hp} · ATK ${bugStats(b).attack} · DEF ${bugStats(b).defense} · XP ${b.xp}/${b.level*30} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${bugBusy(b.id)?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot && (!roster.some(other=>other.id!==b.id&&Object.values(other.gear||{}).includes(g.id))||b.gear[slot]===g.id)).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('')}<button type="button" data-delete-bug="${b.id}" ${bugBusy(b.id)?'disabled':''}>Release bug</button></section>`).join('')||'<p class="expsub">No bugs yet. Drag one into the hub to recruit it.</p>';
+  settleRaidTraining();
+  const roster=META.critterHub.roster, activeTrip=META.bugRaid.trip;
+  document.getElementById('bugsSummary').textContent=`${availableBugs().length}/${hubCapacity()} bugs available in the hub · ${roster.filter(b=>bugBusy(b.id)).length} assigned or away · ${META.critterHub.pendingReturns.length} waiting to return.`;
+  document.getElementById('bugDefenseSummary').textContent=`${META.bugRaid.defenders.length} defender${META.bugRaid.defenders.length===1?'':'s'} assigned.`;
+  const online=bugRaidReady(), targetName=id=>bugRaidTargets.find(t=>t.player_id===id)?.display_name||'another grove';
+  const tripTimeLeft=activeTrip?Math.max(0,activeTrip.startedAt+60000-Date.now()):0;
+  if(tripTimeLeft>0) window.setTimeout(()=>{ if(document.getElementById('viewBugs').classList.contains('open')) renderBugRoster(); },tripTimeLeft);
+  document.getElementById('bugRoster').innerHTML=roster.map(b=>{
+    const busy=bugBusy(b.id),defending=META.bugRaid.defenders.includes(b.id),trained=!!b.raidTrained;
+    const remaining=Math.max(0,Math.ceil((b.raidTrainingUntil-Date.now())/1000)),cooldown=Math.max(0,Math.ceil((b.raidCooldownUntil-Date.now())/1000));
+    const trip=activeTrip?.bugId===b.id,tripLeft=trip?Math.max(0,Math.ceil((activeTrip.startedAt+60000-Date.now())/1000)):0;
+    const state=META.training.entries.some(t=>t?.bugId===b.id)?'Training':defending?'Defending':remaining?`Raid training · ${fmtAcornTimer(remaining*1000)} left`:cooldown?`Recovering · ${fmtAcornTimer(cooldown*1000)} left`:trip?'Raiding':busy?'Away':'In hub';
+    const gear=['weapon','armor','charm'].map(slot=>`<label>${slot}<select data-bug="${b.id}" data-gear-slot="${slot}" ${busy?'disabled':''}><option value="">None</option>${META.bugGear.filter(g=>g.slot===slot&&(!roster.some(other=>other.id!==b.id&&Object.values(other.gear||{}).includes(g.id))||b.gear[slot]===g.id)).map(g=>`<option value="${g.id}" ${b.gear[slot]===g.id?'selected':''}>${escapeHtml(g.name)} T${g.tier} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('')}</select></label>`).join('');
+    const defense=`<label><input type="checkbox" data-defender="${b.id}" ${defending?'checked':''} ${!online||busy&&!defending||!defending&&META.bugRaid.defenders.length>=4?'disabled':''}> Assign as hub defender</label>`;
+    let raid='';
+    if(trip) raid=`<p>Raiding ${escapeHtml(targetName(activeTrip.targetId))} for ${activeTrip.resource} · ${tripLeft?fmtAcornTimer(tripLeft*1000)+' left':'ready to return'}.</p><button type="button" data-raid-finish="${b.id}" ${!online||tripLeft?'disabled':''}>Resolve raid</button>`;
+    else if(trained) { const targets=bugRaidTargets.filter(t=>Math.abs(t.highest_bug_level-b.level)<=3); raid=`<p>${cooldown?`Recovering · ${fmtAcornTimer(cooldown*1000)} left.`:'Raid trained.'}</p><label>Target<select data-raid-target="${b.id}" ${!online||busy||!!activeTrip?'disabled':''}><option value="">Choose player · within 3 levels</option>${targets.map(t=>`<option value="${t.player_id}">${escapeHtml(t.display_name)} · Lv ${t.highest_bug_level}</option>`).join('')}</select></label>${targets.length?'':`<p class="expsub">No recently active players with a reported bug within three levels of this raider.</p>`}<label>Resource<select data-raid-resource="${b.id}" ${!online||busy||!!activeTrip?'disabled':''}><option value="sap">Sap</option><option value="resin">Resin</option></select></label><button type="button" data-raid-start="${b.id}" ${!online||busy||!!activeTrip||!targets.length?'disabled':''}>Send raid</button>`; }
+    else raid=b.raidTrainingUntil?`<p>Raid training finishes in ${fmtAcornTimer(remaining*1000)}. Cost: 500 sap + 250 resin.</p>`:`<button type="button" data-raid-train="${b.id}" ${!online||busy||S.sap<500||S.resin<250?'disabled':''}>Train for raids · 500 sap + 250 resin · 5 min</button>`;
+    return `<section class="expcard"><h3>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name||BUG_KINDS[b.kind].name)} · Lv ${b.level} · ${state}</h3><label>Name<input type="text" maxlength="24" value="${escapeHtml(b.name||BUG_KINDS[b.kind].name)}" data-rename="${b.id}"></label><p>♥ ${bugStats(b).hp} · ATK ${bugStats(b).attack} · DEF ${bugStats(b).defense} · XP ${b.xp}/${b.level*30} · expedition speed +${Math.round(Math.min(.15,(b.level-1)*.01)*100)}%</p>${gear}${defense}${raid}<button type="button" data-delete-bug="${b.id}" ${busy?'disabled':''}>Release bug</button></section>`;
+  }).join('')||'<p class="expsub">No bugs yet. Drag one into the hub to recruit it.</p>';
 }
-document.getElementById('hubAdventures').addEventListener('click',()=>{ renderBugRoster(); document.getElementById('viewBugs').classList.add('open'); });
+document.getElementById('hubAdventures').addEventListener('click',async()=>{ if(bugRaidReady())try{await loadBugRaidTargets();}catch(e){toast(e.message);} renderBugRoster(); document.getElementById('viewBugs').classList.add('open'); });
 document.getElementById('bugsClose').addEventListener('click',()=>document.getElementById('viewBugs').classList.remove('open'));
 document.getElementById('viewBugs').addEventListener('click',e=>{if(e.target.id==='viewBugs') e.currentTarget.classList.remove('open');});
 document.getElementById('bugRoster').addEventListener('change',e=>{const id=e.target.dataset.rename;if(!id)return;const b=META.critterHub.roster.find(x=>x.id===id);if(!b)return;b.name=e.target.value.trim().slice(0,24)||BUG_KINDS[b.kind].name;saveMeta();renderBugRoster();});
+document.getElementById('bugRoster').addEventListener('change',e=>{const id=e.target.dataset.defender;if(id)setBugDefender(id,e.target.checked);});
 document.getElementById('bugRoster').addEventListener('change',e=>{const el=e.target,b=META.critterHub.roster.find(x=>x.id===el.dataset.bug),slot=el.dataset.gearSlot;if(!b||bugBusy(b.id)||!['weapon','armor','charm'].includes(slot))return;if(el.value&&(!META.bugGear.some(g=>g.id===el.value&&g.slot===slot)||META.critterHub.roster.some(o=>o.id!==b.id&&Object.values(o.gear||{}).includes(el.value))))return;b.gear[slot]=el.value;saveMeta();renderBugRoster();});
 document.getElementById('bugRoster').addEventListener('click',e=>{const id=e.target.dataset.deleteBug;if(!id)return;const at=META.critterHub.roster.findIndex(b=>b.id===id);if(at<0||bugBusy(id))return;META.critterHub.roster.splice(at,1);if(META.critterHub.pendingReturns.length)settleBugReturns();else{syncHubBugs();saveMeta();renderCritterHub();}renderBugRoster();});
+document.getElementById('bugRoster').addEventListener('click',e=>{const train=e.target.dataset.raidTrain,start=e.target.dataset.raidStart,finish=e.target.dataset.raidFinish;if(train){startRaidTraining(train);return;}if(finish){resolveBugRaid(finish);return;}if(start){const target=document.querySelector(`[data-raid-target="${start}"]`)?.value,resource=document.querySelector(`[data-raid-resource="${start}"]`)?.value;if(!target){toast('Choose a raid target first.');return;}startBugRaid(start,target,resource);}});
 document.getElementById('returnChoices').addEventListener('change',e=>{if(!e.target.matches('[data-release]'))return;const selected=[...document.querySelectorAll('#returnChoices [data-release]:checked')].map(x=>x.dataset.release);for(const id of selected){const at=META.critterHub.roster.findIndex(b=>b.id===id);if(at>=0&&!bugBusy(id))META.critterHub.roster.splice(at,1);}settleBugReturns();});
 document.getElementById('returnExpand').addEventListener('click',()=>{const h=META.critterHub,cost=h.extra+1;if(h.extra>=10||META.acorns<cost)return;META.acorns-=cost;h.extra++;refreshAcorns();settleBugReturns();});
 adventurePanel.addEventListener('click',e=> {
