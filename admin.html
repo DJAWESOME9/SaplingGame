@@ -557,7 +557,12 @@ async function deletePlayer() {
     } else {
       say(`Deleted ${player.display_name}'s account. Browser progress will clear at the next online check-in.`);
     }
-  } catch(e) { say(`Could not delete account: ${e.message}`); }
+  } catch(e) {
+    const detail=e.message||'Unknown error';
+    say(/admin_delete_player|PGRST202|schema cache/i.test(detail)
+      ? 'Could not delete account: Run supabase/admin_delete_player.sql in the Supabase SQL Editor, then retry.'
+      : `Could not delete account: ${detail}`);
+  }
   finally { button.disabled = false; }
 }
 function escapeHtml(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
