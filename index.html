@@ -4592,8 +4592,6 @@ function draw(time) {
       coreFill.addColorStop(0.68, '#c98725'); coreFill.addColorStop(1, '#754619');
       ctx.fillStyle = coreFill; ctx.fill();
       ctx.lineWidth = 2 * cam.scale; ctx.strokeStyle = '#ffe7a0'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(px - pr * 0.28, py - pr * 0.3, pr * 0.19, 0, TAU);
-      ctx.fillStyle = 'rgba(255,249,211,0.72)'; ctx.fill();
     } else if (n.type === 'leaf') {
       if (flash > 0.01) {
         const hg = ctx.createRadialGradient(px, py, rr * 0.5, px, py, rr * (1.9 + flash * 0.5));
@@ -4617,17 +4615,6 @@ function draw(time) {
       leafFill.addColorStop(1, SP().tint || '#245d35');
       ctx.fillStyle = leafFill; ctx.fill();
       ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
-      if (lr > 5) {
-        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, lr * 0.94, 0, TAU); ctx.clip();
-        ctx.beginPath(); ctx.moveTo(cx - lr * 0.58, cy + lr * 0.58);
-        ctx.quadraticCurveTo(cx - lr * 0.05, cy, cx + lr * 0.62, cy - lr * 0.63);
-        ctx.strokeStyle = 'rgba(224,255,207,0.48)'; ctx.lineWidth = Math.max(0.8, cam.scale * 1.1); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx - lr * 0.05, cy + lr * 0.06);
-        ctx.lineTo(cx - lr * 0.34, cy - lr * 0.18); ctx.moveTo(cx + lr * 0.18, cy - lr * 0.18);
-        ctx.lineTo(cx + lr * 0.02, cy - lr * 0.45);
-        ctx.strokeStyle = 'rgba(224,255,207,0.3)'; ctx.lineWidth = Math.max(0.65, cam.scale * 0.75); ctx.stroke();
-        ctx.restore();
-      }
       if (chew > 0) {
         // Brown rot wash over the shrinking leaf.
         ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
@@ -4658,8 +4645,6 @@ function draw(time) {
       ampFill.addColorStop(1, '#493e9b');
       ctx.fillStyle = ampFill; ctx.fill();
       ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#d2c9ff'; ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-s2 * 0.27, -s2 * 0.27); ctx.lineTo(s2 * 0.27, -s2 * 0.27);
-      ctx.strokeStyle = 'rgba(255,255,255,0.48)'; ctx.lineWidth = Math.max(0.8, cam.scale); ctx.stroke();
       ctx.restore();
       ctx.fillStyle = '#b6aef2';
       ctx.font = `${Math.round(10 * cam.scale)}px ui-sans-serif, system-ui`;
@@ -4684,8 +4669,6 @@ function draw(time) {
       refFill.addColorStop(0, '#ffd0a0'); refFill.addColorStop(0.3, '#d78151'); refFill.addColorStop(1, '#753a2b');
       ctx.fillStyle = refFill; ctx.fill();
       ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#ffc198'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(px - rr * 0.22, py - rr * 0.22, Math.max(1, rr * 0.15), 0, TAU);
-      ctx.fillStyle = 'rgba(255,237,201,0.72)'; ctx.fill();
       ctx.fillStyle = '#f0a07a';
       ctx.font = `${Math.round(10 * cam.scale)}px ui-sans-serif, system-ui`;
       ctx.textAlign = 'center';
@@ -4710,8 +4693,6 @@ function draw(time) {
       capFill.addColorStop(1, '#174650');
       ctx.fillStyle = capFill; ctx.fill();
       ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#9af2ee'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(px - rr * 0.26, py - rr * 0.28, Math.max(1, rr * 0.14), 0, TAU);
-      ctx.fillStyle = 'rgba(238,255,249,0.75)'; ctx.fill();
       const frac = clamp((n.buf.s + n.buf.r) / capSize(n), 0, 2);
       ctx.beginPath(); ctx.arc(px, py, rr + 4 * cam.scale, UP, UP + TAU * Math.min(frac, 1));
       ctx.lineWidth = 2.5 * cam.scale;
