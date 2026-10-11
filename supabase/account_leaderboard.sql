@@ -1,5 +1,12 @@
 -- Run after leaderboard.sql and cloud_saves.sql. Browser UUIDs remain the
 -- legacy profile credential; linking requires a verified account session.
+-- Older leaderboard installations may predate the deletion registry.
+create table if not exists public.deleted_players (
+  player_id uuid primary key,
+  deleted_at timestamptz not null default now()
+);
+alter table public.deleted_players enable row level security;
+revoke all on public.deleted_players from public, anon, authenticated;
 create schema if not exists private;
 create table if not exists private.sapling_account_players (
   user_id uuid primary key references auth.users(id) on delete cascade,

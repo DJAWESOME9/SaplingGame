@@ -160,6 +160,10 @@ limits, calculator settings, and device verification status.
 
 ## Accounts and cloud saves
 
+Account leaderboard linking was installed on the configured project on October 11, 2026, including the deletion registry required by older leaderboard installations. Existing cloud accounts must reconnect on their original browser once to associate its claimed name with the account, then reconnect other devices. Names come from the shared server profile independently of the cloud progress snapshot.
+
+The leaderboard name field claims and caches a name on change or through Save display name, with inline success/error feedback. Failed claims retain the last confirmed name; online identity must finish connecting before a claim can run. A successful claim immediately submits the player's score. Public boards show only their top 25 entries.
+
 Settings → Account & cloud save provides email/password registration, sign-in, and sign-out using Supabase Auth REST endpoints and the existing public configuration. Email confirmation is required when enabled on the project. Account sessions are stored separately from game progress and refreshed before cloud requests. Passwords are never stored by the game.
 
 `supabase/cloud_saves.sql` defines an account-owned run/meta save-code snapshot, owner-only RLS policies, and the invoker `write_cloud_save` RPC. The atomic revision comparison refuses stale writes. The SQL has been installed on the configured project. New devices and conflicts during play require an explicit choice between local progress and cloud progress. On reload, an already connected device automatically imports a newer cloud revision, retaining its previous full local save as a backup. Equal revisions keep local progress; failed cloud checks also keep local progress. A local account/revision binding lets the same device resume automatic uploads every 30 seconds while visible. Network failures preserve local progress; the next scheduled upload retries. Before switching devices, use “Use this device’s save” to save immediately. Concurrent devices are supported through conflict detection, not progress merging.

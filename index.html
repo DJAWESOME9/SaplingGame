@@ -774,13 +774,19 @@
   @media (max-width:600px), (max-height:500px) and (pointer:coarse) {
     #topbar { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px 4px;
       padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left)); }
+    /* Keep resources and primary controls in a compact, predictable first row.
+       Contextual controls get their own swipeable row below it. */
+    #topbar > .statcard { grid-row:1; }
+    #topbar > #reset, #topbar > #trophy, #topbar > #statsbtn,
+    #topbar > #lbbtn, #topbar > #challengebtn, #topbar > #gear { grid-row:2; }
     #topbar .title { display:none; }
     #topbar .statcard { grid-column:span 2; min-width:0; padding:6px 8px; box-sizing:border-box; align-self:stretch; }
     #topbar .statvalue { font-size:16px; overflow-wrap:anywhere; }
     #topbar .statlabel, #topbar .statrate { font-size:11px; }
     #reset, #trophy, #statsbtn, #lbbtn, #challengebtn, #gear { min-width:0; min-height:44px; margin:0; padding:6px 2px; font-size:14px; }
-    #topextra { grid-column:1/-1; flex-wrap:nowrap; min-width:0; gap:6px; overflow-x:auto;
-      overscroll-behavior-x:contain; pointer-events:auto; scrollbar-width:thin; }
+    #topextra { grid-column:1/-1; grid-row:3; flex-wrap:nowrap; min-width:0; width:100%;
+      gap:6px; overflow-x:auto; overscroll-behavior-x:contain; pointer-events:auto;
+      scrollbar-width:thin; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
     #topextra > * { flex:0 0 auto; box-sizing:border-box; min-height:44px; }
     #topextra > span { display:inline-flex; align-items:center; justify-content:center; }
     #hint { top:calc(var(--mobile-hud-bottom,160px) + 6px); width:max-content; box-sizing:border-box;
@@ -816,7 +822,7 @@
   }
   @media (max-height:500px) and (pointer:coarse) {
     #topbar { grid-template-columns:repeat(12,minmax(0,1fr)); }
-    #topextra { grid-column:1/-1; }
+    #topextra { grid-column:1/-1; grid-row:3; }
     #panel { max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   }
 
@@ -971,7 +977,11 @@
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
   <p class="lb-note">Lifetime records count all sap and resin gained. Highest records show your current bank balance. Production records show your current rate per second.</p>
   <label class="lb-label" for="lbName">Your display name</label>
+  <form id="lbNameForm">
   <input id="lbName" maxlength="20" autocomplete="nickname" placeholder="Up to 20 characters">
+  <button id="lbNameSave" type="submit">Save display name</button>
+  <p id="lbNameStatus" role="status" aria-live="polite"></p>
+  </form>
   <div class="lb-section-label">Choose a record</div>
   <div class="lb-tabs" id="lbTabs" role="group" aria-label="Choose leaderboard">
     <button type="button" data-lb="lifetime_sap" class="active" aria-pressed="true">Lifetime sap</button>
@@ -1295,6 +1305,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-11-account-name-sync', date:'October 11, 2026', title:'Account display names sync across devices', notes:[
+    'Fixed account linking so your leaderboard display name follows you when you sign in on another device. If you already used cloud saves, open Account & cloud save on your original device once to link its existing name, then reconnect on your new device.',
+    'Display names now save directly from the leaderboard when you finish editing or press Save display name. A confirmation shows when your name is saved, and unavailable names or connection errors stay visible so you can retry.'
+  ] },
   {id:'2026-10-11-bug-raids-defense',date:'2026-10-11',title:'Bug raids and hub defense',notes:[
     'Train bugs to raid another recently active player within three bug levels and bring back a small amount of sap or resin after a one-minute trip. Raids require a linked online account and leave bugs recovering for 30 minutes.',
     'Assign up to four bugs as hub defenders. Each defender reduces incoming raid losses by 15%, up to 60%. Raid training costs 500 sap and 250 resin and takes five minutes.'
@@ -1366,6 +1380,9 @@ const UPDATE_LOG = [
     'Mild storms can summon lightning. Bad storms and hurricanes can also bring wind that blows off outer branches. Higher levels bring heavier rain, stronger boosts, and greater risk. Each hit removes at most one outer node without amber; the Core and your last leaf stay safe.',
     'Admins can send any rain level or a lightning strike to a selected player, with an optional message. Sent storms queue at your next online check-in and play one at a time. Weather and its boosts pause while away, idle, frozen, or in a blocking menu.',
     'Fixed admin command acknowledgments so delivered actions stop returning at later check-ins.'
+  ] },
+  { id:'2026-10-11-mobile-hud-layout', date:'October 11, 2026', title:'Mobile toolbar layout fixed', notes:[
+    'The resource cards, main buttons, and contextual controls now stay in clear rows on phone screens. Swipe the contextual row when more controls are available.'
   ] },
   { id:'2026-10-10-bird-nests', date:'October 10, 2026', title:'Bird nests and egg warriors', notes:[
     'Sparrows, robins, and crows now try to nest once you own the Bug Hub. Scare them away before construction finishes; completed nests must be defeated by a hub warrior at level 2 or higher.',
@@ -4570,8 +4587,13 @@ function draw(time) {
       ctx.fillStyle = cg;
       ctx.beginPath(); ctx.arc(px, py, pr * 2.4, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.arc(px, py, pr, 0, TAU);
-      ctx.fillStyle = '#d99a2b'; ctx.fill();
-      ctx.lineWidth = 2 * cam.scale; ctx.strokeStyle = '#f5d489'; ctx.stroke();
+      const coreFill = ctx.createRadialGradient(px - pr * 0.32, py - pr * 0.38, pr * 0.08, px, py, pr * 1.2);
+      coreFill.addColorStop(0, '#fff0b2'); coreFill.addColorStop(0.2, '#f2c957');
+      coreFill.addColorStop(0.68, '#c98725'); coreFill.addColorStop(1, '#754619');
+      ctx.fillStyle = coreFill; ctx.fill();
+      ctx.lineWidth = 2 * cam.scale; ctx.strokeStyle = '#ffe7a0'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px - pr * 0.28, py - pr * 0.3, pr * 0.19, 0, TAU);
+      ctx.fillStyle = 'rgba(255,249,211,0.72)'; ctx.fill();
     } else if (n.type === 'leaf') {
       if (flash > 0.01) {
         const hg = ctx.createRadialGradient(px, py, rr * 0.5, px, py, rr * (1.9 + flash * 0.5));
@@ -4589,8 +4611,23 @@ function draw(time) {
       const cx = px + (chew > 0 ? (Math.random() - 0.5) * chew * 3.5 * cam.scale : 0);
       const cy = py + (chew > 0 ? (Math.random() - 0.5) * chew * 3.5 * cam.scale : 0);
       ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
-      ctx.fillStyle = SP().tint || '#3f9e4f'; ctx.fill();
-      ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
+      const leafFill = ctx.createRadialGradient(cx - lr * 0.34, cy - lr * 0.42, lr * 0.04, cx, cy, lr * 1.25);
+      leafFill.addColorStop(0, SP().outline || '#a9edaa');
+      leafFill.addColorStop(0.28, SP().tint || '#3f9e4f');
+      leafFill.addColorStop(1, SP().tint || '#245d35');
+      ctx.fillStyle = leafFill; ctx.fill();
+      ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
+      if (lr > 5) {
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, lr * 0.94, 0, TAU); ctx.clip();
+        ctx.beginPath(); ctx.moveTo(cx - lr * 0.58, cy + lr * 0.58);
+        ctx.quadraticCurveTo(cx - lr * 0.05, cy, cx + lr * 0.62, cy - lr * 0.63);
+        ctx.strokeStyle = 'rgba(224,255,207,0.48)'; ctx.lineWidth = Math.max(0.8, cam.scale * 1.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - lr * 0.05, cy + lr * 0.06);
+        ctx.lineTo(cx - lr * 0.34, cy - lr * 0.18); ctx.moveTo(cx + lr * 0.18, cy - lr * 0.18);
+        ctx.lineTo(cx + lr * 0.02, cy - lr * 0.45);
+        ctx.strokeStyle = 'rgba(224,255,207,0.3)'; ctx.lineWidth = Math.max(0.65, cam.scale * 0.75); ctx.stroke();
+        ctx.restore();
+      }
       if (chew > 0) {
         // Brown rot wash over the shrinking leaf.
         ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
@@ -4616,8 +4653,13 @@ function draw(time) {
       ctx.save(); ctx.translate(px, py); ctx.rotate(Math.PI / 4);
       const s2 = rr * 1.45;
       ctx.beginPath(); ctx.rect(-s2 / 2, -s2 / 2, s2, s2);
-      ctx.fillStyle = '#7b6fd0'; ctx.fill();
-      ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = '#b6aef2'; ctx.stroke();
+      const ampFill = ctx.createLinearGradient(-s2 / 2, -s2 / 2, s2 / 2, s2 / 2);
+      ampFill.addColorStop(0, '#d5c9ff'); ampFill.addColorStop(0.22, '#9585ed');
+      ampFill.addColorStop(1, '#493e9b');
+      ctx.fillStyle = ampFill; ctx.fill();
+      ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#d2c9ff'; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s2 * 0.27, -s2 * 0.27); ctx.lineTo(s2 * 0.27, -s2 * 0.27);
+      ctx.strokeStyle = 'rgba(255,255,255,0.48)'; ctx.lineWidth = Math.max(0.8, cam.scale); ctx.stroke();
       ctx.restore();
       ctx.fillStyle = '#b6aef2';
       ctx.font = `${Math.round(10 * cam.scale)}px ui-sans-serif, system-ui`;
@@ -4638,8 +4680,12 @@ function draw(time) {
         i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
       }
       ctx.closePath();
-      ctx.fillStyle = '#b85c38'; ctx.fill();
-      ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = '#f0a07a'; ctx.stroke();
+      const refFill = ctx.createLinearGradient(px - rr, py - rr, px + rr, py + rr);
+      refFill.addColorStop(0, '#ffd0a0'); refFill.addColorStop(0.3, '#d78151'); refFill.addColorStop(1, '#753a2b');
+      ctx.fillStyle = refFill; ctx.fill();
+      ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#ffc198'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px - rr * 0.22, py - rr * 0.22, Math.max(1, rr * 0.15), 0, TAU);
+      ctx.fillStyle = 'rgba(255,237,201,0.72)'; ctx.fill();
       ctx.fillStyle = '#f0a07a';
       ctx.font = `${Math.round(10 * cam.scale)}px ui-sans-serif, system-ui`;
       ctx.textAlign = 'center';
@@ -4659,8 +4705,13 @@ function draw(time) {
         ctx.beginPath(); ctx.arc(px, py, rr * 2.2, 0, TAU); ctx.fill();
       }
       ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU);
-      ctx.fillStyle = '#2e6e78'; ctx.fill();
-      ctx.lineWidth = 1.5 * cam.scale; ctx.strokeStyle = '#6fd3e0'; ctx.stroke();
+      const capFill = ctx.createRadialGradient(px - rr * 0.28, py - rr * 0.35, rr * 0.06, px, py, rr * 1.2);
+      capFill.addColorStop(0, '#d0fbf5'); capFill.addColorStop(0.24, '#62c5d0');
+      capFill.addColorStop(1, '#174650');
+      ctx.fillStyle = capFill; ctx.fill();
+      ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = '#9af2ee'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px - rr * 0.26, py - rr * 0.28, Math.max(1, rr * 0.14), 0, TAU);
+      ctx.fillStyle = 'rgba(238,255,249,0.75)'; ctx.fill();
       const frac = clamp((n.buf.s + n.buf.r) / capSize(n), 0, 2);
       ctx.beginPath(); ctx.arc(px, py, rr + 4 * cam.scale, UP, UP + TAU * Math.min(frac, 1));
       ctx.lineWidth = 2.5 * cam.scale;
@@ -6434,14 +6485,17 @@ function showUsernamePrompt() {
   choice.focus();
 }
 async function claimUsername(name) {
+  if (!lbConfigured || !lbPlayerId) throw new Error('Your online profile is still connecting. Please try again.');
+  const playerId = lbPlayerId;
   const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/claim_leaderboard_name`, {
-    method:'POST', headers:lbHeaders(), body:JSON.stringify({ p_player_id:lbPlayerId, p_display_name:name })
+    method:'POST', headers:lbHeaders(), body:JSON.stringify({ p_player_id:playerId, p_display_name:name }), signal:AbortSignal.timeout(15000)
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     if (res.status === 409 || error.code === '23505') throw new Error('That username is already in use. Choose another.');
     throw new Error(error.message || `Could not claim username (${res.status})`);
   }
+  if (lbPlayerId !== playerId) throw new Error('Your online profile changed. Please try saving the name again.');
   claimedUsername = name;
   lbName.value = name;
   try {
@@ -6623,10 +6677,23 @@ setInterval(() => {
 setInterval(loadLiveChallenges, 60000);
 window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
-lbName.addEventListener('change', () => {
-  if (lbName.value.trim() === claimedUsername) return;
-  usernamePromptDeferred = false;
-  showUsernamePrompt();
+async function saveLeaderboardName() {
+  const button = document.getElementById('lbNameSave');
+  const status = document.getElementById('lbNameStatus');
+  if (button.disabled) return;
+  const name = lbName.value.trim().replace(/[^\w\u00C0-\u024F _.-]/g, '').replace(/\s+/g, ' ').slice(0, 20);
+  if (!name) { status.textContent = 'Enter a name using letters, numbers, spaces, or _ . -'; return; }
+  if (name === claimedUsername) { lbName.value = name; status.textContent = 'Display name saved.'; return; }
+  button.disabled = true; lbName.readOnly = true;
+  status.textContent = 'Saving display name…';
+  try { await claimUsername(name); status.textContent = 'Display name saved.'; }
+  catch (err) { status.textContent = err.message; }
+  finally { button.disabled = false; lbName.readOnly = false; }
+}
+lbName.addEventListener('change', saveLeaderboardName);
+document.getElementById('lbNameForm').addEventListener('submit', e => {
+  e.preventDefault();
+  saveLeaderboardName();
 });
 // The utility drawers can be pinned and placed independently of the top bar.
 const utilityDrawers = [
