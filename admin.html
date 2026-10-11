@@ -19,6 +19,7 @@
   #actionMessage { display:block; width:min(520px,100%); margin-top:10px; resize:vertical; }
   button { cursor:pointer; background:#1d2c20; }
   button:hover { border-color:#8fc299; }
+  button:disabled { opacity:.5; cursor:default; }
   button.danger { background:#321919; border-color:#704040; color:#f0b2a8; }
   form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:520px; }
   form button { grid-column:1 / -1; }
@@ -65,11 +66,12 @@
   <header><h1>🌱 Sapling Admin</h1><a href="index.html" style="color:#9db89f">Back to game</a></header>
   <section class="card" id="loginCard">
     <h2>Administrator sign in</h2>
-    <p class="muted">Use the allowlisted administrator email, or enter AdminLite and your access code for read-only achievements, gear, and challenge history. Full administrators can create a Supabase Auth account with their allowlisted email first.</p>
+    <p class="muted">Use the allowlisted administrator email, or enter AdminLite and your access code to browse achievements, gear, and challenge history, and send up to three lightning strikes per day. Full administrators can create a Supabase Auth account with their allowlisted email first.</p>
     <form id="loginForm"><input id="email" type="text" autocomplete="username" placeholder="Admin email or AdminLite" value="djdavidfreeman@gmail.com" required><input id="password" type="password" autocomplete="current-password" placeholder="Password or access code" required><button>Sign in</button><button id="createAccount" type="button">Create / resend account confirmation</button></form>
   </section>
   <section id="dashboard" hidden>
     <div class="toolbar"><input data-full-admin id="search" placeholder="Filter players by name or ID"><button data-full-admin id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
+    <div class="card" id="liteLightning" hidden><h2>⚡ Lightning strikes</h2><p class="muted">Admin Lite can send 3 strikes total per day, shared across all tabs and devices. Resets at midnight Eastern. Each strike queues for the player's next check-in and active play.</p><p id="liteLightningStatus" role="status"></p><div class="toolbar"><select id="liteLightningPlayer" aria-label="Lightning target"><option value="">Choose a player</option></select><button id="liteLightningSend" type="button" disabled>Send lightning strike</button><button id="liteLightningRefresh" type="button">Refresh allowance and players</button></div><p id="liteLightningFeedback" role="status"></p></div>
     <div class="card"><h2>Achievements <span class="muted" id="achievementCount"></span></h2><p class="muted">Full game achievement catalog, including secret achievements. This is a read-only view.</p><div class="toolbar"><input id="achievementSearch" placeholder="Filter achievements by name, ID, or description"><button id="refreshAchievements" type="button">Refresh achievements</button></div><div id="achievementList" aria-live="polite"></div></div>
     <div class="card"><h2>Live and past challenges</h2><p data-full-admin class="muted">You can run several challenges at once. Publishing starts each clock immediately. Production and action goals start at zero when the challenge opens. Bug-level goals count bugs currently owned, including existing bugs. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
       <form data-full-admin id="challengeForm" class="challenge-form">
@@ -112,13 +114,55 @@ const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONF
 const $ = id => document.getElementById(id);
 let token = '', players = [], selected = null, leaderboardRecords = new Map();
 let achievements = [], standardGear = [], questGear = [], liteCredentials = null;
+let liteLightningRemaining = 0, liteLightningBusy = false;
 function setAccess(lite) {
+  $('liteLightning').hidden = !lite;
   document.querySelectorAll('[data-full-admin]').forEach(el => { el.hidden = lite; });
-  document.querySelector('h1').textContent = lite ? '🌱 Sapling Admin Lite · Read only' : '🌱 Sapling Admin';
+  document.querySelector('h1').textContent = lite ? '🌱 Sapling Admin Lite' : '🌱 Sapling Admin';
 }
 async function loadLiteCatalog() {
   return rpc('admin_lite_catalog', {p_login:liteCredentials.login, p_code:liteCredentials.code});
 }
+function updateLiteLightningButton() {
+  $('liteLightningSend').disabled = liteLightningBusy || !liteCredentials || liteLightningRemaining <= 0 || !$('liteLightningPlayer').value;
+}
+function showLiteLightningAllowance(data) {
+  liteLightningRemaining = Number(data.remaining) || 0;
+  const reset = new Date(data.resets_at).toLocaleString(undefined, {timeZone:'America/New_York', timeZoneName:'short'});
+  $('liteLightningStatus').textContent = `${liteLightningRemaining} of 3 strikes remaining. Resets ${reset}.`;
+  updateLiteLightningButton();
+}
+async function refreshLiteLightning() {
+  if (!liteCredentials) return;
+  liteLightningRemaining = 0; updateLiteLightningButton();
+  try {
+    const data = await rpc('admin_lite_lightning_status', {p_login:liteCredentials.login, p_code:liteCredentials.code});
+    if (!liteCredentials) return;
+    const old = $('liteLightningPlayer').value;
+    $('liteLightningPlayer').innerHTML = '<option value="">Choose a player</option>' + data.players.map(p => `<option value="${escapeHtml(p.player_id)}">${escapeHtml(p.display_name)} · ${escapeHtml(p.player_id.slice(0,8))}</option>`).join('');
+    $('liteLightningPlayer').value = data.players.some(p => p.player_id === old) ? old : '';
+    showLiteLightningAllowance(data);
+  } catch(err) { $('liteLightningStatus').textContent = `Could not load lightning allowance: ${err.message}`; }
+}
+$('liteLightningPlayer').addEventListener('change', updateLiteLightningButton);
+$('liteLightningRefresh').addEventListener('click', refreshLiteLightning);
+$('liteLightningSend').addEventListener('click', async () => {
+  if (!liteCredentials || liteLightningBusy || liteLightningRemaining <= 0 || !$('liteLightningPlayer').value) return;
+  liteLightningBusy = true; updateLiteLightningButton();
+  const target = $('liteLightningPlayer').selectedOptions[0].textContent;
+  $('liteLightningFeedback').textContent = 'Queuing lightning strike…';
+  try {
+    const data = await rpc('admin_lite_queue_lightning', {p_login:liteCredentials.login, p_code:liteCredentials.code, p_player_id:$('liteLightningPlayer').value});
+    if (!liteCredentials) return;
+    showLiteLightningAllowance(data);
+    $('liteLightningFeedback').textContent = `Lightning strike queued for ${target}; ${data.remaining} strikes left today.`;
+    say($('liteLightningFeedback').textContent);
+  } catch(err) {
+    $('liteLightningFeedback').textContent = `Could not confirm lightning strike: ${err.message}. Check the refreshed allowance before retrying.`;
+    say($('liteLightningFeedback').textContent);
+    await refreshLiteLightning();
+  } finally { liteLightningBusy = false; updateLiteLightningButton(); }
+});
 function renderGearCatalog() {
   const q = $('gearSearch').value.trim().toLowerCase();
   const gear = [...standardGear, ...questGear.map(g => ({...g, source:'Quest reward'}))];
@@ -331,8 +375,8 @@ $('loginForm').addEventListener('submit',async e=>{
       setAccess(true);
       $('password').value = '';
       $('loginCard').hidden=true; $('dashboard').hidden=false;
-      await refreshChallenges(); await refreshAchievements();
-      say('Admin Lite: read-only access to achievements, all gear, and all live and past challenges.');
+      await refreshChallenges(); await refreshAchievements(); await refreshLiteLightning();
+      say('Admin Lite: browse all catalogs and send up to 3 lightning strikes per day.');
       return;
     }
     liteCredentials = null;
@@ -397,7 +441,7 @@ $('search').addEventListener('input',render);
 $('achievementSearch').addEventListener('input',renderAchievements);
 $('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
-$('logout').addEventListener('click',()=>{token='';liteCredentials=null;selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('logout').addEventListener('click',()=>{token='';liteCredentials=null;liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
