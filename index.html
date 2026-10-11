@@ -1102,6 +1102,7 @@
     <button id="cloudSave" type="button">Use this device’s save</button>
     <button id="cloudLoad" type="button">Load cloud save</button>
     <button id="cloudRestoreLocal" type="button">Restore previous local save</button>
+    <button id="cloudRestoreLocal" type="button">Restore previous local save</button>
     <button id="accountSignOut" type="button">Sign out</button>
   </div>
   <p id="accountStatus" role="status" aria-live="polite">Sign in on each device with the same account. Play on one device at a time.</p>
@@ -1295,6 +1296,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-cloud-reload', date:'October 10, 2026', title:'Cloud progress refreshes on reload', notes:[
+    'Reloading a device connected to your account now loads newer cloud progress automatically. Your previous local progress is kept as a backup.',
+    'If the cloud is unavailable, you can keep playing from your local save. Use Restore previous local save in the account panel to recover progress from before a cloud load.'
+  ] },
   { id:'2026-10-10-admin-lite-lightning', date:'October 10, 2026', title:'Admin Lite lightning', notes:[
     'Admin Lite can now send up to three lightning strikes per day to selected players. The shared allowance resets at midnight Eastern, and strikes arrive at the next online check-in and active play.'
   ] },
@@ -5819,11 +5824,15 @@ function bindCloud(revision) {
   cloudRevision = revision; cloudReady = true;
   localStorage.setItem(CLOUD_BINDING, JSON.stringify({ user: accountSession.user.id, revision }));
 }
-async function checkCloud() {
+async function checkCloud(onReload = false) {
   cloudReady = false;
   const row = await readCloud();
   cloudRevision = row?.revision || 0;
   const binding = JSON.parse(localStorage.getItem(CLOUD_BINDING) || 'null');
+  if (onReload && row && binding?.user === accountSession.user.id && row.revision > binding.revision) {
+    loadCloudSave(row);
+    return;
+  }
   if (binding?.user === accountSession.user.id && binding.revision === cloudRevision) {
     cloudReady = true;
     accountMessage('Cloud saving is on. Progress saves every 30 seconds; use this device’s save to save now.');
@@ -5881,6 +5890,9 @@ document.getElementById('cloudLoad').addEventListener('click', () => accountActi
   const row = await readCloud();
   if (!row) { accountMessage('No cloud save yet. Choose this device’s save first.'); return; }
   if (!confirm('Load cloud progress and replace this device’s current game? A local backup will be kept.')) return;
+  loadCloudSave(row);
+}));
+function loadCloudSave(row) {
   save(); saveMeta();
   localStorage.setItem('sapling-cloud-local-backup-v1', makeSaveCode());
   // Validate before binding; the existing importer preserves compatibility/offline credit.
@@ -5889,6 +5901,14 @@ document.getElementById('cloudLoad').addEventListener('click', () => accountActi
   JSON.parse(blob.save); JSON.parse(blob.meta);
   bindCloud(row.revision);
   applySaveCode(row.save_code);
+}
+document.getElementById('cloudRestoreLocal').addEventListener('click', () => accountAction(() => {
+  const code = localStorage.getItem('sapling-cloud-local-backup-v1');
+  if (!code) { accountMessage('No previous local save is available yet.'); return; }
+  if (!confirm('Restore the local progress from before your last cloud load? Cloud saving will pause until you choose which save to keep.')) return;
+  cloudReady = false;
+  localStorage.removeItem(CLOUD_BINDING);
+  applySaveCode(code);
 }));
 document.getElementById('accountSignOut').addEventListener('click', () => accountAction(async () => {
   cloudReady = false;
@@ -5910,7 +5930,7 @@ async function initAccount() {
       accountSession = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
     }
     accountView();
-    if (accountSession && lbConfigured) await accountAction(checkCloud);
+    if (accountSession && lbConfigured) await accountAction(() => checkCloud(true));
   } catch (e) { cloudReady = false; accountMessage('Sign in again to reconnect cloud saving.'); }
 }
 setInterval(() => { if (cloudReady && !document.hidden) accountAction(() => uploadCloud()); }, 30000);
