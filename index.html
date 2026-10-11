@@ -70,6 +70,10 @@
   #gear { margin-left:auto; pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
     border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
   #gear:hover, #gear.open { border-color:#6a8a6e; color:#cfe3d1; }
+  #reload { pointer-events:auto; background:none; border:1px solid #3a4a3c; color:#8aa08c;
+    border-radius:8px; padding:4px 10px; font-size:14px; cursor:pointer; line-height:1; }
+  #reload:hover { border-color:#6a8a6e; color:#cfe3d1; }
+  #reload[hidden] { display:none; }
   #settings { position:fixed; z-index:56; top:52px; right:16px; width:220px; display:none;
     box-sizing:border-box; max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain;
     background:rgba(16,24,18,.96); border:1px solid #2e3f31; border-radius:12px; padding:12px 14px;
@@ -427,6 +431,9 @@
   .expsub { color:#a6baa0; font-size:13px; line-height:1.5; }
   .expgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:16px; }
   .expcard { padding:14px; border:1px solid #456143; border-radius:12px; background:#1b2d20; }
+  #bugRoster .expcard { min-width:0; box-sizing:border-box; }
+  #bugRoster .expcard label { display:block; min-width:0; font-size:12px; margin-top:10px; }
+  #bugRoster .expcard input:not([type=checkbox]), #bugRoster .expcard select { display:block; box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
   .expcard h3 { margin:0 0 8px; color:#d4e6b5; font-size:16px; }
   .expcard p { margin:5px 0; font-size:12px; line-height:1.45; }
   .expcard button { margin:8px 6px 0 0; padding:7px 10px; border:1px solid #6b965f; border-radius:8px; background:#304a2e; color:#edf8df; cursor:pointer; }
@@ -648,7 +655,7 @@
     #topbar { gap:7px; padding-top:max(8px, env(safe-area-inset-top)); flex-wrap:wrap; row-gap:6px; }
     #topbar .title { display:none; }
     /* Keep the action buttons (incl. settings) intact when the bar wraps */
-    #pestbtn, #acornbtn, #trophy, #statsbtn, #lbbtn, #challengebtn, #reset, #gear, #bloombadge, #touchbadge { flex:0 0 auto; }
+    #pestbtn, #acornbtn, #trophy, #statsbtn, #lbbtn, #challengebtn, #reset, #gear, #reload, #bloombadge, #touchbadge { flex:0 0 auto; }
     #gear { margin-left:0; }
     #topbar .statcard { min-width:0; flex:1 1 0; padding:6px 8px 7px; border-radius:10px; }
     #topbar .statlabel { font-size:9.5px; letter-spacing:.03em; }
@@ -656,6 +663,7 @@
     #topbar .statrate { font-size:10.5px; }
     #topbar .statcard:hover .statdetail { max-height:0; opacity:0; margin-top:0; } /* hover detail isn't useful on touch */
     #gear { padding:7px 11px; font-size:16px; align-self:stretch; }
+    #reload { padding:7px 11px; font-size:16px; align-self:stretch; }
     #settings { right:max(10px, env(safe-area-inset-right)); width:min(240px, calc(100vw - 20px)); }
     #leaderboard { top:calc(env(safe-area-inset-top) + 52px); right:max(10px, env(safe-area-inset-right)); width:min(328px, calc(100vw - 20px)); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
     #leaderboard ol { max-height:none; overflow:visible; }
@@ -924,6 +932,7 @@
   <button id="lbbtn" aria-label="Leaderboard" title="Leaderboard">🌿</button>
   <button id="challengebtn" aria-label="Quests" title="Quests">🏁</button>
   <button id="gear" aria-label="Settings">⚙</button>
+  <button id="reload" type="button" aria-label="Reload game" title="Reload game">↻</button>
   <!-- Seasons and contextual items live on their own row below resources. -->
   <div id="topextra">
     <button id="seasonbtn" type="button" aria-label="Seasons" aria-haspopup="dialog">🌱 Spring</button>
@@ -953,6 +962,7 @@
   <button id="accountOpen" type="button" style="width:100%;margin-bottom:12px">Account &amp; cloud save</button>
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
+  <div class="srow"><label for="hideReload">Hide reload button</label><input type="checkbox" id="hideReload"></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
   <div class="srow"><label for="branchWidthCap">Branch cap</label><input type="range" id="branchWidthCap" min="4" max="40" step="1"><output id="branchWidthCapValue" for="branchWidthCap">20 px</output></div>
   <button id="restore">Restore backup</button>
@@ -1305,6 +1315,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-polish-cost-scaling',date:'October 11, 2026',title:'Higher polish costs more resin',notes:[
+    'The first polish still costs 35 resin. Each additional polish on a node now costs more, with the price rising faster at higher polish levels.'
+  ]},
   {id:'2026-10-11-leaf-amp-upgrade-costs',date:'October 11, 2026',title:'Leaf and amplifier upgrades cost more',notes:[
     'Enriching leaf upgrades now cost more from level 4 onward; the first three levels are unchanged. Strengthening amplifiers costs more at every level.'
   ]},
@@ -2357,7 +2370,7 @@ const polishMult  = n => 1 + (POLISH_PCT + 0.02 * metaLvl('glaze')) * (n.polish 
 const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'cap';
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
-const costPolish  = n => Math.ceil(35 * Math.pow(2.6, n.polish || 0));
+const costPolish  = n => Math.ceil(35 * Math.pow(3.0, n.polish || 0));
 const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1) * seasonEdgeMult();
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
@@ -5836,6 +5849,14 @@ function toast(msg, duration = 6000) {
 }
 const gear = document.getElementById('gear'), settings = document.getElementById('settings'),
       volSlider = document.getElementById('vol');
+const reloadButton = document.getElementById('reload'), hideReload = document.getElementById('hideReload');
+try { hideReload.checked = localStorage.getItem('sapling-hide-reload') === 'true'; } catch (e) {}
+reloadButton.hidden = hideReload.checked;
+hideReload.addEventListener('change', () => {
+  reloadButton.hidden = hideReload.checked;
+  try { localStorage.setItem('sapling-hide-reload', String(hideReload.checked)); } catch (e) {}
+});
+reloadButton.addEventListener('click', () => location.reload());
 function placeSettings() {
   const rect = gear.getBoundingClientRect();
   const gap = 8;
