@@ -10,7 +10,7 @@ Sapling's optional leaderboard uses Supabase's free Postgres and REST API. The g
 4. Run [`../supabase/live_challenge_leaf_sap.sql`](../supabase/live_challenge_leaf_sap.sql) to enable leaf-produced sap goals and real-time event progress.
 5. Run [`../supabase/live_challenge_server_clock.sql`](../supabase/live_challenge_server_clock.sql) to return the database clock with active events for countdown alignment.
 6. Run [`../supabase/live_challenge_goals.sql`](../supabase/live_challenge_goals.sql) to enable all live goal types and five-currency rewards. Run [`../supabase/live_challenge_bug_levels.sql`](../supabase/live_challenge_bug_levels.sql) on existing installations to add bug-level ownership goals; it preserves the gear publisher and existing quests. Then run [`../supabase/quest_gear.sql`](../supabase/quest_gear.sql) to enable the admin quest-only gear workshop and gear rewards, including first-finisher bonuses. Rerun `quest_gear.sql` on existing installations to allow negative health, attack, and defense modifiers (−10,000 to 10,000). Run [`../supabase/quest_gear_catalog.sql`](../supabase/quest_gear_catalog.sql) afterward to populate the 18 standard equipment choices; it can be rerun without duplicating them.
-7. Run [`../supabase/admin_messages.sql`](../supabase/admin_messages.sql) to enable player-facing admin messages and admin adjustments for acorns, rings, and amber. Run this after `leaderboard.sql` on existing projects too.
+7. Run [`../supabase/admin_messages.sql`](../supabase/admin_messages.sql) to enable player-facing admin messages and admin adjustments for acorns, rings, and amber. Run this after `leaderboard.sql` on existing projects too. Run [`../supabase/admin_weather.sql`](../supabase/admin_weather.sql) after `leaderboard.sql` to enable targeted rainstorms and lightning strikes.
 8. Copy the project's URL and **anon/public key** from Project Settings → API. Never put a `service_role` key in the game.
 9. Edit [`../leaderboard-config.js`](../leaderboard-config.js) and set the project URL and **anon/public** key. This file is loaded by both the game and admin dashboard. Never put a `service_role` key in it.
 10. The migration allowlists `djdavidfreeman@gmail.com` for admin access. Open `admin.html`, create/sign in to a Supabase Auth account with that email, and confirm the email if Supabase prompts you.
@@ -23,6 +23,18 @@ The October 2026 leaderboard reset cleared leaderboard rows and name claims with
 ## Admin player controls
 
 Open `admin.html` and sign in with the Supabase Auth account you allowlisted. Admins can search and inspect player profiles, including current balances, per-tree and lifetime production, peak rates, gold leaves, playtime, offline time, tree count, rings, species, node count, and last online. Last online is the most recent successful game check-in, separate from the profile's account update time. Existing profiles show “Not recorded yet” until their next check-in after the SQL update. The dashboard can queue sap, resin, acorn, ring, and amber grants or deductions with an optional message, reset a player's progress, or delete a player account. The recipient sees balance changes and messages in a popup that stays pending until dismissed.
+
+Select a player, choose a rain level, and use **Cause rainstorm**, or use **Lightning strike** for a standalone strike. Both accept an optional message and need no amount. Weather arrives at the next online check-in, waits through reloads until started, and plays one event at a time. Active weather pauses while hidden, idle, frozen, or in a blocking menu; paused/offline weather grants no bonus. Rain bonuses multiply sap and resin income and stack with other production buffs, without increasing buff-free peaks or expedition reward rates.
+
+| Level | Weather | Duration | Production | Lightning chance / cap | Wind chance / cap |
+|---|---|---|---|---|---|
+| 1 | Drizzle | 35s | ×1.5 | None | None |
+| 2 | Rain | 45s | ×2 | None | None |
+| 3 | Mild storm | 50s | ×3 | 20% / 1 hit | None |
+| 4 | Bad storm | 55s | ×5 | 40% / 2 hits | 35% / 2 hits |
+| 5 | Hurricane | 60s | ×7 | 65% / 3 hits | 65% / 4 hits |
+
+Hazards roll every 10 active seconds, with at most one hit per roll. Lightning is checked first; wind rolls only if lightning does not strike. Every hit can remove one outer node without amber; the Core and last leaf remain protected. Natural rain favors lower levels (45/30/15/8/2 percent). Waiting rain leaves the queue when it starts; standalone lightning leaves after the strike. Active weather ends on reload, and hard resets/admin resets/deletion clear locally queued weather.
 
 The dashboard's Achievements section reads the catalog directly from the game and lists every achievement, including secrets, with its ID, name, icon, and description. It is a read-only catalog view.
 

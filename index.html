@@ -1245,6 +1245,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-admin-weather', date:'October 10, 2026', title:'Five levels of rain: risk and reward', notes:[
+    'Rain now comes in five levels: drizzle (×1.5), rain (×2), mild storm (×3), bad storm (×5), and hurricane (×7). Rain boosts sap and resin during active play and stacks with your other production buffs.',
+    'Mild storms can summon lightning. Bad storms and hurricanes can also bring wind that blows off outer branches. Higher levels bring heavier rain, stronger boosts, and greater risk. Each hit removes at most one outer node without amber; the Core and your last leaf stay safe.',
+    'Admins can send any rain level or a lightning strike to a selected player, with an optional message. Sent storms queue at your next online check-in and play one at a time. Weather and its boosts pause while away, idle, frozen, or in a blocking menu.',
+    'Fixed admin command acknowledgments so delivered actions stop returning at later check-ins.'
+  ] },
   { id:'2026-10-10-bird-nests', date:'October 10, 2026', title:'Bird nests and egg warriors', notes:[
     'Sparrows, robins, and crows now try to nest once you own the Bug Hub. Scare them away before construction finishes; completed nests must be defeated by a hub warrior at level 2 or higher.',
     'Win nest battles for eggs and warrior experience. Hatch eggs into strong level-3 bird warriors: sparrows favor attack, robins health, and crows defense. They share your hub and can train, equip gear, explore, and adventure.',
@@ -2098,7 +2104,7 @@ const forcedOn    = () => !!S.forced && forcedOwned();
 const forcedMult  = () => forcedOn() ? 3 : 1;
 // A transient production buff is live: a bloom (incl. the held-leaf Channel surge)
 // or Forced Bloom. Used to decide whether the current income counts as "base".
-const buffActive  = () => forcedOn() || S.channeling || activeBlooms().length > 0 || spellProductionActive();
+const buffActive  = () => forcedOn() || S.channeling || activeBlooms().length > 0 || spellProductionActive() || weatherProductionMult() > 1;
 // Highest base (buff-free) resin/sec ever reached on the current tree. Every
 // "minutes of resin" cost (Freeze, Blueprint copy) is priced off this single
 // figure, so a momentary bloom/channel spike or the live rate can never inflate
@@ -2557,7 +2563,7 @@ function prepareEdgeCache() {
 }
 
 // ---------- economy: typed flow {sap, resin} from leaves to core ----------
-function computeFlow(dt) {
+function computeFlow(dt, includeWeather = true) {
   S.waste = 0; S.wasteSap = 0; S.wasteResin = 0; S.maxLife = 0;
   let leafSapRate = 0, refineryResinRate = 0;
   const retained = new Map();
@@ -2660,8 +2666,11 @@ function computeFlow(dt) {
     for (const id in S.nodes) S.maxLife = Math.max(S.maxLife, N(id).life || 0);
   }
   S.incomeS = o.s * (1 - Math.min(0.12, ((META && META.critterHub && META.critterHub.bugs) || 0) * 0.01)); S.incomeR = o.r;
-  S.leafSapRate = leafSapRate;
-  S.refineryResinRate = refineryResinRate;
+  const rainBoost = includeWeather ? weatherProductionMult() : 1;
+  // Rain rewards arrive at the Core, so branch capacity cannot erase the bonus.
+  S.incomeS *= rainBoost; S.incomeR *= rainBoost;
+  S.leafSapRate = leafSapRate * rainBoost;
+  S.refineryResinRate = refineryResinRate * rainBoost;
 }
 
 // ---------- actions ----------
@@ -3994,18 +4003,54 @@ function drawSeasonBackdrop(time) {
   ctx.restore();
 }
 // ---------- natural events: active-play weather, separate from saved buffs ----------
-// Weather never catches up offline. Only actual lightning damage enters the run save.
+// Weather never catches up offline. Only actual lightning/wind damage enters the run save.
 const weatherBadge = document.getElementById('weatherbadge');
-const naturalWeather = { next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
-function startNaturalEvent(kind) {
+const ADMIN_WEATHER_KEY = 'sapling-admin-weather-v1';
+function pendingAdminWeather() {
+  try {
+    const queue = JSON.parse(localStorage.getItem(ADMIN_WEATHER_KEY) || '[]');
+    return Array.isArray(queue) ? queue.filter(a => a && typeof a.id === 'string' && ['rain','lightning'].includes(a.kind)) : [];
+  } catch (e) { return []; }
+}
+function finishAdminWeather() {
+  if (!naturalWeather.adminId) return;
+  localStorage.setItem(ADMIN_WEATHER_KEY, JSON.stringify(pendingAdminWeather().filter(a => a.id !== naturalWeather.adminId)));
+  naturalWeather.adminId = null;
+}
+const RAIN_LEVELS = [
+  null,
+  {name:'Drizzle', icon:'🌦️', boost:1.5, seconds:35, lightning:0, wind:0, maxLightning:0, maxWind:0},
+  {name:'Rain', icon:'🌧️', boost:2, seconds:45, lightning:0, wind:0, maxLightning:0, maxWind:0},
+  {name:'Mild storm', icon:'⛈️', boost:3, seconds:50, lightning:.2, wind:0, maxLightning:1, maxWind:0},
+  {name:'Bad storm', icon:'⛈️', boost:5, seconds:55, lightning:.4, wind:.35, maxLightning:2, maxWind:2},
+  {name:'Hurricane', icon:'🌀', boost:7, seconds:60, lightning:.65, wind:.65, maxLightning:3, maxWind:4}
+];
+function rainLevel(value) { return clamp(Math.floor(Number(value) || 2), 1, 5); }
+function weatherBlocked() {
+  return document.hidden || frozenOn() || cutAnim || overlayBlocksTree() ||
+    document.getElementById('updates').classList.contains('open') ||
+    document.getElementById('adminNotice').classList.contains('open') || Date.now() - lastInput > IDLE_AFTER_MS;
+}
+function weatherProductionMult() {
+  return naturalWeather.kind === 'rain' && !weatherBlocked() ? RAIN_LEVELS[naturalWeather.level].boost : 1;
+}
+function randomRainLevel() {
+  const roll = Math.random();
+  return roll < .45 ? 1 : roll < .75 ? 2 : roll < .90 ? 3 : roll < .98 ? 4 : 5;
+}
+const naturalWeather = { level:2, hazardAt:10, lightningHits:0, windHits:0, adminId:null, next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
+function startNaturalEvent(kind, level = 2) {
   naturalWeather.kind = kind;
   naturalWeather.age = 0;
-  naturalWeather.duration = kind === 'rain' ? 35 + Math.random() * 20 : 8;
+  naturalWeather.level = rainLevel(level);
+  naturalWeather.hazardAt = 10; naturalWeather.lightningHits = 0; naturalWeather.windHits = 0;
+  naturalWeather.duration = kind === 'rain' ? RAIN_LEVELS[naturalWeather.level].seconds : 8;
   naturalWeather.strike = null;
   naturalWeather.struck = false;
-  toast(kind === 'rain' ? '🌧️ A rainstorm rolls in.' : '⚡ Thunderclouds gather above the tree.');
+  const rain = RAIN_LEVELS[naturalWeather.level];
+  toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : '⚡ Thunderclouds gather above the tree.');
 }
-function strikeTree() {
+function strikeTree(cause = 'lightning') {
   // One terminal node per strike bounds the loss, even on large upgraded trees.
   const candidates = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length &&
     (n.type !== 'leaf' || S.counts.leaf > 1));
@@ -4016,13 +4061,13 @@ function strikeTree() {
   const hit = parent ? curvePt(edgeCurve(n), .65) : { x:n.x, y:n.y };
   const protectedTree = !parent;
   // Snapshot world geometry before layout moves the surviving tree.
-  const strike = { x:hit.x, y:hit.y, age:0, bolt:Array.from({length:10}, () => Math.random() - .5),
+  const strike = { cause, x:hit.x, y:hit.y, age:0, bolt:Array.from({length:10}, () => Math.random() - .5),
     debris:parent ? { x:n.x, y:n.y, dx:hit.x - n.x, dy:hit.y - n.y,
       radius:nodeRadius(n), width:branchStrokeWidth(n), color:n.type === 'leaf' ? (SP().tint || '#3f9e4f') : '#a58458',
       spin:(Math.random() < .5 ? -1 : 1) * .8 } : null };
   naturalWeather.strike = strike;
   if (protectedTree) {
-    toast('⚡ Lightning hits! The Core and your last leaf are safe.');
+    toast(`${cause === 'wind' ? '💨 Wind gusts!' : '⚡ Lightning hits!'} The Core and your last leaf are safe.`);
     return;
   }
   if (S.channelNode === n.id) endChannel();
@@ -4040,20 +4085,34 @@ function strikeTree() {
   if (!seasonMotionPreference.matches) spawnBurst(hit.x, hit.y, '#d7b67b', 16, 100, .8);
   sfx('prune');
   layout(); prepareEdgeCache(); computeFlow(0); buildPanel(); save();
-  toast('⚡ Lightning snapped off an outer branch!');
+  toast(cause === 'wind' ? '💨 Storm winds blew off an outer branch!' : '⚡ Lightning snapped off an outer branch!');
 }
 function tickNaturalEvents(dt) {
   const w = naturalWeather;
-  const blocked = document.hidden || frozenOn() || cutAnim || overlayBlocksTree() ||
-    document.getElementById('updates').classList.contains('open') || Date.now() - lastInput > IDLE_AFTER_MS;
+  const blocked = weatherBlocked();
   if (!blocked) {
     if (!w.kind) {
-      w.next -= dt;
-      if (w.next <= 0) startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning');
+      const queued = pendingAdminWeather()[0];
+      if (queued) {
+        startNaturalEvent(queued.kind, queued.level);
+        w.adminId = queued.id;
+        // Rain is delivered on start; lightning stays pending until damage is saved.
+        if (queued.kind === 'rain') finishAdminWeather();
+      } else w.next -= dt;
+      if (!w.kind && w.next <= 0) startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning', randomRainLevel());
     } else {
       w.age += dt;
-      if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); }
+      if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); finishAdminWeather(); }
       if (w.strike) w.strike.age += dt;
+      if (w.kind === 'rain' && w.age < w.duration && w.age >= w.hazardAt) {
+        const rain = RAIN_LEVELS[w.level]; w.hazardAt += 10;
+        // At most one hazard per check; lightning takes priority over wind.
+        if (w.lightningHits < rain.maxLightning && Math.random() < rain.lightning) {
+          strikeTree(); w.lightningHits++;
+        } else if (w.windHits < rain.maxWind && Math.random() < rain.wind) {
+          strikeTree('wind'); w.windHits++;
+        }
+      }
       if (w.age >= w.duration) {
         w.kind = null; w.strike = null; w.next = 180 + Math.random() * 180;
       }
@@ -4061,9 +4120,12 @@ function tickNaturalEvents(dt) {
   }
   weatherBadge.hidden = !w.kind;
   if (w.kind) {
-    const text = `${w.kind === 'rain' ? '🌧️ Rainstorm' : '⚡ Lightning'} · ${Math.ceil(w.duration - w.age)}s${blocked ? ' · paused' : ''}`;
+    const rain = RAIN_LEVELS[w.level];
+    const text = `${w.kind === 'rain' ? `${rain.icon} Lv ${w.level} ${rain.name} · ×${rain.boost}` : '⚡ Lightning'} · ${Math.ceil(w.duration - w.age)}s${blocked ? ' · paused' : ''}`;
     if (weatherBadge.textContent !== text) weatherBadge.textContent = text;
-    weatherBadge.title = w.kind === 'rain' ? 'Passing rain — no production change.' : 'Lightning may snap off one outer node. The Core and last leaf are safe.';
+    weatherBadge.title = w.kind === 'rain'
+      ? `${rain.name}: ×${rain.boost} sap and resin during active play, stacking with other buffs. Every 10s: ${Math.round(rain.lightning * 100)}% lightning chance (up to ${rain.maxLightning}), then ${Math.round(rain.wind * 100)}% wind chance (up to ${rain.maxWind}). Each hit removes at most one outer node without amber; Core and last leaf protected. Paused weather gives no boost.`
+      : 'Lightning may snap off one outer node. The Core and last leaf are safe.';
   }
 }
 function drawNaturalClouds() {
@@ -4072,7 +4134,7 @@ function drawNaturalClouds() {
   const fade = Math.min(1, w.age / 1.5, (w.duration - w.age) / 2);
   ctx.save();
   const sky = ctx.createLinearGradient(0, 0, 0, ch);
-  sky.addColorStop(0, `rgba(8,15,27,${.75 * fade})`);
+  sky.addColorStop(0, `rgba(8,15,27,${(.25 + .1 * w.level) * fade})`);
   sky.addColorStop(1, `rgba(30,52,66,${.22 * fade})`);
   ctx.fillStyle = sky; ctx.fillRect(0, 0, cw, ch);
   for (let i = 0; i < 5; i++) {
@@ -4090,11 +4152,11 @@ function drawNaturalWeather() {
   if (w.kind === 'rain' && !reduced) {
     const fade = Math.min(1, w.age / 2, (w.duration - w.age) / 2);
     ctx.strokeStyle = `rgba(173,211,234,${.32 * fade})`; ctx.lineWidth = 1; ctx.beginPath();
-    const count = cw < 600 ? 60 : 110;
+    const count = Math.round((cw < 600 ? 35 : 65) * (.4 + w.level * .45));
     for (let i = 0; i < count; i++) {
-      const y = ((i * .414214 % 1) * (ch + 40) + w.age * (330 + i % 5 * 24)) % (ch + 40) - 20;
-      const x = ((i * .618034 % 1) * (cw + 80) - w.age * 90 % (cw + 80) + cw + 80) % (cw + 80) - 40;
-      ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 17);
+      const y = ((i * .414214 % 1) * (ch + 40) + w.age * (220 + w.level * 70 + i % 5 * 24)) % (ch + 40) - 20;
+      const x = ((i * .618034 % 1) * (cw + 80) - w.age * (40 + w.level * 35) % (cw + 80) + cw + 80) % (cw + 80) - 40;
+      ctx.moveTo(x, y); ctx.lineTo(x - (3 + w.level * 3), y + 10 + w.level * 4);
     }
     ctx.stroke();
     for (let i = 0; i < 9; i++) {
@@ -4104,10 +4166,19 @@ function drawNaturalWeather() {
     }
     ctx.globalAlpha = 1;
   }
+  if (w.kind === 'rain' && w.level >= 4 && !reduced) {
+    ctx.strokeStyle = 'rgba(209,227,220,.18)'; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i < 7; i++) {
+      const x = ((w.age * (180 + w.level * 40) + i * 131) % (cw + 160)) - 160;
+      const y = ch * (i + 1) / 8 + Math.sin(w.age * 3 + i) * 12;
+      ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 60, y - 20, x + 140, y);
+    }
+    ctx.stroke();
+  }
   const s = w.strike;
   if (s) {
     const x = sx(s.x), y = sy(s.y);
-    if (s.age < .9) {
+    if (s.age < .9 && s.cause !== 'wind') {
       ctx.globalAlpha = 1 - s.age / .9;
       ctx.shadowColor = '#a3d9ff'; ctx.shadowBlur = reduced ? 0 : 18;
       ctx.strokeStyle = '#d6edff'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
@@ -5394,7 +5465,7 @@ function creditOffline(awaySecRaw) {
   try {
     while (remaining > 0) {
       seasonEvaluationAt = cursor;
-      computeFlow(0);
+      computeFlow(0, false);
       const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
       const segment = Math.min(remaining, (nextSeasonAt(cursor) - cursor) / 1000, ...timers);
       const end = cursor + segment * 1000 + liveChallengeClockOffsetMs;
@@ -5411,7 +5482,7 @@ function creditOffline(awaySecRaw) {
     }
   } finally { seasonEvaluationAt = null; }
   advanceSpellTimers(elapsed - away);
-  computeFlow(0);
+  computeFlow(0, false);
   recordProduction(sap, resin);
   if (sap + resin > 0) {
     S.sap += sap;
@@ -6046,16 +6117,27 @@ async function processAdminActions() {
         recordHighestBalances();
         save();
         saveMeta();
+      } else if (!alreadyDone && ['rain','lightning'].includes(action.action_type)) {
+        const queue = pendingAdminWeather();
+        if (!queue.some(a => a.id === action.id)) {
+          queue.push({id:action.id, kind:action.action_type, level:rainLevel(action.weather_level)});
+          localStorage.setItem(ADMIN_WEATHER_KEY, JSON.stringify(queue));
+          if (typeof action.message === 'string' && action.message) {
+            const notices = adminNotices();
+            notices.push({change:action.action_type === 'rain' ? `${RAIN_LEVELS[rainLevel(action.weather_level)].icon} An admin sent level ${rainLevel(action.weather_level)} ${RAIN_LEVELS[rainLevel(action.weather_level)].name.toLowerCase()}.` : '⚡ An admin sent a lightning strike.', message:action.message});
+            localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
+          }
+        }
       } else if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) {
         window.__SAPLING_WIPED = true;
-        for (const key of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);
+        for (const key of [ADMIN_WEATHER_KEY, KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset', MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) localStorage.removeItem(key);
         if (action.action_type === 'delete') {
           for (const key of [LB_PLAYER_KEY, LB_CLAIM_KEY, 'sapling-leaderboard-name-v1', ADMIN_NOTICES_KEY, ADMIN_ACTIONS_KEY]) localStorage.removeItem(key);
         }
       }
       if (!alreadyDone) rememberAdminAction(action.id);
       await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_ack_admin_action`, {
-        method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_action_id: action.id })
+        method: 'POST', headers: lbHeaders(), body: JSON.stringify({ p_player_id: lbPlayerId, p_action_id: action.id })
       });
       if (!alreadyDone && (action.action_type === 'reset' || action.action_type === 'delete')) { location.reload(); return true; }
     }
@@ -7803,7 +7885,7 @@ function expeditionBaseRates() {
   const blooms = S.blooms, forced = S.forced, channeling = S.channeling, spells = S.spells;
   try {
     S.blooms = []; S.forced = false; S.channeling = false; S.spells = freshSpells();
-    computeFlow(0);
+    computeFlow(0, false);
     return { sap: Math.max(0, S.incomeS), resin: Math.max(0, S.incomeR) };
   } finally {
     S.blooms = blooms; S.forced = forced; S.channeling = channeling; S.spells = spells;
@@ -8376,7 +8458,7 @@ document.getElementById('hardreset').addEventListener('click', () => {
   if (!confirm('Really? This will wipe ALL Sapling progress. Type-equivalent of starting over from scratch.')) return;
   // Block autosave from re-writing in-memory state during the reload.
   window.__SAPLING_WIPED = true;
-  for (const k of [KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset',
+  for (const k of [ADMIN_WEATHER_KEY, KEY, KEY + '-bak', KEY + '-snap', KEY + '-prereset',
                    MKEY, MKEY + '-bak', MKEY + '-snap', MKEY + '-snapT']) {
     localStorage.removeItem(k);
   }
