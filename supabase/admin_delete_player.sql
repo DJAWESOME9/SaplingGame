@@ -1,6 +1,17 @@
 -- Run after leaderboard.sql to add or refresh the full-admin account deletion RPC.
 -- Safe to rerun on existing installations.
 
+do $$ begin
+  if to_regclass('public.player_profiles') is null
+    or to_regclass('public.admin_actions') is null
+    or to_regclass('public.deleted_players') is null
+    or to_regclass('public.leaderboard_names') is null
+    or to_regclass('public.leaderboard') is null
+    or to_regprocedure('public.is_sapling_admin()') is null then
+    raise exception 'Run supabase/leaderboard.sql before supabase/admin_delete_player.sql';
+  end if;
+end $$;
+
 create or replace function public.admin_delete_player(p_player_id uuid)
 returns void language plpgsql security definer set search_path = '' as $$
 begin

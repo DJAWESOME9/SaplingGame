@@ -559,8 +559,9 @@ async function deletePlayer() {
     }
   } catch(e) {
     const detail=e.message||'Unknown error';
-    say(/admin_delete_player|PGRST202|schema cache/i.test(detail)
-      ? 'Could not delete account: Run supabase/admin_delete_player.sql in the Supabase SQL Editor, then retry.'
+    const missingRpc=/PGRST202|Could not find the function .*admin_delete_player|admin_delete_player.*schema cache/i.test(detail);
+    say(missingRpc
+      ? `Could not delete account: Supabase does not expose admin_delete_player. Apply supabase/admin_delete_player.sql after supabase/leaderboard.sql, then retry. Details: ${detail}`
       : `Could not delete account: ${detail}`);
   }
   finally { button.disabled = false; }
