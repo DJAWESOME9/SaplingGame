@@ -31,6 +31,9 @@
   th { position:sticky; top:0; background:#101812; color:#9db89f; }
   tbody tr { cursor:pointer; }
   tbody tr:hover, tbody tr.selected { background:#1d2c20; }
+  tbody tr.multi-selected { background:#29452f; }
+  .bulkbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:10px 0; }
+  .bulkbar input { width:150px; }
   .detailgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
   .metric { border:1px solid #25302e; border-radius:8px; padding:9px; }
   .metric span { display:block; color:#8fa891; font-size:11px; }
@@ -104,7 +107,7 @@
     </div>
     <div class="card"><h2>All gear <span class="muted" id="gearCount"></span></h2><p class="muted">Adventure gear base stats and all quest reward gear. Adventure drops can roll additional stats.</p><div class="toolbar"><input id="gearSearch" placeholder="Filter gear by name or slot"><button id="refreshGearCatalog" type="button">Refresh all gear</button></div><div id="allGearList" aria-live="polite"></div></div>
     <div class="card" data-full-admin id="gearWorkshop"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Stats can range from −10,000 to 10,000; negative values reduce the equipped bug’s stats. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="-10000" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
-    <div data-full-admin class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
+    <div data-full-admin class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record. Click a row to select one player; shift-click another row to select the full visible range.</p><div id="bulkBar" class="bulkbar" hidden><strong id="selectionCount">0 selected</strong><button id="clearSelection" type="button">Clear selection</button><input id="bulkAmount" type="number" min="0" step="any" placeholder="Amount" aria-label="Bulk adjustment amount"><button data-bulk="sap:1">Grant sap</button><button data-bulk="sap:-1">Take sap</button><button data-bulk="resin:1">Grant resin</button><button data-bulk="resin:-1">Take resin</button><button data-bulk="acorns:1">Grant acorns</button><button data-bulk="acorns:-1">Take acorns</button><button data-bulk="rings:1">Grant rings</button><button data-bulk="rings:-1">Take rings</button><button data-bulk="amber:1">Grant amber</button><button data-bulk="amber:-1">Take amber</button><button id="bulkReset" class="danger" type="button">Reset selected</button><button id="bulkDelete" class="danger" type="button">Delete selected</button></div><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
     <div data-full-admin class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><select id="rainLevel" aria-label="Rain level"><option value="1">1 · Drizzle · ×1.5</option><option value="2" selected>2 · Rain · ×2</option><option value="3">3 · Mild storm · ×3</option><option value="4">4 · Bad storm · ×5</option><option value="5">5 · Hurricane · ×7</option></select><button id="rainPlayer" type="button">🌧️ Cause rainstorm</button><button id="lightningPlayer" type="button">⚡ Lightning strike</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes, weather, and messages are queued for the player's game. They appear at the next online check-in. Weather waits for active play and any current storm to finish. Rain boosts sap and resin. Levels 3–5 risk lightning; levels 4–5 also risk wind damage. Each hit can remove one outer node, protecting the Core and last leaf. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
   </section>
   <div id="message" role="status"></div>
@@ -115,7 +118,7 @@ const CONFIG = window.SAPLING_LEADERBOARD || { url:'', anonKey:'' };
 const base = (CONFIG.url || '').replace(/\/$/, '');
 const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONFIG.anonKey;
 const $ = id => document.getElementById(id);
-let token = '', players = [], selected = null, leaderboardRecords = new Map();
+let token = '', players = [], selected = null, leaderboardRecords = new Map(), selectedIds = new Set(), lastClickedId = null;
 let achievements = [], standardGear = [], questGear = [], liteCredentials = null;
 const ADMIN_SESSION_KEY = 'sapling-admin-session-v1';
 let adminSession = null, refreshingSession = null;
@@ -448,7 +451,10 @@ function render() {
   const q=$('search').value.trim().toLowerCase();
   const shown=players.filter(p => !q || `${p.display_name} ${p.player_id}`.toLowerCase().includes(q));
   $('playerCount').textContent=`(${players.length})`;
-  $('players').innerHTML=shown.map(p=>`<tr data-id="${p.player_id}" class="${selected?.player_id===p.player_id?'selected':''}"><td>${escapeHtml(p.display_name)}</td><td>${when(p.last_online_at)}</td><td>${duration(p.play_ms)}</td><td>${n(p.current_sap)}</td><td>${n(p.current_resin)}</td><td>${n(record(p,'lifetime_sap'))}</td><td>${n(record(p,'lifetime_resin'))}</td><td>${n(record(p,'gold_leaves'))}</td><td>${n(p.trees_felled)}</td><td>${escapeHtml(p.species)}</td></tr>`).join('');
+  selectedIds = new Set([...selectedIds].filter(id=>players.some(p=>p.player_id===id)));
+  $('players').innerHTML=shown.map(p=>`<tr data-id="${p.player_id}" class="${selected?.player_id===p.player_id?'selected':''} ${selectedIds.has(p.player_id)?'multi-selected':''}"><td>${escapeHtml(p.display_name)}</td><td>${when(p.last_online_at)}</td><td>${duration(p.play_ms)}</td><td>${n(p.current_sap)}</td><td>${n(p.current_resin)}</td><td>${n(record(p,'lifetime_sap'))}</td><td>${n(record(p,'lifetime_resin'))}</td><td>${n(record(p,'gold_leaves'))}</td><td>${n(p.trees_felled)}</td><td>${escapeHtml(p.species)}</td></tr>`).join('');
+  $('bulkBar').hidden=selectedIds.size===0;
+  $('selectionCount').textContent=`${selectedIds.size} selected`;
   if (!selected) { $('selectedTitle').textContent='Select a player'; $('details').innerHTML=''; return; }
   $('selectedTitle').textContent=`${selected.display_name} · ${selected.player_id}`;
   const metrics=[['Last online',when(selected.last_online_at)],['Playtime online',duration(selected.play_ms)],['Offline time',duration(selected.offline_ms)],['Current tree sap',n(selected.tree_sap)],['Current tree resin',n(selected.tree_resin)],['Peak sap / sec',n(selected.peak_sap)],['Peak resin / sec',n(selected.peak_resin)],['Highest sap base rate / sec',n(selected.peak_base_sap)],['Highest resin base rate / sec',n(selected.peak_base_resin)],['Lifetime sap (leaderboard)',n(record(selected,'lifetime_sap'))],['Lifetime resin (leaderboard)',n(record(selected,'lifetime_resin'))],['Sap produced (leaderboard)',n(record(selected,'production_sap'))],['Resin produced (leaderboard)',n(record(selected,'production_resin'))],['Highest sap held (leaderboard)',n(record(selected,'highest_held_sap'))],['Highest resin held (leaderboard)',n(record(selected,'highest_held_resin'))],['Current sap balance',n(selected.current_sap)],['Current resin balance',n(selected.current_resin)],['Gold leaves clicked (leaderboard)',n(record(selected,'gold_leaves'))],['Trees felled',n(selected.trees_felled)],['Lifetime rings',n(selected.rings)],['Current tree nodes',n(selected.node_count)],['Species',selected.species],['Account last seen',when(selected.updated_at)]];
@@ -566,6 +572,41 @@ async function deletePlayer() {
   }
   finally { button.disabled = false; }
 }
+function selectedPlayers() { return players.filter(p=>selectedIds.has(p.player_id)); }
+async function bulkRun(label, action) {
+  const targets=selectedPlayers();
+  if(!targets.length) return;
+  let done=0, failed=[];
+  for(const player of targets) {
+    try { await action(player); done++; }
+    catch(e) { failed.push(`${player.display_name}: ${e.message||'Unknown error'}`); }
+  }
+  say(`${label}: ${done} succeeded${failed.length?`, ${failed.length} failed (${failed.slice(0,3).join('; ')}${failed.length>3?'; …':''})`:''}.`);
+}
+async function bulkBalance(key, sign) {
+  const amount=Number($('bulkAmount').value);
+  if(!(amount>0) || !Number.isFinite(amount)) { say('Enter a positive amount first.'); return; }
+  const delta=amount*sign;
+  const fields={sap:[delta,0,0,0,0],resin:[0,delta,0,0,0],acorns:[0,0,delta,0,0],rings:[0,0,0,delta,0],amber:[0,0,0,0,delta]}[key];
+  const message=$('actionMessage').value.trim();
+  await bulkRun(`${sign>0?'Granted':'Removed'} ${n(amount)} ${key}`,p=>rpc('admin_apply_action_with_message',{p_player_id:p.player_id,p_action_type:'balance',p_sap_delta:fields[0],p_resin_delta:fields[1],p_acorns_delta:fields[2],p_rings_delta:fields[3],p_amber_delta:fields[4],p_message:message}));
+}
+async function bulkReset() {
+  const targets=selectedPlayers(); if(!targets.length)return;
+  if(!confirm(`Reset ${targets.length} selected accounts? This clears their current trees and persistent meta progress the next time they are online.`))return;
+  await bulkRun('Reset accounts',p=>rpc('admin_apply_action',{p_player_id:p.player_id,p_action_type:'reset',p_sap_delta:0,p_resin_delta:0,p_acorns_delta:0,p_rings_delta:0,p_amber_delta:0}));
+}
+async function bulkDelete() {
+  const targets=selectedPlayers(); if(!targets.length)return;
+  if(!confirm(`Permanently delete ${targets.length} selected accounts? This removes their leaderboard, profile, and challenge records now, and clears browser progress at the next online check-in. This cannot be undone.`))return;
+  const removed=new Set();
+  await bulkRun('Deleted accounts',async p=>{await rpc('admin_delete_player',{p_player_id:p.player_id}); removed.add(p.player_id); leaderboardRecords.delete(p.player_id);});
+  players=players.filter(p=>!removed.has(p.player_id));
+  for(const id of removed) selectedIds.delete(id);
+  if(selected && removed.has(selected.player_id)) selected=null;
+  render();
+  await refreshPlayers();
+}
 function escapeHtml(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -602,7 +643,10 @@ $('createAccount').addEventListener('click',async()=>{
     say(data.access_token?'Account created. You can sign in now.':'Check your email to confirm the account, then sign in.');
   } catch(err) { say(`Account creation failed: ${err.message}. If sign-ups are disabled, create this user in Supabase Authentication first.`); }
 });
-$('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id]');if(!row)return;selected=players.find(p=>p.player_id===row.dataset.id)||null;render();});
+$('players').addEventListener('click',e=>{const row=e.target.closest('tr[data-id]');if(!row)return;const q=$('search').value.trim().toLowerCase(), shown=players.filter(p=>!q||`${p.display_name} ${p.player_id}`.toLowerCase().includes(q)), id=row.dataset.id;
+  if(e.shiftKey&&lastClickedId){const a=shown.findIndex(p=>p.player_id===lastClickedId),b=shown.findIndex(p=>p.player_id===id);if(a>=0&&b>=0)for(const p of shown.slice(Math.min(a,b),Math.max(a,b)+1))selectedIds.add(p.player_id);else selectedIds.add(id);}
+  else {selectedIds.clear();selectedIds.add(id);}
+  lastClickedId=id;selected=players.find(p=>p.player_id===id)||null;render();});
 async function refreshQuestGear() {
   try {
     const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:await authenticatedHeaders(),cache:'no-store'});
@@ -643,10 +687,14 @@ $('challengeList').addEventListener('click',async e=>{
   catch(err) { say(`Could not end challenge: ${err.message}`); button.disabled=false; }
 });
 $('search').addEventListener('input',render);
+$('clearSelection').addEventListener('click',()=>{selectedIds.clear();lastClickedId=null;render();});
+$('bulkBar').addEventListener('click',e=>{const b=e.target.closest('button[data-bulk]');if(!b)return;const [key,sign]=b.dataset.bulk.split(':');bulkBalance(key,Number(sign));});
+$('bulkReset').addEventListener('click',bulkReset);
+$('bulkDelete').addEventListener('click',bulkDelete);
 $('achievementSearch').addEventListener('input',renderAchievements);
 $('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
-$('logout').addEventListener('click',()=>{clearAdminSession();token='';liteCredentials=null;liteSapRemovalRemaining=0;$('liteSapRemovalPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapRemovalStatus').textContent='';$('liteSapRemovalFeedback').textContent='';$('liteSapRemovalAmount').value='';updateLiteSapRemovalButton();liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('logout').addEventListener('click',()=>{clearAdminSession();token='';liteCredentials=null;liteSapRemovalRemaining=0;$('liteSapRemovalPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapRemovalStatus').textContent='';$('liteSapRemovalFeedback').textContent='';$('liteSapRemovalAmount').value='';updateLiteSapRemovalButton();liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;selectedIds.clear();lastClickedId=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
