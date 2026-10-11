@@ -7,6 +7,7 @@
 <style>
   :root { color-scheme:dark; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:#0b110d; color:#e8e4d8; }
   * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
   body { margin:0; padding:24px; }
   main { max-width:1180px; margin:auto; }
   header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px; }
@@ -64,14 +65,14 @@
   <header><h1>🌱 Sapling Admin</h1><a href="index.html" style="color:#9db89f">Back to game</a></header>
   <section class="card" id="loginCard">
     <h2>Administrator sign in</h2>
-    <p class="muted">Use the allowlisted administrator email. If you do not have a Supabase Auth account yet, create one with this email first.</p>
-    <form id="loginForm"><input id="email" type="email" autocomplete="username" placeholder="Admin email" value="djdavidfreeman@gmail.com" required><input id="password" type="password" autocomplete="current-password" placeholder="Password" required><button>Sign in</button><button id="createAccount" type="button">Create / resend account confirmation</button></form>
+    <p class="muted">Use the allowlisted administrator email, or enter AdminLite and your access code for read-only achievements, gear, and challenge history. Full administrators can create a Supabase Auth account with their allowlisted email first.</p>
+    <form id="loginForm"><input id="email" type="text" autocomplete="username" placeholder="Admin email or AdminLite" value="djdavidfreeman@gmail.com" required><input id="password" type="password" autocomplete="current-password" placeholder="Password or access code" required><button>Sign in</button><button id="createAccount" type="button">Create / resend account confirmation</button></form>
   </section>
   <section id="dashboard" hidden>
-    <div class="toolbar"><input id="search" placeholder="Filter players by name or ID"><button id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
+    <div class="toolbar"><input data-full-admin id="search" placeholder="Filter players by name or ID"><button data-full-admin id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
     <div class="card"><h2>Achievements <span class="muted" id="achievementCount"></span></h2><p class="muted">Full game achievement catalog, including secret achievements. This is a read-only view.</p><div class="toolbar"><input id="achievementSearch" placeholder="Filter achievements by name, ID, or description"><button id="refreshAchievements" type="button">Refresh achievements</button></div><div id="achievementList" aria-live="polite"></div></div>
-    <div class="card"><h2>Live challenges</h2><p class="muted">You can run several challenges at once. Publishing starts each clock immediately. Production and action goals start at zero when the challenge opens. Bug-level goals count bugs currently owned, including existing bugs. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
-      <form id="challengeForm" class="challenge-form">
+    <div class="card"><h2>Live and past challenges</h2><p data-full-admin class="muted">You can run several challenges at once. Publishing starts each clock immediately. Production and action goals start at zero when the challenge opens. Bug-level goals count bugs currently owned, including existing bugs. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
+      <form data-full-admin id="challengeForm" class="challenge-form">
         <label class="wide">Challenge title<input id="challengeTitle" maxlength="60" placeholder="Example: Forest sprint" required></label>
         <label class="wide">Description players see<input id="challengeDescription" maxlength="240" placeholder="Explain the goal in plain language" required></label>
         <div class="wide" id="challengeGoals"><div class="goal-row"><label>Goal<select class="goal-type"><option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option><option value="bug_level">Have bugs at level or higher</option></select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div></div>
@@ -96,9 +97,10 @@
       </form>
       <div id="challengeList" aria-live="polite"></div>
     </div>
-    <div class="card" id="gearWorkshop"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Stats can range from −10,000 to 10,000; negative values reduce the equipped bug’s stats. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="-10000" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
-    <div class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
-    <div class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><select id="rainLevel" aria-label="Rain level"><option value="1">1 · Drizzle · ×1.5</option><option value="2" selected>2 · Rain · ×2</option><option value="3">3 · Mild storm · ×3</option><option value="4">4 · Bad storm · ×5</option><option value="5">5 · Hurricane · ×7</option></select><button id="rainPlayer" type="button">🌧️ Cause rainstorm</button><button id="lightningPlayer" type="button">⚡ Lightning strike</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes, weather, and messages are queued for the player's game. They appear at the next online check-in. Weather waits for active play and any current storm to finish. Rain boosts sap and resin. Levels 3–5 risk lightning; levels 4–5 also risk wind damage. Each hit can remove one outer node, protecting the Core and last leaf. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
+    <div class="card"><h2>All gear <span class="muted" id="gearCount"></span></h2><p class="muted">Adventure gear base stats and all quest reward gear. Adventure drops can roll additional stats.</p><div class="toolbar"><input id="gearSearch" placeholder="Filter gear by name or slot"><button id="refreshGearCatalog" type="button">Refresh all gear</button></div><div id="allGearList" aria-live="polite"></div></div>
+    <div class="card" data-full-admin id="gearWorkshop"><h2>Quest-only gear workshop</h2><p class="muted">Create equipment for quest rewards. These pieces never drop on adventures. Stats can range from −10,000 to 10,000; negative values reduce the equipped bug’s stats. Published quests keep a copy of the stats shown here.</p><form id="gearForm" class="challenge-form"><label class="wide">Name<input id="gearName" maxlength="60" required></label><label>Slot<select id="gearSlot"><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option></select></label><label>Health<input id="gearHp" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Attack<input id="gearAttack" type="number" min="-10000" max="10000" step="1" value="0" required></label><label>Defense<input id="gearDefense" type="number" min="-10000" max="10000" step="1" value="0" required></label><button type="submit">Create quest gear</button></form><button id="refreshGear" type="button">Refresh gear catalog</button><p id="gearStatus" role="status"></p></div>
+    <div data-full-admin class="card"><h2>Players <span class="muted" id="playerCount"></span></h2><p class="muted">Last online is the player's latest successful game check-in, normally within a minute while the game is open and connected. Other profile stats refresh with that check-in. Lifetime totals and gold leaves below come from the public leaderboard record.</p><div class="tablewrap"><table><thead><tr><th>Player</th><th>Last online</th><th>Playtime</th><th>Current sap</th><th>Current resin</th><th>Lifetime sap</th><th>Lifetime resin</th><th>Gold leaves</th><th>Trees</th><th>Species</th></tr></thead><tbody id="players"></tbody></table></div></div>
+    <div data-full-admin class="card"><h2 id="selectedTitle">Select a player</h2><div class="detailgrid" id="details"></div><div class="actions"><input id="amount" type="number" min="0" step="any" placeholder="Amount"><button id="grantSap" type="button">Grant sap</button><button id="takeSap" type="button">Take sap</button><button id="grantResin" type="button">Grant resin</button><button id="takeResin" type="button">Take resin</button><button id="grantAcorns" type="button">Grant acorns</button><button id="takeAcorns" type="button">Take acorns</button><button id="grantRings" type="button">Grant rings</button><button id="takeRings" type="button">Take rings</button><button id="grantAmber" type="button">Grant amber</button><button id="takeAmber" type="button">Take amber</button><select id="rainLevel" aria-label="Rain level"><option value="1">1 · Drizzle · ×1.5</option><option value="2" selected>2 · Rain · ×2</option><option value="3">3 · Mild storm · ×3</option><option value="4">4 · Bad storm · ×5</option><option value="5">5 · Hurricane · ×7</option></select><button id="rainPlayer" type="button">🌧️ Cause rainstorm</button><button id="lightningPlayer" type="button">⚡ Lightning strike</button><button id="resetPlayer" class="danger" type="button">Reset account</button><button id="deletePlayer" class="danger" type="button">Delete account</button></div><textarea id="actionMessage" maxlength="500" rows="3" placeholder="Optional message to the player" aria-label="Message to player"></textarea><p class="muted">Balance changes, weather, and messages are queued for the player's game. They appear at the next online check-in. Weather waits for active play and any current storm to finish. Rain boosts sap and resin. Levels 3–5 risk lightning; levels 4–5 also risk wind damage. Each hit can remove one outer node, protecting the Core and last leaf. A reset clears their local run and meta progress. Deletion removes their server records now and clears this browser's game progress at its next online check-in.</p></div>
   </section>
   <div id="message" role="status"></div>
 </main>
@@ -109,7 +111,21 @@ const base = (CONFIG.url || '').replace(/\/$/, '');
 const validConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base) && !!CONFIG.anonKey;
 const $ = id => document.getElementById(id);
 let token = '', players = [], selected = null, leaderboardRecords = new Map();
-let achievements = [];
+let achievements = [], standardGear = [], questGear = [], liteCredentials = null;
+function setAccess(lite) {
+  document.querySelectorAll('[data-full-admin]').forEach(el => { el.hidden = lite; });
+  document.querySelector('h1').textContent = lite ? '🌱 Sapling Admin Lite · Read only' : '🌱 Sapling Admin';
+}
+async function loadLiteCatalog() {
+  return rpc('admin_lite_catalog', {p_login:liteCredentials.login, p_code:liteCredentials.code});
+}
+function renderGearCatalog() {
+  const q = $('gearSearch').value.trim().toLowerCase();
+  const gear = [...standardGear, ...questGear.map(g => ({...g, source:'Quest reward'}))];
+  const visible = gear.filter(g => !q || `${g.name} ${g.slot} ${g.source}`.toLowerCase().includes(q));
+  $('gearCount').textContent = `(${visible.length} / ${gear.length})`;
+  $('allGearList').innerHTML = visible.map(g => `<article class="achievement-item"><div><b>${escapeHtml(g.name)}</b><p>${escapeHtml(g.source)} · ${escapeHtml(g.slot)} · HP ${n(g.hp)} · ATK ${n(g.attack)} · DEF ${n(g.defense)}</p></div></article>`).join('') || '<p class="muted">No gear matches that filter.</p>';
+}
 function say(text) { $('message').textContent = text; }
 function headers() { return { apikey:CONFIG.anonKey, Authorization:`Bearer ${token || CONFIG.anonKey}`, 'Content-Type':'application/json' }; }
 async function rpc(name, body = {}) {
@@ -118,7 +134,7 @@ async function rpc(name, body = {}) {
   return res.status === 204 ? null : res.json();
 }
 function n(value) { const x=Number(value)||0; return x.toLocaleString(undefined,{maximumFractionDigits:2}); }
-const achievementGroups=[['normal','Achievements'],['challenge','Challenges'],['blight','Blight'],['secret','Secrets']];
+const achievementGroups=[['normal','Achievements'],['challenge','Challenges'],['quest','Quests'],['blight','Blight'],['secret','Secrets']];
 function parseAchievements(source) {
   const block=source.match(/const ACHIEVEMENTS\s*=\s*\{([\s\S]*?)\n\};/);
   if(!block) throw new Error('Could not find the game achievement catalog.');
@@ -143,7 +159,12 @@ async function refreshAchievements() {
   try {
     const res=await fetch('index.html',{cache:'no-store'});
     if(!res.ok) throw new Error(`Could not load game catalog (${res.status}).`);
-    achievements=parseAchievements(await res.text());
+    const source = await res.text();
+    achievements=parseAchievements(source);
+    const gearBlock = source.match(/const GEAR_PIECES\s*=\s*(\[[\s\S]*?\n\]);/);
+    if (!gearBlock) throw new Error('Could not find adventure gear.');
+    standardGear = JSON.parse(gearBlock[1].replace(/'([^']*)'/g, (_, value) => JSON.stringify(value))).map(([name,slot,hp,attack,defense]) => ({name,slot,hp,attack,defense,source:'Adventure'}));
+    renderGearCatalog();
     if(!achievements.length) throw new Error('No achievement definitions were found.');
     renderAchievements();
   } catch(e) { $('achievementList').innerHTML=`<p class="muted">Could not load achievements: ${escapeHtml(e.message)}</p>`; }
@@ -213,9 +234,15 @@ async function refreshPlayers() {
   }
 }
 async function refreshChallenges() {
-  await refreshQuestGear();
+  if (!liteCredentials) await refreshQuestGear();
   try {
-    const rows=await rpc('admin_list_live_challenges') || [];
+    let rows;
+    if (liteCredentials) {
+      const catalog = await loadLiteCatalog();
+      rows = catalog.challenges || [];
+      questGear = catalog.gear || [];
+      renderGearCatalog();
+    } else rows = await rpc('admin_list_live_challenges') || [];
     $('challengeList').innerHTML=rows.map(c=>{
       const active=!c.ended_at && Date.parse(c.closes_at)>Date.now();
       const first=c.first_finisher ? `First finisher: ${escapeHtml(c.first_finisher)}` : 'No finisher yet';
@@ -223,7 +250,7 @@ async function refreshChallenges() {
       const goals=Array.isArray(c.goals)&&c.goals.length?c.goals:[{type:c.target_type,target:c.target_sap}];
       const goal=goals.map(g=>g.type==='bug_level'?`Have ${n(g.target)} bugs at level ${n(g.level)} or higher`:`${n(g.target)} ${({banked_sap:'banked sap',sap:'sap made',leaf_sap:'sap made by leaves',resin:'resin made',refinery_resin:'resin made by refineries',expeditions:'expeditions completed',amber:'amber made',rings:'rings made',bugs:'bugs killed'})[g.type]||g.type}`).join(' + ');
       const reward=prefix=>['sap','resin','acorns','rings','amber'].map(k=>Number(c[`${prefix}_${k}`])?`${n(c[`${prefix}_${k}`])} ${k}`:'').filter(Boolean).concat((c[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name))).join(' + ')||'achievement only';
-      return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} ${goal} · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Every finisher: ${reward('reward')} · First bonus: ${reward('first_bonus')}</p></div>${active?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
+      return `<div class="challenge-item"><div><b>${escapeHtml(c.title)} · ${escapeHtml(status)}</b><p>${escapeHtml(c.description)} · Target ${n(c.target_sap)} ${goal} · ${n(c.completion_count)} completed · ${escapeHtml(first)}</p><p>Every finisher: ${reward('reward')} · First bonus: ${reward('first_bonus')}</p></div>${active&&!liteCredentials?`<button type="button" data-end-challenge="${escapeHtml(c.id)}">End now</button>`:''}</div>`;
     }).join('') || '<p class="muted">No challenges published yet.</p>';
   } catch(e) { $('challengeList').innerHTML=`<p class="muted">Could not load live challenges: ${escapeHtml(e.message)}</p>`; }
 }
@@ -297,11 +324,23 @@ $('loginForm').addEventListener('submit',async e=>{
   if (!validConfig) { say('Configure the Supabase project URL and public anon key in window.SAPLING_LEADERBOARD first.'); return; }
   say('Signing in…');
   try {
+    if ($('email').value.trim().toLowerCase() === 'adminlite') {
+      token = '';
+      liteCredentials = {login:$('email').value.trim(), code:$('password').value};
+      await loadLiteCatalog();
+      setAccess(true);
+      $('password').value = '';
+      $('loginCard').hidden=true; $('dashboard').hidden=false;
+      await refreshChallenges(); await refreshAchievements();
+      say('Admin Lite: read-only access to achievements, all gear, and all live and past challenges.');
+      return;
+    }
+    liteCredentials = null;
     const res=await fetch(`${base}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:CONFIG.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
     if(!res.ok) throw new Error((await res.text()).slice(0,200));
-    const session=await res.json(); token=session.access_token;
+    const session=await res.json(); token=session.access_token; setAccess(false); $('password').value='';
     $('loginCard').hidden=true; $('dashboard').hidden=false; await refreshPlayers(); await refreshChallenges(); await refreshAchievements();
-  } catch(err) { say(`Sign in failed: ${err.message}`); }
+  } catch(err) { liteCredentials = null; say(`Sign in failed: ${err.message}`); }
 });
 $('createAccount').addEventListener('click',async()=>{
   if(!validConfig){say('Configure Supabase first.');return;}
@@ -320,6 +359,7 @@ async function refreshQuestGear() {
     const res=await fetch(`${base}/rest/v1/quest_gear?select=*&order=created_at.desc`,{headers:headers(),cache:'no-store'});
     if(!res.ok) throw new Error(`Could not load gear choices (${res.status}). Sign in as an administrator and try Refresh gear catalog.`);
     const gear=await res.json();
+    questGear = gear; renderGearCatalog();
     for(const id of ['challengeRewardGear','challengeFirstGear']) {
       const old=$(id).value;
       $(id).innerHTML='<option value="">None</option>'+gear.map(g=>`<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)} · ${escapeHtml(g.slot)} · HP${g.hp>=0?'+':''}${g.hp} ATK${g.attack>=0?'+':''}${g.attack} DEF${g.defense>=0?'+':''}${g.defense}</option>`).join('');
@@ -330,6 +370,8 @@ async function refreshQuestGear() {
   } catch(err) { $('gearStatus').textContent=err.message; for(const el of document.querySelectorAll('.gearRewardHelp')) el.textContent=err.message; }
 }
 $('refreshGear').addEventListener('click',refreshQuestGear);
+$('gearSearch').addEventListener('input',renderGearCatalog);
+$('refreshGearCatalog').addEventListener('click',async()=>{ await refreshChallenges(); await refreshAchievements(); });
 $('gearForm').addEventListener('submit',async e=> {
   e.preventDefault(); const button=e.target.querySelector('button'); button.disabled=true;
   try {
@@ -355,7 +397,7 @@ $('search').addEventListener('input',render);
 $('achievementSearch').addEventListener('input',renderAchievements);
 $('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
-$('logout').addEventListener('click',()=>{token='';selected=null;players=[];$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('logout').addEventListener('click',()=>{token='';liteCredentials=null;selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
