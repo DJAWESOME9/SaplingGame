@@ -81,9 +81,10 @@
   #updateLogButton { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #updates { position:fixed; inset:0; display:none; z-index:65; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
   #updates.open { display:flex; animation:overlayIn .22s ease-out both; }
-  .updatesbox { box-sizing:border-box; width:min(440px, 100%); max-height:calc(100dvh - 40px); overflow:auto; background:#101a12; border:1px solid #4a6547; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
+  .updatesbox { box-sizing:border-box; display:flex; flex-direction:column; width:min(440px, 100%); max-height:calc(100dvh - 40px); overflow:hidden; background:#101a12; border:1px solid #4a6547; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
   .updatesbox h2 { margin:0 0 4px; color:#e7ddc4; font-size:21px; }
   .updatesbox > p { margin:0 0 16px; color:#9db89f; font-size:13px; }
+  #updateEntries { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
   .update-entry { border-top:1px solid #344735; padding:14px 0 4px; }
   .update-entry h3 { margin:0 0 5px; color:#dceade; font-size:15px; }
   .update-entry time { color:#9db89f; font-size:11px; }
@@ -1264,6 +1265,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-update-log-close-button', date:'October 10, 2026', title:'Update log is easier to close', notes:[
+    'The Back to the grove button now stays visible while you scroll through older update notes.'
+  ] },
   { id:'2026-10-10-lightning-glow', date:'October 10, 2026', title:'A brighter lightning strike', notes:[
     'Lightning now briefly lights the page with a soft blue-white glow, brighter forked bolts, and a warm glow where it strikes your tree.',
     'Reduced-motion settings keep a quiet fading strike marker without the page flash or moving debris.'
