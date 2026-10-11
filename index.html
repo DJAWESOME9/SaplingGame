@@ -749,6 +749,57 @@
     #spellTitle { font-size:22px; } .spellbook-mana { padding:12px; } .spellcard { padding:14px; } }
   @media(prefers-reduced-motion:reduce) { #spellbook.open { animation:none; } .spellcard button { transition:none; } }
 
+  /* Phone controls share predictable rows and leave the tree room to breathe. */
+  #panel .panel-close { display:none; }
+  @media (max-width:600px), (max-height:500px) and (pointer:coarse) {
+    #topbar { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px 4px;
+      padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left)); }
+    #topbar .title { display:none; }
+    #topbar .statcard { grid-column:span 2; min-width:0; padding:6px 8px; box-sizing:border-box; align-self:stretch; }
+    #topbar .statvalue { font-size:16px; overflow-wrap:anywhere; }
+    #topbar .statlabel, #topbar .statrate { font-size:11px; }
+    #reset, #trophy, #statsbtn, #lbbtn, #challengebtn, #gear { min-width:0; min-height:44px; margin:0; padding:6px 2px; font-size:14px; }
+    #topextra { grid-column:1/-1; flex-wrap:nowrap; min-width:0; gap:6px; overflow-x:auto;
+      overscroll-behavior-x:contain; pointer-events:auto; scrollbar-width:thin; }
+    #topextra > * { flex:0 0 auto; box-sizing:border-box; min-height:44px; }
+    #topextra > span { display:inline-flex; align-items:center; justify-content:center; }
+    #hint { top:calc(var(--mobile-hud-bottom,160px) + 6px); width:max-content; box-sizing:border-box;
+      max-width:calc(100vw - 24px); font-size:12px; padding:8px 12px; }
+    #toast { top:calc(var(--mobile-hud-bottom,160px) + 62px); }
+    #minidock { flex-direction:row; flex-wrap:nowrap; align-items:center; gap:6px; overflow-x:auto;
+      max-width:calc(100vw - 108px - env(safe-area-inset-left) - env(safe-area-inset-right));
+      pointer-events:auto; overscroll-behavior-x:contain; scrollbar-width:thin; padding-bottom:3px; }
+    #minidock .docklabel { display:none; }
+    #minidock button { flex:0 0 auto; min-height:44px; padding:10px 12px; font-size:13px; }
+    #panel { box-sizing:border-box; left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right));
+      width:auto; max-width:none; transform:none; bottom:calc(8px + env(safe-area-inset-bottom));
+      max-height:min(60dvh,calc(100dvh - var(--mobile-hud-bottom,160px) - 24px - env(safe-area-inset-bottom)));
+      overflow-y:auto; overscroll-behavior:contain; padding:12px; }
+    #panel h3 { position:sticky; top:-12px; z-index:1; background:#101812; padding:6px 0; flex-wrap:wrap; }
+    #panel h3 .lockbtn, #panel .panel-close { min-width:44px; min-height:44px; padding:6px; }
+    #panel .panel-close { display:block; margin-left:auto; border:1px solid #3a4a3c; border-radius:8px;
+      background:#1d2c20; color:#dceade; font-size:20px; cursor:pointer; }
+    #panel .acts button { flex:1 1 100%; min-width:0; }
+    #panel button { min-height:44px; }
+    #settings, #leaderboard, #liveChallenges, #achievements, #statspanel { max-width:calc(100vw - 20px);
+      max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overscroll-behavior:contain; }
+    #settings button, .drawer-lock, #leaderboard button, #liveChallenges button,
+    .expbox button, #seasonClose, #advanceSeason, #groveClose, #panClose, #updatesClose { min-height:44px; }
+    #settings input:not([type=range]), #settings select, #settings textarea,
+    #leaderboard input, #adventures select, #training select, #viewBugs input,
+    #introName, #usernameChoice { font-size:16px; }
+    #expeditions, #adventures, #training, #viewBugs, #bugReturns, #intro, #welcome, #updates, #usernamePrompt, #pantheon {
+      box-sizing:border-box; padding:max(12px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right))
+        max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)); overscroll-behavior:contain; }
+    .expbox { padding:14px; }
+    .expgrid { grid-template-columns:minmax(0,1fr); }
+  }
+  @media (max-height:500px) and (pointer:coarse) {
+    #topbar { grid-template-columns:repeat(12,minmax(0,1fr)); }
+    #topextra { grid-column:1/-1; }
+    #panel { max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  }
+
 </style>
 </head>
 <body>
@@ -1181,6 +1232,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-mobile-controls', date:'October 10, 2026', title:'More room to grow on mobile', notes:[
+    'Phone resource cards stay together, with larger toolbar buttons and hints placed below the toolbar. Swipe the season and boost row to reach extra controls.',
+    'The minigame dock now scrolls sideways on phones instead of stacking over the tree. Node panels have a close button and keep their header within reach while scrolling.',
+    'Menus and minigames fit small screens and safe areas better, with larger touch controls and readable inputs that avoid automatic zoom on phones.',
+    'Pinching the tree cancels leaf channeling and no longer accidentally selects or harvests a node.'
+  ] },
   { id:'2026-10-10-node-upgrade-panel-over-minigames', date:'October 10, 2026', title:'Node upgrades stay above the minigame dock', notes:[
     'The node action panel now appears above the minigame buttons when the two overlap.'
   ]},
@@ -1292,6 +1349,9 @@ const UPDATE_LOG = [
   ] },
   { id:'2026-10-07-boosts-save-immediately', date:'October 7, 2026', title:'Boosts save as soon as they activate', notes:[
     'Active gold-leaf boosts are saved immediately, so reloading right after harvesting a boost leaf will not discard the effect.'
+  ] },
+  { id:'2026-10-09-verdant-touch-boost-display', date:'October 9, 2026', title:'Verdant Touch has its own charge display', notes:[
+    'Verdant Touch charging and channel status now appear only in its dedicated HUD section, separate from Active boosts.'
   ] },
   { id:'2026-10-07-leaf-amp-upgrade-scaling', date:'October 7, 2026', title:'Higher leaf and amp upgrades cost more', notes:[
     'Leaf upgrade costs now double per level, up from ×1.8. Amplifier upgrade costs now triple per level, up from ×2.8.'
@@ -4294,6 +4354,10 @@ cv.addEventListener('pointerdown', e => {
     target: isFirstPointer ? (downHitRoot || downHit) : null,
     hitRoot: downHitRoot, hit: downHit, firstPointer: isFirstPointer };
   if (pointers.size === 2) {
+    // A two-finger gesture must never turn into a leaf hold or a tap on release.
+    if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
+    if (channelActive) endChannel();
+    activePointer.moved = true;
     const pts = [...pointers.values()];
     const ax = pts[0].x, ay = pts[0].y, bx = pts[1].x, by = pts[1].y;
     pinch = {
@@ -4378,6 +4442,13 @@ cv.addEventListener('pointerup', e => {
   }
   if (bugCarry && bugCarry.id === e.pointerId) bugCarry = null;
   pointers.delete(e.pointerId);
+  const wasPinching = !!pinch;
+  if (pointers.size < 2) pinch = null;
+  if (wasPinching) {
+    activePointer = null;
+    drag = null;
+    return;
+  }
   if (activePointer && activePointer.id === e.pointerId) {
     const wasDragged = activePointer.moved;
     const targetId = activePointer.target;
@@ -4488,6 +4559,9 @@ function lockBtn(n) {
   const on = !!n.locked;
   return `<button class="lockbtn ${on ? 'on' : ''}" data-act="lock" title="${on ? 'Unlock — allow upgrades and pruning' : 'Lock — hide upgrade buttons and prevent pruning'}">${on ? '🔒' : '🔓'}</button>`;
 }
+function panelCloseBtn() {
+  return '<button class="panel-close" type="button" data-act="close" aria-label="Close node panel">×</button>';
+}
 // Calculator (Abacus grove upgrade): annotate a purchase with what fraction of
 // the relevant bank it costs and, for sap/resin, roughly how long until you can
 // afford it at the current smoothed income. Amber has no steady income, so it
@@ -4533,7 +4607,7 @@ function buildPanel() {
     else if (hardMode() && BLIGHT_LOCKED_ROOTS[k]) body = `<div class="stats"><span class="warn">🥀 disabled in Blight mode</span></div>`;
     else if (!rootAvailable(k)) body = `<div class="stats"><span class="warn">requires ${ROOTS[r.parent].name}</span></div>`;
     else body = `<div class="acts">${actBtn('root', lvl > 0 ? 'Deepen root' : 'Unlock', lvl > 0 ? `lv ${lvl} → ${lvl + 1}` : 'permanent advancement', costRoot(k), 'amber')}</div>`;
-    panel.innerHTML = `<h3>${title}</h3><div class="stats">${r.desc}</div>${body}`;
+    panel.innerHTML = `<h3>${title}${panelCloseBtn()}</h3><div class="stats">${r.desc}</div>${body}`;
     panel.style.display = 'block';
     refreshPanel();
     return;
@@ -4589,7 +4663,7 @@ function buildPanel() {
   // When locked, hide every action that spends resources or commits a change.
   // 'burst' (harvesting a gold leaf) stays available since it's a one-shot reward.
   const visibleActs = n.locked ? acts.filter(a => !SPEND_ACTS.has((a.match(/data-act="([^"]+)"/) || [])[1])) : acts;
-  let html = `<h3>${title}${lockBtn(n)}</h3><div class="stats" id="pstats"></div><div class="acts">${visibleActs.join('')}</div>`;
+  let html = `<h3>${title}${lockBtn(n)}${panelCloseBtn()}</h3><div class="stats" id="pstats"></div><div class="acts">${visibleActs.join('')}</div>`;
   if (n.parent != null && !n.locked) {
     html += `<button class="prune" data-act="prune">Prune branch — <span class="cost-amber">+${pruneGain(n)} amber</span>
       <small>sacrifice this whole branch; its lifetime flow becomes amber</small></button>`;
@@ -4602,6 +4676,7 @@ function buildPanel() {
 function refreshPanel() {
   if (selectedRoot) {
     panel.querySelectorAll('button[data-act]').forEach(b => {
+      if (b.dataset.act === 'close') return;
       b.disabled = S.amber < parseFloat(b.dataset.cost);
       const ah = b.querySelector('.ahint');
       if (ah) ah.innerHTML = affordHint(parseFloat(b.dataset.cost), b.dataset.cur);
@@ -4666,7 +4741,7 @@ function refreshPanel() {
     }
   }
   panel.querySelectorAll('button[data-act]').forEach(b => {
-    if (b.dataset.act === 'prune') return;
+    if (b.dataset.act === 'prune' || b.dataset.act === 'close') return;
     b.disabled = b.dataset.maxed === '1' || S[b.dataset.cur] < parseFloat(b.dataset.cost);
     // Live-refresh the calculator hint (% of bank · ETA) as bank and income drift.
     const ah = b.querySelector('.ahint');
@@ -4677,6 +4752,7 @@ panel.addEventListener('click', e => {
   const b = e.target.closest('button[data-act]');
   if (!b) return;
   const act = b.dataset.act;
+  if (act === 'close') { selected = null; selectedRoot = null; buildPanel(); return; }
   if (act === 'root') { if (selectedRoot) buyRoot(selectedRoot); return; }
   if (selected == null) return;
   if (act === 'lock') { const n = N(selected); if (n) { n.locked = !n.locked; S.ms.locked = true; if (n.locked) grantAchievement('firstLock'); sfx('plink'); buildPanel(); save(); } return; }
@@ -4704,6 +4780,10 @@ const elSap = document.getElementById('sap'), elSapRate = document.getElementByI
       elAmber = document.getElementById('amber'), elAmberRate = document.getElementById('amberrate'),
       elAmberDetail = document.getElementById('amberdetail'),
       elHint = document.getElementById('hint');
+// Track the actual toolbar height as badges unlock, fonts settle, or the phone rotates.
+new ResizeObserver(entries => {
+  document.documentElement.style.setProperty('--mobile-hud-bottom', `${Math.ceil(entries[0].target.getBoundingClientRect().bottom)}px`);
+}).observe(document.getElementById('topbar'));
 elHint?.addEventListener('click', () => {
   const cur = elHint.textContent;
   if (!cur) return;
@@ -4770,7 +4850,7 @@ function hintText() {
   return '';
 }
 // ---------- Active-boost hover tooltip ----------
-// Hovering either boost badge lists every active boost: its name, remaining time, and effect.
+// Hovering either boost badge lists active gold-leaf boosts: their name, remaining time, and effect.
 let boostTipOn = false, boostTipX = 0, boostTipY = 0;
 function boostTipHTML() {
   const rows = [];
@@ -4778,11 +4858,6 @@ function boostTipHTML() {
     if (!bloomShown(x)) continue;
     const b = BLOOMS[x.kind];
     rows.push(`<div class="bt-row"><span class="bt-ico">${b.icon}</span><span class="bt-name">${b.name}</span><span class="bt-time">${Math.ceil(x.t)}s</span><span class="bt-eff">${b.descOf()}</span></div>`);
-  }
-  if (touchOwned()) {
-    const cap = touchBoostDur(), c = (S.touch && S.touch.charge) || 0, pct = Math.round(c / cap * 100);
-    if (S.channeling) rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${c.toFixed(1)}s</span><span class="bt-eff">×${touchMult().toFixed(1)} ${metaLvl('verdanttide') > 0 ? 'on all leaves' : 'on channeled leaf'}</span></div>`);
-    else rows.push(`<div class="bt-row"><span class="bt-ico">🫳</span><span class="bt-name">Verdant Touch</span><span class="bt-time">${pct >= 100 ? 'ready' : pct + '%'}</span><span class="bt-eff">${pct >= 100 ? `hold a leaf for a ${touchBoostDur()}s ×${touchMult().toFixed(1)} surge` : 'charging…'}</span></div>`);
   }
   const body = rows.length ? rows.join('') : '<div class="bt-none">No active boosts right now.</div>';
   return `<div class="bt-title">Active boosts</div>${body}`;
