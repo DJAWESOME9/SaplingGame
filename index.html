@@ -1294,6 +1294,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-lightning-sources', date:'October 10, 2026', title:'Where lightning comes from', notes:[
+    'Lightning notifications now show whether a strike came from natural weather, daily leaderboard placements, or an admin. Leaderboard strikes include the placement and board; admin messages stay attached to their strike, including after reloads. Older admin strikes show sender unknown.'
+  ]},
   { id:'2026-10-10-admin-lite-sap', date:'October 10, 2026', title:'Daily sap gifts', notes:[
     'Admin Lite can now give players a total of 100,000 sap each day. The shared allowance resets at midnight Eastern.'
   ]},
@@ -4128,10 +4131,15 @@ function randomRainLevel() {
   const roll = Math.random();
   return roll < .45 ? 1 : roll < .75 ? 2 : roll < .90 ? 3 : roll < .98 ? 4 : 5;
 }
-const naturalWeather = { level:2, hazardAt:10, lightningHits:0, windHits:0, adminId:null, next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
+function weatherSource(action) {
+  if (typeof action.source === 'string' && action.source.trim()) return action.source.trim().slice(0, 500);
+  const message = typeof action.message === 'string' ? action.message.trim() : '';
+  return message.startsWith('Daily leaderboard lightning:') ? message : `Admin (sender unknown)${message ? ' · ' + message : ''}`;
+}
+const naturalWeather = { source:'Natural weather', level:2, hazardAt:10, lightningHits:0, windHits:0, adminId:null, next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
 function savedWeather() {
-  const {level, hazardAt, lightningHits, windHits, adminId, next, kind, age, duration, struck} = naturalWeather;
-  return {level, hazardAt, lightningHits, windHits, adminId, next, kind, age, duration, struck};
+  const {level, hazardAt, lightningHits, windHits, adminId, source, next, kind, age, duration, struck} = naturalWeather;
+  return {level, hazardAt, lightningHits, windHits, adminId, source, next, kind, age, duration, struck};
 }
 function restoreWeather(data) {
   const d = data && typeof data === 'object' ? data : {};
@@ -4139,7 +4147,7 @@ function restoreWeather(data) {
   const level = rainLevel(d.level);
   const kind = d.kind === 'rain' || d.kind === 'lightning' ? d.kind : null;
   const duration = kind === 'rain' ? RAIN_LEVELS[level].seconds : kind === 'lightning' ? 8 : 0;
-  Object.assign(naturalWeather, {level, kind, duration, age:number('age', 0, duration),
+  Object.assign(naturalWeather, {source:typeof d.source === 'string' ? d.source.slice(0, 500) : d.adminId ? weatherSource(pendingAdminWeather().find(a => a.id === d.adminId) || {}) : 'Natural weather', level, kind, duration, age:number('age', 0, duration),
     next:number('next', 45 + Math.random() * 45, 360),
     hazardAt:number('hazardAt', 10, 70),
     lightningHits:Math.floor(number('lightningHits', 0, RAIN_LEVELS[level].maxLightning)),
@@ -4148,7 +4156,8 @@ function restoreWeather(data) {
   // A delivered event may still be queued if the page closed just after its save.
   if (naturalWeather.adminId && (kind === 'rain' || naturalWeather.struck)) finishAdminWeather();
 }
-function startNaturalEvent(kind, level = 2) {
+function startNaturalEvent(kind, level = 2, source = 'Natural weather') {
+  naturalWeather.source = source;
   naturalWeather.kind = kind;
   naturalWeather.age = 0;
   naturalWeather.level = rainLevel(level);
@@ -4157,7 +4166,7 @@ function startNaturalEvent(kind, level = 2) {
   naturalWeather.strike = null;
   naturalWeather.struck = false;
   const rain = RAIN_LEVELS[naturalWeather.level];
-  toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : '⚡ Thunderclouds gather above the tree.');
+  toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : `⚡ Thunderclouds gather · From: ${naturalWeather.source}`);
 }
 function illuminateLightning(x, y) {
   if (seasonMotionPreference.matches) return;
@@ -4171,6 +4180,7 @@ function illuminateLightning(x, y) {
   setTimeout(() => glow.remove(), 1200);
 }
 function strikeTree(cause = 'lightning') {
+  const attribution = cause === 'wind' ? '' : ` From: ${naturalWeather.source}.`;
   // One terminal node per strike bounds the loss, even on large upgraded trees.
   const candidates = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length &&
     (n.type !== 'leaf' || S.counts.leaf > 1));
@@ -4189,7 +4199,7 @@ function strikeTree(cause = 'lightning') {
   if (cause !== 'wind') illuminateLightning(hit.x, hit.y);
   if (protectedTree) {
     save();
-    toast(`${cause === 'wind' ? '💨 Wind gusts!' : '⚡ Lightning hits!'} The Core and your last leaf are safe.`);
+    toast(`${cause === 'wind' ? '💨 Wind gusts!' : '⚡ Lightning hits!'} The Core and your last leaf are safe.${attribution}`);
     return;
   }
   if (S.channelNode === n.id) endChannel();
@@ -4207,7 +4217,7 @@ function strikeTree(cause = 'lightning') {
   if (!seasonMotionPreference.matches) spawnBurst(hit.x, hit.y, '#d7b67b', 16, 100, .8);
   sfx('prune');
   layout(); prepareEdgeCache(); computeFlow(0); buildPanel(); save();
-  toast(cause === 'wind' ? '💨 Storm winds blew off an outer branch!' : '⚡ Lightning snapped off an outer branch!');
+  toast(cause === 'wind' ? '💨 Storm winds blew off an outer branch!' : `⚡ Lightning snapped off an outer branch!${attribution}`);
 }
 function tickNaturalEvents(dt) {
   const w = naturalWeather;
@@ -4216,7 +4226,7 @@ function tickNaturalEvents(dt) {
     if (!w.kind) {
       const queued = pendingAdminWeather()[0];
       if (queued) {
-        startNaturalEvent(queued.kind, queued.level);
+        startNaturalEvent(queued.kind, queued.level, weatherSource(queued));
         w.adminId = queued.id;
         // Rain is delivered on start; lightning stays pending until damage is saved.
         save();
@@ -4248,7 +4258,7 @@ function tickNaturalEvents(dt) {
     if (weatherBadge.textContent !== text) weatherBadge.textContent = text;
     weatherBadge.title = w.kind === 'rain'
       ? `${rain.name}: ×${rain.boost} sap and resin during active play, stacking with other buffs. Every 10s: ${Math.round(rain.lightning * 100)}% lightning chance (up to ${rain.maxLightning}), then ${Math.round(rain.wind * 100)}% wind chance (up to ${rain.maxWind}). Each hit removes at most one outer node without amber; Core and last leaf protected. Paused weather gives no boost.`
-      : 'Lightning may snap off one outer node. The Core and last leaf are safe.';
+      : `Lightning may snap off one outer node. The Core and last leaf are safe. From: ${w.source}`;
   }
 }
 function drawNaturalClouds() {
@@ -6492,7 +6502,7 @@ async function processAdminActions() {
       } else if (!alreadyDone && ['rain','lightning'].includes(action.action_type)) {
         const queue = pendingAdminWeather();
         if (!queue.some(a => a.id === action.id)) {
-          queue.push({id:action.id, kind:action.action_type, level:rainLevel(action.weather_level)});
+          queue.push({id:action.id, kind:action.action_type, level:rainLevel(action.weather_level), source:weatherSource(action)});
           localStorage.setItem(ADMIN_WEATHER_KEY, JSON.stringify(queue));
           if (typeof action.message === 'string' && action.message) {
             const notices = adminNotices();
