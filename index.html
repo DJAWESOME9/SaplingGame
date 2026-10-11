@@ -1305,6 +1305,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-faster-nests',date:'October 11, 2026',title:'Birds build nests faster',notes:[
+    'Nest building is 30% faster: sparrows take 42 seconds, robins 70 seconds, and crows 98 seconds of active play.'
+  ]},
   { id:'2026-10-11-account-name-sync', date:'October 11, 2026', title:'Account display names sync across devices', notes:[
     'Fixed account linking so your leaderboard display name follows you when you sign in on another device. If you already used cloud saves, open Account & cloud save on your original device once to link its existing name, then reconnect on your new device.',
     'Display names now save directly from the leaderboard when you finish editing or press Save display name. A confirmation shows when your name is saved, and unavailable names or connection errors stay visible so you can retry.'
@@ -3665,9 +3668,9 @@ function updateDrops(dt) {
 
 // ---------- critters: birds and insects that land on nodes and slow them ----------
 const BIRD_SPECIES = [
-  {name:'Sparrow', icon:'🐦', color:'#bc986a', seconds:90, hp:38, attack:9, defense:1, kind:4, trait:'Quick builder; light defense. Sparrow warriors gain +8 attack.'},
-  {name:'Robin', icon:'🐦', color:'#df714c', seconds:150, hp:65, attack:12, defense:3, kind:5, trait:'Sturdy and balanced. Robin warriors gain +30 health.'},
-  {name:'Crow', icon:'🐦‍⬛', color:'#7c8298', seconds:210, hp:95, attack:15, defense:6, kind:6, trait:'Slow builder; tough defense. Crow warriors gain +5 defense.'}
+  {name:'Sparrow', icon:'🐦', color:'#bc986a', seconds:42, hp:38, attack:9, defense:1, kind:4, trait:'Quick builder; light defense. Sparrow warriors gain +8 attack.'},
+  {name:'Robin', icon:'🐦', color:'#df714c', seconds:70, hp:65, attack:12, defense:3, kind:5, trait:'Sturdy and balanced. Robin warriors gain +30 health.'},
+  {name:'Crow', icon:'🐦‍⬛', color:'#7c8298', seconds:98, hp:95, attack:15, defense:6, kind:6, trait:'Slow builder; tough defense. Crow warriors gain +5 defense.'}
 ];
 function spawnCritter() {
   if (spellWardOn()) return;
