@@ -4610,9 +4610,9 @@ function draw(time) {
       const cy = py + (chew > 0 ? (Math.random() - 0.5) * chew * 3.5 * cam.scale : 0);
       ctx.beginPath(); ctx.arc(cx, cy, lr, 0, TAU);
       const leafFill = ctx.createRadialGradient(cx - lr * 0.34, cy - lr * 0.42, lr * 0.04, cx, cy, lr * 1.25);
-      leafFill.addColorStop(0, SP().outline || '#a9edaa');
+      leafFill.addColorStop(0, SP().outline || '#8adf95');
       leafFill.addColorStop(0.28, SP().tint || '#3f9e4f');
-      leafFill.addColorStop(1, SP().tint || '#245d35');
+      leafFill.addColorStop(1, SP().tint || '#3f9e4f');
       ctx.fillStyle = leafFill; ctx.fill();
       ctx.lineWidth = Math.max(1, 1.5 * cam.scale); ctx.strokeStyle = SP().outline || '#8adf95'; ctx.stroke();
       if (chew > 0) {
