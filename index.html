@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Sapling</title>
+<meta name="theme-color" content="#0b110d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sapling">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="bookmark-icon.svg?v=2">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
@@ -86,6 +91,12 @@
   #sendPlayerIdea:disabled { opacity:.6; cursor:wait; }
   #playerIdeaStatus { color:#b9c7a6; font-size:12px; line-height:1.4; margin:6px 0 0; overflow-wrap:anywhere; }
   #updateLogButton { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  #installApp, #applyAppUpdate { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:9px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  #pushNotifications { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:9px; padding:9px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  #pushStatus { color:#9db89f; font-size:11px; line-height:1.4; margin:-4px 0 8px; }
+  #installApp[hidden], #appUpdate[hidden] { display:none; }
+  #appUpdate { position:fixed; z-index:110; left:50%; bottom:max(16px,env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(420px,calc(100vw - 24px)); box-sizing:border-box; padding:12px; border:1px solid #63876a; border-radius:12px; background:#152319; color:#e5eadc; box-shadow:0 8px 28px #0008; font-size:13px; }
+  #appUpdate p { margin:0 0 8px; }
   #updates { position:fixed; inset:0; display:none; z-index:65; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
   #updates.open { display:flex; animation:overlayIn .22s ease-out both; }
   .updatesbox { box-sizing:border-box; display:flex; flex-direction:column; width:min(440px, 100%); max-height:calc(100dvh - 40px); overflow:hidden; background:#101a12; border:1px solid #4a6547; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.55); }
@@ -959,6 +970,9 @@
     <div class="lb-status" id="liveChallengeStatus" role="status"></div>
   </section>
 <div id="settings">
+  <button id="installApp" type="button" hidden>Install Sapling</button>
+  <button id="pushNotifications" type="button">🔔 Enable notifications</button>
+  <p id="pushStatus" role="status" aria-live="polite">Get important Sapling news. You can turn this off anytime.</p>
   <button id="accountOpen" type="button" style="width:100%;margin-bottom:12px">Account &amp; cloud save</button>
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
@@ -982,6 +996,7 @@
   <button id="exitblight" style="display:none">Exit Blight mode<span class="sublabel">Available after your first cut — leaving is permanent, you can't re-enter</span></button>
   <button id="hardreset">Hard reset<span class="sublabel">Erase everything — tree, rings, upgrades</span></button>
 </div>
+<aside id="appUpdate" role="status" aria-live="polite" hidden><p>A Sapling update is ready. Your progress is saved; reload to apply it.</p><button id="applyAppUpdate" type="button">Reload with update</button></aside>
   <section id="leaderboard" aria-label="Leaderboard">
   <div class="lb-content">
   <div class="drawer-heading"><div><span class="lb-kicker">The grove records</span><h3>🌿 Leaderboards</h3></div><button class="drawer-lock" type="button" aria-label="Lock leaderboard open" aria-pressed="false">🔓</button></div>
@@ -1315,6 +1330,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-installable-push',date:'October 11, 2026',title:'Install Sapling and opt in to notifications',notes:[
+    'Install Sapling from supported browsers on iPhone, iPad, Android, Mac, and Windows. On iPhone and iPad, use Safari’s Share menu and choose Add to Home Screen.',
+    'After the push service is configured, enable notifications in Settings to receive occasional grove news. Notifications require permission and internet access; iPhone and iPad notifications require the installed Home Screen app.'
+  ]},
   {id:'2026-10-11-polish-cost-scaling',date:'October 11, 2026',title:'Higher polish costs more resin',notes:[
     'The first polish still costs 35 resin. Each additional polish on a node now costs more, with the price rising faster at higher polish levels.'
   ]},
@@ -9494,6 +9513,103 @@ showUnseenUpdates();
 showAdminNotice();
 
 initAccount().then(() => { submitPlayerSnapshot(); submitLeaderboardScore(); loadLiveChallenges(); });
+// PWA install/update support. A waiting worker only activates after the player
+// chooses to reload, so an update never interrupts an active run.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  let waitingWorker = null;
+  const updateNotice = document.getElementById('appUpdate');
+  const installButton = document.getElementById('installApp');
+  let installPrompt = null;
+  const offerUpdate = registration => {
+    if (!registration?.waiting) return;
+    waitingWorker = registration.waiting;
+    updateNotice.hidden = false;
+  };
+  navigator.serviceWorker.register('./sw.js').then(registration => {
+    offerUpdate(registration);
+    registration.addEventListener('updatefound', () => {
+      const worker = registration.installing;
+      worker?.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(registration);
+      });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) registration.update().catch(() => {});
+    });
+  }).catch(error => console.warn('Sapling offline support unavailable:', error));
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (sessionStorage.getItem('sapling-pwa-reload') === '1') {
+      sessionStorage.removeItem('sapling-pwa-reload');
+      location.reload();
+    }
+  });
+  document.getElementById('applyAppUpdate').addEventListener('click', () => {
+    if (!waitingWorker) return;
+    sessionStorage.setItem('sapling-pwa-reload', '1');
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  });
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault(); installPrompt = event; installButton.hidden = false;
+  });
+  installButton.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null; installButton.hidden = true;
+  });
+  window.addEventListener('appinstalled', () => { installButton.hidden = true; });
+}
+const pushButton = document.getElementById('pushNotifications');
+const pushStatus = document.getElementById('pushStatus');
+function refreshPushControls() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    pushButton.hidden = true; pushStatus.textContent = 'Push notifications are not supported by this browser.'; return;
+  }
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios && !standalone) {
+    pushButton.hidden = true; pushStatus.textContent = 'On iPhone or iPad, add Sapling to your Home Screen first, then enable notifications here.'; return;
+  }
+  pushButton.hidden = false;
+  if (Notification.permission === 'denied') { pushButton.disabled = true; pushButton.textContent = '🔔 Notifications blocked'; pushStatus.textContent = 'Allow notifications for Sapling in your browser or device settings to turn these back on.'; return; }
+  pushButton.disabled = false;
+  pushButton.textContent = Notification.permission === 'granted' ? '🔕 Turn off notifications' : '🔔 Enable notifications';
+  if (!LEADERBOARD_CONFIG.vapidPublicKey) pushStatus.textContent = 'Notification delivery will be available after the game’s push service is configured.';
+  else pushStatus.textContent = Notification.permission === 'granted' ? 'Notifications are enabled on this device.' : 'Get important Sapling news. You can turn this off anytime.';
+}
+function base64UrlBytes(value) {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
+  return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+}
+async function syncPushSubscription(action, subscription) {
+  const res = await fetch(`${LEADERBOARD_CONFIG.url}/functions/v1/sapling-push`, {
+    method: 'POST', headers: { ...lbHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, playerId: lbDeviceId, subscription }), signal: AbortSignal.timeout(15000)
+  });
+  const result = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(result?.error || `Push setup failed (${res.status})`);
+  return result;
+}
+pushButton.addEventListener('click', async () => {
+  pushButton.disabled = true;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (Notification.permission === 'granted') {
+      const current = await registration.pushManager.getSubscription();
+      if (current) { await syncPushSubscription('unsubscribe', current.toJSON()); await current.unsubscribe(); }
+      pushStatus.textContent = 'Notifications turned off on this device.';
+    } else {
+      if (!LEADERBOARD_CONFIG.vapidPublicKey) throw new Error('Push delivery is not configured yet.');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlBytes(LEADERBOARD_CONFIG.vapidPublicKey) });
+      await syncPushSubscription('subscribe', subscription.toJSON());
+      pushStatus.textContent = 'Notifications enabled for this device.';
+    }
+  } catch (error) { pushStatus.textContent = error.message || 'Could not update notification settings.'; }
+  finally { refreshPushControls(); pushButton.disabled = false; }
+});
+refreshPushControls();
 requestAnimationFrame(frame);
 </script>
 </body>

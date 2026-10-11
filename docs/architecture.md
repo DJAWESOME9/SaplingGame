@@ -158,6 +158,36 @@ limits, calculator settings, and device verification status.
 - `sethatubby.png` is referenced by a relative path in the HTML. Preserve that path relationship or update the reference if the asset moves.
 - `.github/workflows/pages.yml` uploads the repository root as the Pages artifact. There is no build/transpile stage.
 
+### Installable web app
+
+`manifest.webmanifest` supplies the standalone app identity and existing icons for
+iOS/iPadOS, Android, macOS, and Windows browsers. `sw.js` caches the static app
+shell for offline launch and checks for changed files when the app opens or
+returns to the foreground. Supabase REST/Auth calls are excluded from caching;
+accounts, cloud saves, leaderboards, and live challenges therefore continue to
+use their existing online connection. Offline play remains local and live
+features need internet access.
+
+New service-worker versions wait until the player selects “Reload with update”
+in the in-game notice; the current game remains open until then. When changing
+the service worker or app shell, bump `CACHE_NAME` in `sw.js` so installed copies
+fetch the new shell. On iPhone/iPad, install through Safari’s Share → Add to Home
+Screen. Android and desktop Chromium browsers offer their normal install UI;
+some browsers expose it through their menu. iOS does not expose the same
+programmatic install prompt, so the in-game install button appears only on
+browsers that provide one.
+
+Web push uses the standard Push/Notifications APIs and Supabase Edge Function
+`sapling-push`. Players opt in separately on each device; iOS/iPadOS requires
+the installed Home Screen app (iOS/iPadOS 16.4 or later). Safari on macOS and
+supported Chromium browsers on Android, macOS, and Windows use the same web push
+subscription flow. Delivery is best-effort and requires platform notification
+settings to allow Sapling. Apply `supabase/web_push.sql`, deploy the function,
+set its VAPID and `PUSH_ADMIN_TOKEN` secrets, and copy the VAPID public key into
+`leaderboard-config.js` before asking players to opt in. Keep the private VAPID
+key and push admin token only in Supabase secrets. Admin sends call the function
+with action `send`; they are not exposed through the public game UI.
+
 ## Accounts and cloud saves
 
 Account leaderboard linking was installed on the configured project on October 11, 2026, including the deletion registry required by older leaderboard installations. Existing cloud accounts must reconnect on their original browser once to associate its claimed name with the account, then reconnect other devices. Names come from the shared server profile independently of the cloud progress snapshot.

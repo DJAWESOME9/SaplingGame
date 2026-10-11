@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "Sapling — Idle Tree Game",
+  "short_name": "Sapling",
+  "description": "Grow a tree, build a living production line, and grow your grove.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b110d",
+  "theme_color": "#0b110d",
+  "icons": [
+    { "src": "./favicon.png?v=2", "sizes": "64x64", "type": "image/png", "purpose": "any" },
+    { "src": "./apple-touch-icon.png?v=2", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}
