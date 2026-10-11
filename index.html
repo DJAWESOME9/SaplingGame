@@ -944,6 +944,7 @@
     <div class="lb-status" id="liveChallengeStatus" role="status"></div>
   </section>
 <div id="settings">
+  <button id="accountOpen" type="button" style="width:100%;margin-bottom:12px">Account &amp; cloud save</button>
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
@@ -1080,6 +1081,30 @@
   </div>
 </div>
 
+<style>
+#accountDialog { box-sizing:border-box; }
+#accountDialog button { min-height:44px; padding:8px 12px; margin:4px 0; border-radius:8px; background:#294331; color:#e5f2e5; border:1px solid #547258; cursor:pointer; }
+#accountDialog input { min-height:44px; font-size:16px; padding:8px; border-radius:8px; border:1px solid #547258; background:#101b13; color:#e5f2e5; }
+#accountDialog::backdrop { background:#0009; }
+</style>
+<dialog id="accountDialog" style="background:#17271c;color:#dceade;border:1px solid #547258;border-radius:16px;width:min(420px,calc(100vw - 40px));max-height:85vh;overflow:auto">
+  <h2>Account &amp; cloud save</h2>
+  <p>Keep your tree, Grove, bugs, and other progress between devices. Local saves still work offline.</p>
+  <form id="accountForm">
+    <label for="accountEmail">Email</label><input id="accountEmail" type="email" autocomplete="email" required style="display:block;width:100%;box-sizing:border-box;margin:8px 0">
+    <label for="accountPassword">Password (at least 8 characters)</label><input id="accountPassword" type="password" autocomplete="current-password" minlength="8" required style="display:block;width:100%;box-sizing:border-box;margin:8px 0">
+    <button type="submit">Sign in</button> <button id="accountCreate" type="button">Create account</button>
+  </form>
+  <div id="accountSignedIn" hidden>
+    <p id="accountIdentity"></p>
+    <button id="cloudSave" type="button">Use this device’s save</button>
+    <button id="cloudLoad" type="button">Load cloud save</button>
+    <button id="accountSignOut" type="button">Sign out</button>
+  </div>
+  <p id="accountStatus" role="status" aria-live="polite">Sign in on each device with the same account. Play on one device at a time.</p>
+  <p>After creating an account, confirm your email, then return here and sign in.</p>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
 <script src="leaderboard-config.js"></script>
 <script>
 'use strict';
@@ -1267,6 +1292,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-cloud-accounts', date:'October 10, 2026', title:'Your tree, across devices', notes:[
+    'Create an account or sign in from Settings → Account & cloud save to carry your full progress between devices.',
+    'Choose your device save or load your cloud save, then progress saves online every 30 seconds while you play. Local saves still work offline.',
+    'If another device saves newer progress, syncing pauses so you can choose which save to keep. Play on one device at a time.'
+  ] },
   { id:'2026-10-10-update-log-close-button', date:'October 10, 2026', title:'Update log is easier to close', notes:[
     'The Back to the grove button now stays visible while you scroll through older update notes.'
   ] },
@@ -5735,6 +5765,150 @@ const lbPlayerId = (() => {
   } catch (e) { return ''; }
 })();
 const lbHeaders = () => ({ apikey: LEADERBOARD_CONFIG.anonKey, Authorization: `Bearer ${LEADERBOARD_CONFIG.anonKey}`, 'Content-Type': 'application/json' });
+// ---------- accounts and private cloud saves (Supabase Auth REST) ----------
+const ACCOUNT_KEY = 'sapling-account-session-v1', CLOUD_BINDING = 'sapling-cloud-binding-v1';
+const accountDialog = document.getElementById('accountDialog');
+const accountStatus = document.getElementById('accountStatus');
+let accountSession = null, cloudRevision = null, cloudReady = false, accountBusy = false;
+function accountMessage(message) { accountStatus.textContent = message; }
+function accountView() {
+  document.getElementById('accountForm').hidden = !!accountSession;
+  document.getElementById('accountSignedIn').hidden = !accountSession;
+  document.getElementById('accountIdentity').textContent = accountSession?.user?.email || '';
+}
+async function accountRequest(path, body, method = 'POST', authenticated = false) {
+  const res = await fetch(`${LEADERBOARD_CONFIG.url}${path}`, {
+    method, headers: { apikey: LEADERBOARD_CONFIG.anonKey,
+      Authorization: `Bearer ${authenticated ? accountSession.access_token : LEADERBOARD_CONFIG.anonKey}`,
+      'Content-Type': 'application/json' },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(15000)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.msg || data?.error_description || data?.message || `Request failed (${res.status})`);
+  return data;
+}
+function storeAccount(data) {
+  accountSession = { ...data, expires_at: Date.now() + Number(data.expires_in || 3600) * 1000 };
+  localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accountSession));
+  accountView();
+}
+async function refreshAccount() {
+  // Re-read shared storage: another tab may have refreshed or signed out.
+  const stored = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+  if (!stored || stored.user.id !== accountSession?.user?.id) {
+    cloudReady = false; accountSession = null; accountView();
+    throw new Error('Please sign in again. Your local progress is safe.');
+  }
+  accountSession = stored;
+  if (accountSession.expires_at < Date.now() + 60000) {
+    storeAccount(await accountRequest('/auth/v1/token?grant_type=refresh_token', { refresh_token: accountSession.refresh_token }));
+  }
+}
+async function readCloud() {
+  await refreshAccount();
+  const rows = await accountRequest('/rest/v1/cloud_saves?select=revision,save_code,updated_at', undefined, 'GET', true);
+  return rows[0] || null;
+}
+function bindCloud(revision) {
+  cloudRevision = revision; cloudReady = true;
+  localStorage.setItem(CLOUD_BINDING, JSON.stringify({ user: accountSession.user.id, revision }));
+}
+async function checkCloud() {
+  cloudReady = false;
+  const row = await readCloud();
+  cloudRevision = row?.revision || 0;
+  const binding = JSON.parse(localStorage.getItem(CLOUD_BINDING) || 'null');
+  if (binding?.user === accountSession.user.id && binding.revision === cloudRevision) {
+    cloudReady = true;
+    accountMessage('Cloud saving is on. Progress saves every 30 seconds; use this device’s save to save now.');
+  } else {
+    accountMessage(row ? `Cloud save found (${new Date(row.updated_at).toLocaleString()}). Load it to continue, or choose this device’s save to replace it.` : 'No cloud save yet. Choose this device’s save to start cloud saving.');
+  }
+}
+async function uploadCloud(explicit = false) {
+  if (!accountSession || (!cloudReady && !explicit) || window.__SAPLING_WIPED) return;
+  await refreshAccount();
+  if (explicit) {
+    const row = await readCloud();
+    cloudRevision = row?.revision || 0;
+    if (row && !confirm('Replace the cloud save with this device’s current progress? Export a save code first if you want to keep both.')) return;
+  }
+  save(); saveMeta();
+  const revision = await accountRequest('/rest/v1/rpc/write_cloud_save', {
+    expected_revision: cloudRevision, new_save_code: makeSaveCode()
+  }, 'POST', true);
+  if (revision === null) {
+    cloudReady = false;
+    accountMessage('Another device saved newer progress. Cloud saving is paused. Load the cloud save or choose this device’s save.');
+    document.getElementById('accountOpen').textContent = 'Cloud save needs attention';
+    return;
+  }
+  bindCloud(revision);
+  document.getElementById('accountOpen').textContent = 'Account & cloud save';
+  accountMessage(`Saved to cloud at ${new Date().toLocaleTimeString()}.`);
+}
+async function accountAction(action) {
+  if (accountBusy) return;
+  accountBusy = true;
+  accountDialog.querySelectorAll('button').forEach(b => b.disabled = true);
+  try { await action(); }
+  catch (e) { accountMessage(`${e.message} Local progress is still saved on this device.`); }
+  finally { accountBusy = false; accountDialog.querySelectorAll('button').forEach(b => b.disabled = false); }
+}
+async function signInAccount(create) {
+  const form = document.getElementById('accountForm');
+  if (!form.reportValidity()) return;
+  if (!lbConfigured) throw new Error('Accounts are unavailable right now.');
+  const credentials = { email: document.getElementById('accountEmail').value.trim(), password: document.getElementById('accountPassword').value };
+  const redirect = /^https?:$/.test(location.protocol) ? `?redirect_to=${encodeURIComponent(location.origin + location.pathname)}` : '';
+  const data = await accountRequest(create ? '/auth/v1/signup' + redirect : '/auth/v1/token?grant_type=password', credentials);
+  document.getElementById('accountPassword').value = '';
+  if (!data?.access_token) { accountMessage('Check your email to confirm your account, then return here and sign in.'); return; }
+  storeAccount(data);
+  await checkCloud();
+}
+document.getElementById('accountOpen').addEventListener('click', () => { accountView(); accountDialog.showModal(); if (accountSession) accountAction(checkCloud); });
+document.getElementById('accountForm').addEventListener('submit', e => { e.preventDefault(); accountAction(() => signInAccount(false)); });
+document.getElementById('accountCreate').addEventListener('click', () => accountAction(() => signInAccount(true)));
+document.getElementById('cloudSave').addEventListener('click', () => accountAction(() => uploadCloud(true)));
+document.getElementById('cloudLoad').addEventListener('click', () => accountAction(async () => {
+  const row = await readCloud();
+  if (!row) { accountMessage('No cloud save yet. Choose this device’s save first.'); return; }
+  if (!confirm('Load cloud progress and replace this device’s current game? A local backup will be kept.')) return;
+  save(); saveMeta();
+  localStorage.setItem('sapling-cloud-local-backup-v1', makeSaveCode());
+  // Validate before binding; the existing importer preserves compatibility/offline credit.
+  const blob = JSON.parse(decodeURIComponent(escape(atob(row.save_code))));
+  if (blob.v !== 1 || !blob.save || !blob.meta) throw new Error('Invalid cloud save.');
+  JSON.parse(blob.save); JSON.parse(blob.meta);
+  bindCloud(row.revision);
+  applySaveCode(row.save_code);
+}));
+document.getElementById('accountSignOut').addEventListener('click', () => accountAction(async () => {
+  cloudReady = false;
+  try { await refreshAccount(); await accountRequest('/auth/v1/logout?scope=local', {}, 'POST', true); }
+  finally { accountSession = null; localStorage.removeItem(ACCOUNT_KEY); localStorage.removeItem(CLOUD_BINDING); accountView(); accountMessage('Signed out. Your game remains saved locally.'); }
+}));
+async function initAccount() {
+  try {
+    const callback = new URLSearchParams(location.hash.slice(1));
+    const callbackToken = callback.get('access_token');
+    if (callbackToken && callback.get('refresh_token')) {
+      // Remove credentials from the address bar before making any requests.
+      history.replaceState(null, '', location.pathname + location.search);
+      accountSession = { access_token: callbackToken };
+      const user = await accountRequest('/auth/v1/user', undefined, 'GET', true);
+      storeAccount({ access_token: callbackToken, refresh_token: callback.get('refresh_token'), expires_in: Number(callback.get('expires_in')) || 3600, user });
+      accountDialog.showModal();
+    } else {
+      accountSession = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+    }
+    accountView();
+    if (accountSession && lbConfigured) await accountAction(checkCloud);
+  } catch (e) { cloudReady = false; accountMessage('Sign in again to reconnect cloud saving.'); }
+}
+setInterval(() => { if (cloudReady && !document.hidden) accountAction(() => uploadCloud()); }, 30000);
+
 // ---------- player feature suggestions ----------
 const playerIdeaForm = document.getElementById('playerIdeaForm');
 const playerIdea = document.getElementById('playerIdea');
@@ -8931,6 +9105,7 @@ if (!META.seenIntro) openIntro();
 showUnseenUpdates();
 showAdminNotice();
 
+initAccount();
 requestAnimationFrame(frame);
 </script>
 </body>
