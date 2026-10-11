@@ -51,6 +51,12 @@ Spring discounts new-node costs and supports branch capacity. Summer gives flat 
 
 The tier-4 `seasonturning` Grove upgrade branches from Patience. `seasonAdvanceCost` charges `max(50000, ceil(3600 × baseResinRate()))`, using this tree's recorded highest unbuffed resin rate. A paid advance shifts the persistent anchor to begin the next season with a full hour, spends resin, commits the tree, and immediately saves both run and meta state.
 
+## Natural events
+
+`naturalWeather` schedules rainstorms (35–55 seconds) and lightning (8 seconds) after 45–90 seconds of active play, then waits 3–6 minutes between events. Rain is decorative. Two seconds into a lightning event, `strikeTree` removes one terminal node without an amber reward, protecting the Core and the last leaf. It updates parent links, counts, channeling, selection, critters, geometry, production, and the run save. A world-space snapshot renders the bolt at the severed branch and animates the detached piece falling away.
+
+`tickNaturalEvents` pauses for hidden tabs, foreground idle, Freeze, cuts, full-screen tree menus, and the update popup. There is no offline damage or event catchup. Weather and animation state are transient and do not alter the save schema; the removed node persists normally. `drawNaturalClouds` shades the seasonal backdrop and `drawNaturalWeather` paints rain, ripples, bolts, and debris above the tree. Reduced motion keeps cloud shading and a single fading strike marker, disabling animated rain and debris. The weather badge shows remaining active seconds and whether the event is paused.
+
 ## Subsystem landmarks
 
 | Subsystem | Main code landmarks |

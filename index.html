@@ -902,6 +902,7 @@
   <!-- Seasons and contextual items live on their own row below resources. -->
   <div id="topextra">
     <button id="seasonbtn" type="button" aria-label="Seasons" aria-haspopup="dialog">🌱 Spring</button>
+    <span id="weatherbadge" role="status" hidden title="Natural weather events" style="align-self:center;background:#172a35;border:1px solid #668ba0;color:#c8e3ef;border-radius:8px;padding:6px 10px;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;"></span>
     <span id="bloombadge" style="display:none;align-self:center;background:#3a2410;border:1px solid #b16a2a;color:#ffd29a;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:140px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <span id="touchbadge" style="display:none;align-self:center;background:#13261a;border:1px solid #4a8a5e;color:#9fe0b0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;min-width:120px;text-align:center;font-variant-numeric:tabular-nums;"></span>
     <button id="pestbtn" aria-label="Pesticide" title="Pesticide toggle" style="display:none">🧴</button>
@@ -1232,6 +1233,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-natural-events', date:'October 10, 2026', title:'Rainstorms and lightning', notes:[
+    'Occasional rainstorms roll over your tree with dark clouds, slanting rain, and ripples. A weather badge shows how long the storm will last.',
+    'Lightning can strike a branch and snap one outer node off, with a glowing bolt, splinters, and a falling branch. Lost nodes give no amber; the Core and your last leaf are protected.',
+    'Natural events pause while you are away, idle, frozen, or in a full-screen menu. Reduced-motion settings keep the storm tint and quiet strike effects without falling rain or moving debris.'
+  ] },
   { id:'2026-10-10-mobile-controls', date:'October 10, 2026', title:'More room to grow on mobile', notes:[
     'Phone resource cards stay together, with larger toolbar buttons and hints placed below the toolbar. Swipe the season and boost row to reach extra controls.',
     'The minigame dock now scrolls sideways on phones instead of stacking over the tree. Node panels have a close button and keep their header within reach while scrolling.',
@@ -3943,9 +3949,151 @@ function drawSeasonBackdrop(time) {
   }
   ctx.restore();
 }
+// ---------- natural events: active-play weather, separate from saved buffs ----------
+// Weather never catches up offline. Only actual lightning damage enters the run save.
+const weatherBadge = document.getElementById('weatherbadge');
+const naturalWeather = { next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
+function startNaturalEvent(kind) {
+  naturalWeather.kind = kind;
+  naturalWeather.age = 0;
+  naturalWeather.duration = kind === 'rain' ? 35 + Math.random() * 20 : 8;
+  naturalWeather.strike = null;
+  naturalWeather.struck = false;
+  toast(kind === 'rain' ? '🌧️ A rainstorm rolls in.' : '⚡ Thunderclouds gather above the tree.');
+}
+function strikeTree() {
+  // One terminal node per strike bounds the loss, even on large upgraded trees.
+  const candidates = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length &&
+    (n.type !== 'leaf' || S.counts.leaf > 1));
+  const onscreen = candidates.filter(n => visible(sx(n.x), sy(n.y), 0));
+  const pool = onscreen.length ? onscreen : candidates;
+  const n = pool.length ? pool[Math.floor(Math.random() * pool.length)] : N(S.rootId);
+  const parent = n.parent != null ? N(n.parent) : null;
+  const hit = parent ? curvePt(edgeCurve(n), .65) : { x:n.x, y:n.y };
+  const protectedTree = !parent;
+  // Snapshot world geometry before layout moves the surviving tree.
+  const strike = { x:hit.x, y:hit.y, age:0, bolt:Array.from({length:10}, () => Math.random() - .5),
+    debris:parent ? { x:n.x, y:n.y, dx:hit.x - n.x, dy:hit.y - n.y,
+      radius:nodeRadius(n), width:branchStrokeWidth(n), color:n.type === 'leaf' ? (SP().tint || '#3f9e4f') : '#a58458',
+      spin:(Math.random() < .5 ? -1 : 1) * .8 } : null };
+  naturalWeather.strike = strike;
+  if (protectedTree) {
+    toast('⚡ Lightning hits! The Core and your last leaf are safe.');
+    return;
+  }
+  if (S.channelNode === n.id) endChannel();
+  if (bugCarry && bugCarry.critter.nodeId === n.id) dropBug(0, 0, true);
+  for (const c of critters) {
+    if (c.nodeId !== n.id) continue;
+    c.state = 'leaving'; c.leaveX = c.x + 100; c.leaveY = c.y - 160;
+  }
+  parent.children = parent.children.filter(id => id !== n.id);
+  if (S.counts[n.type] != null) S.counts[n.type]--;
+  delete S.nodes[n.id];
+  S.pristine = false;
+  if (selected === n.id) selected = null;
+  if (bpCandidate === n.id) setBpMode(null);
+  if (!seasonMotionPreference.matches) spawnBurst(hit.x, hit.y, '#d7b67b', 16, 100, .8);
+  sfx('prune');
+  layout(); prepareEdgeCache(); computeFlow(0); buildPanel(); save();
+  toast('⚡ Lightning snapped off an outer branch!');
+}
+function tickNaturalEvents(dt) {
+  const w = naturalWeather;
+  const blocked = document.hidden || frozenOn() || cutAnim || overlayBlocksTree() ||
+    document.getElementById('updates').classList.contains('open') || Date.now() - lastInput > IDLE_AFTER_MS;
+  if (!blocked) {
+    if (!w.kind) {
+      w.next -= dt;
+      if (w.next <= 0) startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning');
+    } else {
+      w.age += dt;
+      if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); }
+      if (w.strike) w.strike.age += dt;
+      if (w.age >= w.duration) {
+        w.kind = null; w.strike = null; w.next = 180 + Math.random() * 180;
+      }
+    }
+  }
+  weatherBadge.hidden = !w.kind;
+  if (w.kind) {
+    const text = `${w.kind === 'rain' ? '🌧️ Rainstorm' : '⚡ Lightning'} · ${Math.ceil(w.duration - w.age)}s${blocked ? ' · paused' : ''}`;
+    if (weatherBadge.textContent !== text) weatherBadge.textContent = text;
+    weatherBadge.title = w.kind === 'rain' ? 'Passing rain — no production change.' : 'Lightning may snap off one outer node. The Core and last leaf are safe.';
+  }
+}
+function drawNaturalClouds() {
+  const w = naturalWeather;
+  if (!w.kind) return;
+  const fade = Math.min(1, w.age / 1.5, (w.duration - w.age) / 2);
+  ctx.save();
+  const sky = ctx.createLinearGradient(0, 0, 0, ch);
+  sky.addColorStop(0, `rgba(8,15,27,${.75 * fade})`);
+  sky.addColorStop(1, `rgba(30,52,66,${.22 * fade})`);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, cw, ch);
+  for (let i = 0; i < 5; i++) {
+    const x = cw * (i / 4) + (seasonMotionPreference.matches ? 0 : Math.sin(w.age * .08 + i) * 20);
+    const cloud = ctx.createRadialGradient(x, ch * .08, 0, x, ch * .08, cw * .32);
+    cloud.addColorStop(0, `rgba(100,120,139,${.12 * fade})`); cloud.addColorStop(1, 'rgba(70,90,110,0)');
+    ctx.fillStyle = cloud; ctx.fillRect(0, 0, cw, ch * .5);
+  }
+  ctx.restore();
+}
+function drawNaturalWeather() {
+  const w = naturalWeather, reduced = seasonMotionPreference.matches;
+  if (!w.kind) return;
+  ctx.save();
+  if (w.kind === 'rain' && !reduced) {
+    const fade = Math.min(1, w.age / 2, (w.duration - w.age) / 2);
+    ctx.strokeStyle = `rgba(173,211,234,${.32 * fade})`; ctx.lineWidth = 1; ctx.beginPath();
+    const count = cw < 600 ? 60 : 110;
+    for (let i = 0; i < count; i++) {
+      const y = ((i * .414214 % 1) * (ch + 40) + w.age * (330 + i % 5 * 24)) % (ch + 40) - 20;
+      const x = ((i * .618034 % 1) * (cw + 80) - w.age * 90 % (cw + 80) + cw + 80) % (cw + 80) - 40;
+      ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 17);
+    }
+    ctx.stroke();
+    for (let i = 0; i < 9; i++) {
+      const p = (w.age * 1.3 + i * .37) % 1;
+      ctx.globalAlpha = (1 - p) * .25 * fade;
+      ctx.beginPath(); ctx.ellipse(cw * (i + .5) / 9, ch * (.78 + (i % 3) * .07), 2 + p * 12, 1 + p * 3, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  const s = w.strike;
+  if (s) {
+    const x = sx(s.x), y = sy(s.y);
+    if (s.age < .9) {
+      ctx.globalAlpha = 1 - s.age / .9;
+      ctx.shadowColor = '#a3d9ff'; ctx.shadowBlur = reduced ? 0 : 18;
+      ctx.strokeStyle = '#d6edff'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
+      const topX = x - 60 * cam.scale;
+      ctx.moveTo(topX, -10);
+      for (let i = 1; i <= 10; i++) {
+        const p = i / 10;
+        ctx.lineTo(lerp(topX, x, p) + (i === 10 ? 0 : s.bolt[i - 1] * 65), lerp(-10, y, p));
+      }
+      ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(x - 10, y - 45); ctx.lineTo(x + 35, y - 75); ctx.lineTo(x + 20, y - 105); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, reduced ? 14 : 12 + s.age * 28, 0, TAU);
+      ctx.strokeStyle = '#efc981'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    if (s.debris && s.age < 2.5 && !reduced) {
+      const d = s.debris, t = s.age;
+      ctx.globalAlpha = Math.min(1, (2.5 - t) / .7);
+      ctx.translate(sx(d.x) + d.spin * t * 35, sy(d.y) + 80 * t * t);
+      ctx.rotate(d.spin * t);
+      ctx.strokeStyle = '#9a754c'; ctx.lineWidth = d.width * cam.scale; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(d.dx * cam.scale, d.dy * cam.scale); ctx.lineTo(0, 0); ctx.stroke();
+      ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(0, 0, d.radius * cam.scale, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
 function draw(time) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawSeasonBackdrop(time);
+  drawNaturalClouds();
 
   // soft glow at the root
   const rx = sx(0), ry = sy(0);
@@ -8315,7 +8463,9 @@ function frame(now) {
       if (!cutAnim.finalized && cutAnim.t >= cutAnim.resetAt) finalizeCut();
       if (cutAnim.t >= cutAnim.dur) cutAnim = null;
     }
+    tickNaturalEvents(dt);
     draw(time);
+    drawNaturalWeather();
     if (cutAnim) drawCutOverlay();
     refreshHud();
     refreshPanel();
