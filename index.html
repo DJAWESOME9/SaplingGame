@@ -31,10 +31,13 @@
   #topextra { display:flex; flex-basis:100%; flex-wrap:wrap; align-items:center; gap:8px 10px; pointer-events:none; }
   #seasonbtn { pointer-events:auto; flex:0 0 auto; border:1px solid #75a575; background:#16291c;
     color:#b7dfac; border-radius:8px; padding:6px 10px; min-height:32px; cursor:pointer; font-size:12px; font-variant-numeric:tabular-nums; }
-  #seasonGuide { width:min(680px, calc(100vw - 24px)); box-sizing:border-box; padding:20px;
+  #seasonGuide, #birdGuide { width:min(680px, calc(100vw - 24px)); box-sizing:border-box; padding:20px;
     max-height:calc(100dvh - 32px); overflow:auto; background:#152319; color:#e5eadc; border:1px solid #5b7658; border-radius:18px; }
-  #seasonGuide::backdrop { background:rgba(6,12,8,.84); backdrop-filter:blur(5px); }
-  #seasonClose, #advanceSeason { border:1px solid #5b7658; border-radius:8px; background:#203528; color:#e5eadc; padding:9px 12px; cursor:pointer; min-height:40px; }
+  #seasonGuide::backdrop, #birdGuide::backdrop { background:rgba(6,12,8,.84); backdrop-filter:blur(5px); }
+  #seasonClose, #advanceSeason, #birdClose { border:1px solid #5b7658; border-radius:8px; background:#203528; color:#e5eadc; padding:9px 12px; cursor:pointer; min-height:40px; }
+  #birdGuide select { width:100%; box-sizing:border-box; padding:10px; background:#101e15; color:#edf8df; border:1px solid #6b965f; border-radius:7px; }
+  #birdGuide button { min-height:40px; }
+  #birdGuide .expgrid { grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }
   #advanceSeason:disabled { opacity:.5; cursor:default; }
   #seasonCards { grid-template-columns:repeat(2,minmax(0,1fr)); }
   #seasonCards .current { border-color:var(--season-color); box-shadow:inset 0 0 0 1px var(--season-color); }
@@ -979,6 +982,7 @@
   <span class="docklabel">Minigames</span>
   <button id="pantheonbtn" title="The Pantheon — slot tree-gods for global blessings">🏛️ Pantheon</button>
   <button id="spellbookbtn" title="Spend regenerating mana on tree magic" style="display:none">📖 Spellbook</button>
+  <button id="birdbtn" style="display:none">🪺 Nests &amp; eggs</button>
   <button id="trainingbtn" style="display:none">🏋️ Training · 🌰1</button>
   <button id="adventurebtn" style="display:none">⚔️ Adventures</button>
   <button id="expeditionbtn" title="Send stored critters on expeditions" style="display:none">🧭 Expeditions</button>
@@ -1021,6 +1025,14 @@
 <div id="adventures" role="dialog" aria-modal="true" aria-labelledby="advTitle"><div class="expbox"><div class="exphead"><h2 id="advTitle">⚔️ Bug Adventures</h2><button id="advClose" type="button" aria-label="Close adventures">✕</button></div><p id="advSummary" class="expsub"></p><h3>Journeys</h3><div id="advSlots" class="expgrid"></div><h3>Your bugs &amp; equipment</h3><div id="advBugs" class="expgrid"></div></div></div>
 <div id="training" role="dialog" aria-modal="true" aria-labelledby="trainingTitle"><div class="expbox"><div class="exphead"><h2 id="trainingTitle">🏋️ Bug Training</h2><button id="trainingClose" type="button" aria-label="Close training">✕</button></div><p class="expsub">Choose a bug and pay for a session to gain one level and a little health, attack, and defense. Training costs mostly resin plus sap; every tenth target level also costs amber. Higher levels need longer sessions. Bugs cannot adventure, explore, change equipment, or be released while training. Training survives cuts and reloads, advances at your offline production rate while away, and pauses during Freeze. Returning bugs wait if the hub is full.</p><p id="trainingSummary" class="expsub" aria-live="polite"></p><div id="trainingSlots" class="expgrid"></div></div></div>
 <div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><div id="bugRoster" class="expgrid"></div></div></div>
+<dialog id="birdGuide" aria-labelledby="birdTitle">
+  <div class="exphead"><h2 id="birdTitle">🪺 Nests &amp; eggs</h2><button id="birdClose" type="button" aria-label="Close nests and eggs">✕</button></div>
+  <p class="expsub">Once you own the Bug Hub, birds can build nests. Tap a bird or use Scare away before it finishes. A finished nest slows its branch and resists swatting and pesticide: send a hub warrior at level 2 or above to fight for an egg and XP. Battles resolve immediately using health, attack, defense, and equipment; defeated warriors return safely, but that nest needs 30 seconds before another attempt. Nest-building and recovery pause while hidden, idle, or frozen. Nests survive reloads; pruning their branch or cutting the tree removes them.</p>
+  <label for="nestWarrior">Choose a warrior</label><select id="nestWarrior"></select>
+  <p id="birdResult" class="expsub" role="status"></p>
+  <h3>Birds in your tree</h3><div id="birdNests" class="expgrid"></div>
+  <h3>Raise warriors</h3><p class="expsub">Each egg hatches immediately into a level-3 warrior with species bonuses. Eggs and warriors survive cuts and reloads. Hatching needs a free hub space; warriors can train, wear equipment, explore, and adventure alongside your bugs.</p><div id="birdEggs" class="expgrid"></div>
+</dialog>
 <div id="bugReturns" role="dialog" aria-modal="true" aria-labelledby="returnsTitle"><div class="expbox"><div class="exphead"><h2 id="returnsTitle">🪲 Your hub is full</h2></div><p id="returnsSummary" class="expsub"></p><div id="returnChoices" class="expgrid"></div><button id="returnExpand" type="button" class="expcard">Expand hub</button></div></div>
 <div id="pantheon" role="dialog" aria-labelledby="panTitle">
   <div class="panbox">
@@ -1233,6 +1245,11 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-bird-nests', date:'October 10, 2026', title:'Bird nests and egg warriors', notes:[
+    'Sparrows, robins, and crows now try to nest once you own the Bug Hub. Scare them away before construction finishes; completed nests must be defeated by a hub warrior at level 2 or higher.',
+    'Win nest battles for eggs and warrior experience. Hatch eggs into strong level-3 bird warriors: sparrows favor attack, robins health, and crows defense. They share your hub and can train, equip gear, explore, and adventure.',
+    'Nests and their progress survive reloads and pause while hidden, idle, or frozen. Eggs and warriors also survive tree cuts. Pruning a nesting branch or cutting the tree clears its nest without eggs; pesticide cannot clear a finished nest.'
+  ] },
   { id:'2026-10-10-natural-events', date:'October 10, 2026', title:'Rainstorms and lightning', notes:[
     'Occasional rainstorms roll over your tree with dark clouds, slanting rain, and ripples. A weather badge shows how long the storm will last.',
     'Lightning can strike a branch and snap one outer node off, with a glowing bolt, splinters, and a falling branch. Lost nodes give no amber; the Core and your last leaf are protected.',
@@ -3500,6 +3517,11 @@ function updateDrops(dt) {
 }
 
 // ---------- critters: birds and insects that land on nodes and slow them ----------
+const BIRD_SPECIES = [
+  {name:'Sparrow', icon:'🐦', color:'#bc986a', seconds:90, hp:38, attack:9, defense:1, kind:4, trait:'Quick builder; light defense. Sparrow warriors gain +8 attack.'},
+  {name:'Robin', icon:'🐦', color:'#df714c', seconds:150, hp:65, attack:12, defense:3, kind:5, trait:'Sturdy and balanced. Robin warriors gain +30 health.'},
+  {name:'Crow', icon:'🐦‍⬛', color:'#7c8298', seconds:210, hp:95, attack:15, defense:6, kind:6, trait:'Slow builder; tough defense. Crow warriors gain +5 defense.'}
+];
 function spawnCritter() {
   if (spellWardOn()) return;
   if (critters.length >= critterCap()) return;
@@ -3512,6 +3534,7 @@ function spawnCritter() {
   const node = N(nodeId);
   const hp = 2 + Math.floor(Math.random() * 3) + rootLvl('bastion') + (hardMode() ? 2 : 0);
   critters.push({
+    species: Math.floor(Math.random()*BIRD_SPECIES.length), nested:false, retry:0,
     type: Math.random() < (hardMode() ? 0.2 : 0.55) ? 'bird' : 'bug',
     x: node.x + (Math.random() - 0.5) * 120,
     y: node.y - 140 - Math.random() * 80,
@@ -3530,6 +3553,7 @@ function scareCritters(nodeId) {
   const dmg = 1 + (metaLvl('swatpower') > 0 ? 1 : 0);
   for (const c of critters) {
     if (c.nodeId === nodeId && c.state === 'sitting') {
+      if (c.type === 'bird' && c.nested) { openBirdGuide(); return; }
       c.hp -= dmg;
       c.jolt = 1;
       if (c.hp <= 0) {
@@ -3630,7 +3654,7 @@ document.getElementById('hubUpgrade').addEventListener('click', () => {
   toast(`Critter Hub expanded to ${hubCapacity()} spaces.`);
 });
 function pickBug(x, y) {
-  return critters.find(c => c.state === 'sitting' &&
+  return critters.find(c => c.type === 'bug' && c.state === 'sitting' &&
     Math.hypot(x - sx(c.x), y - (sy(c.y) - (c.type === 'bird' ? 10 : 8) * cam.scale)) < Math.max(28, 22 * cam.scale));
 }
 function showCarriedBug(x, y) {
@@ -3668,7 +3692,7 @@ function dropBug(x, y, escaped = false) {
 function updateCritters(dt) {
   critterSpawnT -= dt;
   if (spellWardOn()) { critterSpawnT = Math.max(critterSpawnT, 5); }
-  if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); return; }
+  if (pesticideOn()) { critterSpawnT = Math.max(critterSpawnT, 5); }
   if (critterSpawnT <= 0) {
     spawnCritter();
     critterSpawnT = (35 + Math.random() * 45) * (1 + 0.4 * metaLvl('bramble')) * (1 + 0.3 * rootLvl('bastion')) * (hardMode() ? 0.45 : 1);
@@ -3695,6 +3719,15 @@ function updateCritters(dt) {
         // Critters sit indefinitely now — the only way to remove one is to scare it off.
         c.x = node.x; c.y = node.y;
         c.t += dt;
+        if (c.type === 'bird' && metaLvl('critterhub') > 0 && !document.hidden && !frozenOn() && Date.now()-lastInput <= IDLE_AFTER_MS) {
+          c.nestProgress = Math.min(BIRD_SPECIES[c.species].seconds, (c.nestProgress||0)+dt);
+          c.retry = Math.max(0,(c.retry||0)-dt);
+          if (!c.nested && c.nestProgress >= BIRD_SPECIES[c.species].seconds) {
+            c.nested = true;
+            toast(`🪺 A ${BIRD_SPECIES[c.species].name} finished its nest! Send a trained warrior from Nests & eggs.`,6000);
+            save();
+          }
+        }
         // Blight mode: a bug camped on a leaf eats it once its timer runs out.
         if (hardMode() && !spellWardOn() && c.type === 'bug' && node.type === 'leaf') {
           // chew ramps 0→1 across the warning window, driving both the gnaw
@@ -3753,6 +3786,17 @@ function drawCritters(time = 0) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(px, py - 10 * sc);
+      const bird = BIRD_SPECIES[c.species];
+      if (c.nested) {
+        ctx.strokeStyle='#a98550'; ctx.lineWidth=3*sc;
+        ctx.beginPath(); ctx.ellipse(0,9*sc,13*sc,5*sc,0,0,Math.PI); ctx.stroke();
+        ctx.fillStyle='#f6e5bb'; ctx.beginPath(); ctx.ellipse(-3*sc,9*sc,2*sc,3*sc,0,0,TAU); ctx.fill();
+      }
+      if (c.state==='sitting' && metaLvl('critterhub')>0) {
+        const progress=clamp((c.nestProgress||0)/bird.seconds,0,1);
+        ctx.fillStyle='#18251b'; ctx.fillRect(-17*sc,-26*sc,34*sc,3*sc);
+        ctx.fillStyle=c.nested?'#f0c469':bird.color; ctx.fillRect(-17*sc,-26*sc,34*sc*progress,3*sc);
+      }
       // wings
       ctx.strokeStyle = '#2a180a'; ctx.lineWidth = 2.4 * sc;
       ctx.beginPath();
@@ -3762,7 +3806,7 @@ function drawCritters(time = 0) {
       ctx.stroke();
       // body
       ctx.beginPath(); ctx.arc(0, 1.5 * sc, 4 * sc, 0, TAU);
-      ctx.fillStyle = '#3a2010'; ctx.fill();
+      ctx.fillStyle = bird.color; ctx.fill();
       // beak
       ctx.fillStyle = '#d49030';
       ctx.beginPath();
@@ -5313,6 +5357,7 @@ function save() {
     witherGraceOffset: n.witherGraceOffset || 0,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
+    birds: savedBirds(),
     v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, spells: S.spells, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, peakBuffS: S.peakBuffS || 0, peakBuffR: S.peakBuffR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, touch: { charge: Math.max(0, Number(S.touch && S.touch.charge) || 0) }, nodes }));
@@ -5444,6 +5489,7 @@ function load() {
     const n = N(id);
     if (n.type === 'leaf' && !n.giftGain && !(n.giftT > 0)) n.giftT = initialGiftT(n);
   }
+  restoreBirds(d.birds);
   declumpGiftTimers(); // spread any leaves a clumped save left ripening together
   if (!d.roots) { // pre-roots save: grandfather in whatever was already built or bought
     const a = d.amberUps || {};
@@ -7348,12 +7394,84 @@ trainingPanel.addEventListener('keydown',e=> {
   }
 });
 
+// ---------- bird nests and egg warriors ----------
+function savedBirds() {
+  return critters.filter(c=>c.type==='bird' && ['sitting','flying'].includes(c.state) && N(c.nodeId)).map(c=>({nodeId:c.nodeId,species:c.species,hp:c.hp,maxHp:c.maxHp,nestProgress:c.nestProgress||0,nested:!!c.nested,retry:c.retry||0}));
+}
+function restoreBirds(saved) {
+  critters=[];
+  for(const data of Array.isArray(saved)?saved:[]) {
+    if(!data || !N(data.nodeId) || N(data.nodeId).type==='core' || !BIRD_SPECIES[data.species] || critters.some(c=>c.nodeId===data.nodeId)) continue;
+    const maxHp=clamp(Math.floor(Number(data.maxHp)||2),2,20), progress=clamp(Number(data.nestProgress)||0,0,BIRD_SPECIES[data.species].seconds);
+    critters.push({type:'bird',nodeId:data.nodeId,species:data.species,hp:clamp(Number(data.hp)||maxHp,1,maxHp),maxHp,nestProgress:progress,nested:!!data.nested||progress===BIRD_SPECIES[data.species].seconds,retry:clamp(Number(data.retry)||0,0,30),state:'sitting',t:0,wing:0,jolt:0,x:N(data.nodeId).x,y:N(data.nodeId).y});
+  }
+}
+const birdGuide=document.getElementById('birdGuide'), birdBtn=document.getElementById('birdbtn');
+function openBirdGuide() { renderBirdGuide(); if(!birdGuide.open) birdGuide.showModal(); }
+birdBtn.addEventListener('click',openBirdGuide);
+document.getElementById('birdClose').addEventListener('click',()=>birdGuide.close());
+birdGuide.addEventListener('close',()=>birdBtn.focus());
+function renderBirdGuide() {
+  const select=document.getElementById('nestWarrior'), chosen=select.value;
+  const bugs=availableBugs().filter(b=>b.level>=2), choices=bugs.map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)} · Lv ${b.level} · ATK ${bugStats(b).attack} / DEF ${bugStats(b).defense}</option>`).join('')||'<option value="">No level-2 warriors home — train a bug first</option>';
+  if(select.innerHTML!==choices) { select.innerHTML=choices; if(bugs.some(b=>b.id===chosen)) select.value=chosen; }
+  select.disabled=!bugs.length;
+  const birds=critters.filter(c=>c.type==='bird' && c.state==='sitting' && N(c.nodeId));
+  const focus=document.activeElement, action=focus?.dataset.birdAction, node=focus?.dataset.node, species=focus?.dataset.species;
+  document.getElementById('birdNests').innerHTML=birds.map(c=> {
+    const b=BIRD_SPECIES[c.species], left=Math.max(0,b.seconds-(c.nestProgress||0));
+    return `<section class="expcard"><h3>${b.icon} ${b.name} · branch ${c.nodeId}</h3><p>${b.trait}</p><p>${c.nested?`Nest complete · ♥ ${b.hp} / ATK ${b.attack} / DEF ${b.defense}`:`Building · ${fmtAcornTimer(left*1000)} left · ${c.hp} swats remaining`}</p><button type="button" data-bird-action="${c.nested?'fight':'scare'}" data-node="${c.nodeId}" ${frozenOn()||(c.nested&&(!bugs.length||c.retry>0))?'disabled':''}>${c.nested?c.retry>0?`Recovering · ${Math.ceil(c.retry)}s`:'Fight for an egg':'Scare away'}</button></section>`;
+  }).join('')||'<p class="expsub">No birds nesting yet. Watch for the colored building bar above a visiting bird.</p>';
+  document.getElementById('birdEggs').innerHTML=BIRD_SPECIES.map((b,i)=>`<section class="expcard"><h3>${b.icon} ${b.name} eggs · ${META.birdEggs[i]}</h3><p>${b.trait.split('. ').at(-1)}</p><p>Hatches at level 3 · ♥ ${BUG_KINDS[b.kind].hp+10} / ATK ${Math.round(BUG_KINDS[b.kind].attack+2.4)} / DEF ${Math.round(BUG_KINDS[b.kind].defense+1.2)}</p><button type="button" data-bird-action="hatch" data-species="${i}" ${!META.birdEggs[i]||availableBugs().length>=hubCapacity()||frozenOn()?'disabled':''}>Hatch · 1 egg</button></section>`).join('');
+  if(action) birdGuide.querySelector(`[data-bird-action="${action}"]${node?`[data-node="${node}"]`:species?`[data-species="${species}"]`:''}`)?.focus({preventScroll:true});
+}
+function fightNest(c,b) {
+  if(!c?.nested || c.state!=='sitting' || !N(c.nodeId) || !b || b.level<2 || bugBusy(b.id) || frozenOn() || c.retry>0) return;
+  const foe=BIRD_SPECIES[c.species], stats=bugStats(b);
+  let hp=stats.hp, enemyHp=foe.hp, turns=0;
+  while(hp>0 && enemyHp>0 && turns<200) {
+    enemyHp-=Math.max(1,stats.attack-foe.defense);
+    if(enemyHp>0) hp-=Math.max(1,foe.attack-stats.defense);
+    turns++;
+  }
+  if(enemyHp<=0) {
+    META.birdEggs[c.species]++; bugXp(b,45);
+    critters.splice(critters.indexOf(c),1);
+    document.getElementById('birdResult').textContent=`${b.name} defeated the ${foe.name} in ${turns} rounds! +1 ${foe.name} egg, +45 XP. Warrior returned safely.`;
+    sfx('buy');
+  } else {
+    c.retry=30;
+    document.getElementById('birdResult').textContent=`${b.name} retreated after ${turns} rounds and returned safely. Train or equip a stronger warrior. This nest recovers for 30 active seconds.`;
+  }
+  save(); renderCritterHub(); renderBirdGuide();
+}
+birdGuide.addEventListener('click',e=> {
+  const button=e.target.closest('[data-bird-action]'); if(!button || frozenOn() || metaLvl('critterhub')<=0) return;
+  const act=button.dataset.birdAction;
+  if(act==='hatch') {
+    const species=Number(button.dataset.species), bird=BIRD_SPECIES[species];
+    if(!bird || !(META.birdEggs[species]>0) || availableBugs().length>=hubCapacity()) return;
+    const b=makeBug(); b.kind=bird.kind; b.name=BUG_KINDS[b.kind].name; b.level=3; b.hpBonus=0; b.attackBonus=0; b.defenseBonus=0;
+    META.birdEggs[species]--; META.critterHub.roster.push(b); syncHubBugs();
+    document.getElementById('birdResult').textContent=`${b.name} hatched at level 3 and joined the hub!`;
+    saveMeta(); renderCritterHub(); renderBirdGuide(); sfx('buy');
+  } else {
+    const c=critters.find(c=>c.type==='bird' && c.nodeId===Number(button.dataset.node) && c.state==='sitting');
+    if(!c) return;
+    if(act==='fight') fightNest(c,META.critterHub.roster.find(b=>b.id===document.getElementById('nestWarrior').value));
+    else if(act==='scare' && !c.nested) { scareCritters(c.nodeId); save(); renderBirdGuide(); }
+  }
+});
+
 // ---------- bug roster, gear, and adventures (persistent across trees) ----------
 const BUG_KINDS = [
   {name:'Ladybug', icon:'🐞', hp:44, attack:10, defense:4},
   {name:'Beetle', icon:'🪲', hp:50, attack:9, defense:5},
   {name:'Ant', icon:'🐜', hp:42, attack:11, defense:3},
-  {name:'Moth', icon:'🦋', hp:46, attack:10, defense:3}
+  {name:'Moth', icon:'🦋', hp:46, attack:10, defense:3},
+  {name:'Sparrow Warrior', icon:'🐦', hp:48, attack:18, defense:3},
+  {name:'Robin Warrior', icon:'🐦', hp:78, attack:11, defense:4},
+  {name:'Crow Warrior', icon:'🐦‍⬛', hp:52, attack:12, defense:8}
 ];
 const GEAR_PIECES = [
   ['Thorn Lance','weapon',0,4,0], ['Twig Saber','weapon',2,3,0], ['Stinger Pike','weapon',0,5,0],
@@ -7377,7 +7495,7 @@ const ADVENTURE_ROUTES = [
   {name:'Ancient Heartwood', seconds:3600, foes:['centipede','fungus','wasp','frog','guardian'], tier:5, sap:[2,4], resin:[2,3], ring:true, acorn:true}
 ];
 function makeBug() {
-  const kind = Math.floor(Math.random()*BUG_KINDS.length);
+  const kind = Math.floor(Math.random()*4); // Wild captures remain insects; birds come from eggs.
   return {id:crypto.randomUUID(), kind, name:BUG_KINDS[kind].name, level:1, xp:0, hpBonus:Math.floor(Math.random()*5), attackBonus:Math.floor(Math.random()*3), defenseBonus:Math.floor(Math.random()*2), gear:{}};
 }
 function ensureAdventures() {
@@ -7406,6 +7524,7 @@ function ensureAdventures() {
     if(typeof b.name!=='string'||!b.name.trim()) b.name=BUG_KINDS[b.kind].name;
   }
   ensureTraining();
+  META.birdEggs=BIRD_SPECIES.map((_,i)=>Math.max(0,Math.floor(Number(META.birdEggs?.[i])||0)));
   syncHubBugs();
   while(availableBugs().length>hubCapacity()) {
     const b=availableBugs().at(-1), at=h.roster.indexOf(b);
@@ -7841,6 +7960,8 @@ function refreshMiniDock() {
   adventureBtn.textContent = `⚔️ Adventures${META.adventures.entries.some(a=>a && a.enemyHp!==null)?' · enemy!':META.adventures.entries.some(Boolean)?' · active':''}`;
   expeditionBtn.style.display = showExpeditions ? '' : 'none';
   if (showExpeditions) expeditionBtn.textContent = `🧭 Expeditions${META.expeditions.entries.some(x => x && x.active) ? ' · active' : ''}`;
+  birdBtn.style.display = metaLvl('critterhub') > 0 ? '' : 'none';
+  birdBtn.textContent = `🪺 Nests & eggs${critters.some(c=>c.nested && c.state==='sitting')?' · nest!':''}${META.birdEggs.some(n=>n>0)?' · eggs':''}`;
   const showTraining = showExpeditions || META.training.slots>0;
   trainingBtn.style.display = showTraining ? '' : 'none';
   trainingBtn.textContent = `🏋️ Training${META.training.slots===0?' · 🌰1':META.training.entries.some(Boolean)?' · active':''}`;
@@ -8018,7 +8139,7 @@ pestBtn?.addEventListener('click', () => {
     // Sweep every bug currently sitting on the tree — they flee immediately.
     let routed = 0;
     for (const c of critters) {
-      if (c.state !== 'leaving') {
+      if (c.state !== 'leaving' && !c.nested) {
         c.state = 'leaving';
         c.leaveX = c.x + (Math.random() - 0.5) * 240;
         c.leaveY = c.y - 200 - Math.random() * 100;
@@ -8363,6 +8484,7 @@ function frame(now) {
     if (channelSeconds > 0) accrueChallengeWindow(liveChallengeNow() - channelSeconds * 1000, liveChallengeNow(), {channel:1}, true);
     if (!frame.eventHudAt || Date.now() - frame.eventHudAt >= 1000) {
       frame.eventHudAt = Date.now(); renderEventHud();
+      if (birdGuide.open) renderBirdGuide();
       if (spellPanel.classList.contains('open')) renderSpellbook();
       if (expeditionPanel.classList.contains('open')) renderExpeditions();
     }
