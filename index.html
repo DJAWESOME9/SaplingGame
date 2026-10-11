@@ -65,6 +65,12 @@
     background:rgba(16,24,18,.96); border:1px solid #2e3f31; border-radius:12px; padding:12px 14px;
     backdrop-filter:blur(6px); }
   #settings.open { display:block; animation:drawerIn .18s cubic-bezier(.2,.75,.25,1) both; }
+  #playerIdeaForm { border-top:1px solid #3c5340; border-bottom:1px solid #3c5340; padding:10px 0; margin:4px 0 10px; }
+  #playerIdeaForm label { display:block; color:#dceade; font-size:13px; margin-bottom:6px; }
+  #playerIdea { box-sizing:border-box; width:100%; min-height:80px; resize:vertical; background:#101f18; color:#dceade; border:1px solid #3c5340; border-radius:8px; padding:8px; font:inherit; font-size:13px; }
+  #sendPlayerIdea { width:100%; margin-top:6px; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:9px; cursor:pointer; }
+  #sendPlayerIdea:disabled { opacity:.6; cursor:wait; }
+  #playerIdeaStatus { color:#b9c7a6; font-size:12px; line-height:1.4; margin:6px 0 0; overflow-wrap:anywhere; }
   #updateLogButton { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #updates { position:fixed; inset:0; display:none; z-index:65; align-items:center; justify-content:center; padding:20px 12px; background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
   #updates.open { display:flex; animation:overlayIn .22s ease-out both; }
@@ -935,6 +941,12 @@
   <button id="restore">Restore backup</button>
   <button id="showintro" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">📖 Show intro</button>
   <button id="updateLogButton" type="button">📋 Update log</button>
+  <form id="playerIdeaForm">
+    <label for="playerIdea">Suggest a feature</label>
+    <textarea id="playerIdea" maxlength="1000" required placeholder="What would you like to see in Sapling?" aria-describedby="playerIdeaStatus"></textarea>
+    <button id="sendPlayerIdea" type="submit">Send suggestion</button>
+    <p id="playerIdeaStatus" role="status" aria-live="polite">Share up to 1,000 characters with the developer. Your player name is included.</p>
+  </form>
   <button id="resetMenuPositions" type="button" style="width:100%;background:#1d2c20;border:1px solid #3c5340;color:#dceade;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;margin-bottom:8px;">Reset menu positions</button>
   <textarea id="savecode" spellcheck="false" placeholder="Save code · Export to copy, paste here and Import to load"></textarea>
   <div class="saverow"><button id="exportSave">Export</button><button id="importSave">Import</button></div>
@@ -1245,6 +1257,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-player-ideas', date:'October 10, 2026', title:'Share your ideas', notes:[
+    'Settings now has a Suggest a feature form. Send your ideas to the developer without leaving the game.',
+    'Suggestions require an internet connection. If sending fails, your text stays in the form so you can try again.'
+  ] },
   { id:'2026-10-10-admin-weather', date:'October 10, 2026', title:'Five levels of rain: risk and reward', notes:[
     'Rain now comes in five levels: drizzle (×1.5), rain (×2), mild storm (×3), bad storm (×5), and hurricane (×7). Rain boosts sap and resin during active play and stacks with your other production buffs.',
     'Mild storms can summon lightning. Bad storms and hurricanes can also bring wind that blows off outer branches. Higher levels bring heavier rain, stronger boosts, and greater risk. Each hit removes at most one outer node without amber; the Core and your last leaf stay safe.',
@@ -5661,6 +5677,52 @@ const lbPlayerId = (() => {
   } catch (e) { return ''; }
 })();
 const lbHeaders = () => ({ apikey: LEADERBOARD_CONFIG.anonKey, Authorization: `Bearer ${LEADERBOARD_CONFIG.anonKey}`, 'Content-Type': 'application/json' });
+// ---------- player feature suggestions ----------
+const playerIdeaForm = document.getElementById('playerIdeaForm');
+const playerIdea = document.getElementById('playerIdea');
+const sendPlayerIdea = document.getElementById('sendPlayerIdea');
+const playerIdeaStatus = document.getElementById('playerIdeaStatus');
+playerIdeaForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (sendPlayerIdea.disabled) return;
+  const idea = playerIdea.value.trim();
+  if (idea.length < 5 || idea.length > 1000) {
+    playerIdeaStatus.textContent = 'Please describe your idea in 5–1,000 characters.';
+    return;
+  }
+  if (!lbConfigured || !lbPlayerId) {
+    playerIdeaStatus.textContent = 'Suggestions are unavailable right now. Please keep your idea and try again later.';
+    return;
+  }
+  sendPlayerIdea.disabled = true;
+  playerIdea.readOnly = true;
+  playerIdeaStatus.textContent = 'Sending your suggestion…';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/submit_player_idea`, {
+      method:'POST', headers:lbHeaders(), signal:controller.signal,
+      body:JSON.stringify({ p_player_id:lbPlayerId, p_display_name:(lbName.value.trim() || 'Sapling').slice(0,20), p_idea:idea })
+    });
+    const result = await res.json().catch(() => null);
+    if (!res.ok || typeof result !== 'string') {
+      if (result && result.message === 'Idea limit reached') {
+        playerIdeaStatus.textContent = 'Please wait a minute between ideas. You can send up to five per day.';
+        return;
+      }
+      throw new Error('Suggestion unavailable');
+    }
+    playerIdea.value = '';
+    playerIdeaStatus.textContent = 'Thanks! Your suggestion was sent to the developer.';
+  } catch (err) {
+    playerIdeaStatus.textContent = 'Could not confirm delivery. Your idea is still here; check your connection and try again.';
+  } finally {
+    clearTimeout(timeout);
+    sendPlayerIdea.disabled = false;
+    playerIdea.readOnly = false;
+    if (settings.classList.contains('open')) placeSettings();
+  }
+});
 async function loadLeaderboard() {
   if (!lbConfigured) return;
   const board = LB_BOARDS[selectedLeaderboard];

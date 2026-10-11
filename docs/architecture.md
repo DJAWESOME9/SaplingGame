@@ -92,6 +92,8 @@ The tier-4 `seasonturning` Grove upgrade branches from Patience. `seasonAdvanceC
 
 ## Persistence and compatibility
 
+Settings → Suggest a feature posts 5–1,000 characters and the player's display name/browser ID to `submit_player_idea`. `supabase/player_ideas.sql` installs the private `player_ideas` inbox, admin-only read policy, and validated submission endpoint. It limits each browser ID to one idea per minute and five per rolling 24 hours; browser IDs can be replaced, so this is a courtesy limit rather than authenticated abuse protection. Failed requests retain the form text. The inbox is independent of game saves. The developer's local chat automation runs at 5 AM, 11 AM, and 5 PM Eastern, skipping the overnight sync. It reads pending rows through the connected Supabase tool, then passes a JSON array to `tools/sync_player_ideas.py` on stdin. That helper appends escaped text beneath Player Ideas in the verified Apple Notes note, preserves other sections, checks for concurrent edits, and confirms UUID markers for retry deduplication. The automation sets `note_synced_at` only for confirmed IDs. It requires the Mac and Codex to be running with Notes access; pending submissions stay in Supabase while the local sync is unavailable. The static game contains no Notes credentials or private database keys.
+
 The game stores two JSON records in browser `localStorage`:
 
 | Key | Contents | Recovery |
