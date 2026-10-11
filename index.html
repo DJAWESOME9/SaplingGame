@@ -29,8 +29,8 @@
   #goOffline { position:fixed; z-index:60; right:max(20px,env(safe-area-inset-right)); bottom:max(108px,calc(88px + env(safe-area-inset-bottom))); border:1px solid #60745a; border-radius:10px; background:rgba(18,29,20,.94); color:#dceade; box-shadow:0 5px 18px #0009; padding:10px 14px; min-height:44px; font:600 13px/1.2 ui-sans-serif,system-ui,sans-serif; cursor:pointer; }
   #goOffline:hover { border-color:#9fd9a8; color:#f0f7e8; }
   #goOffline[hidden], #offlineDim[hidden] { display:none; }
-  #offlineDim { position:fixed; inset:0; z-index:61; display:flex; align-items:flex-end; justify-content:center; box-sizing:border-box; padding:24px 16px max(24px,env(safe-area-inset-bottom)); background:rgba(0,0,0,.66); color:#e1e8d7; text-align:center; cursor:pointer; user-select:none; }
-  #offlineDim span { padding:10px 14px; border:1px solid #4d614a; border-radius:10px; background:rgba(13,21,14,.88); font-size:14px; }
+  #offlineDim { position:fixed; inset:0; z-index:61; display:flex; align-items:center; justify-content:center; box-sizing:border-box; padding:24px 16px max(24px,env(safe-area-inset-bottom)); background:#0b110d; color:#e1e8d7; text-align:center; cursor:pointer; user-select:none; }
+  #offlineDim span { max-width:360px; padding:18px 22px; border:1px solid #4d614a; border-radius:14px; background:#101a12; font-size:15px; line-height:1.5; box-shadow:0 8px 28px #0008; }
   @media(max-width:600px) { #goOffline { right:max(12px,env(safe-area-inset-right)); bottom:max(106px,calc(88px + env(safe-area-inset-bottom))); } }
   #critterHub.open { display:flex; }
   #critterHub.minimized { width:42px!important; height:42px!important; font-size:9px; }
@@ -868,7 +868,7 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="goOffline" type="button" aria-label="Go offline">🌙 Go offline</button>
-<div id="offlineDim" role="button" tabindex="0" aria-label="Return online" hidden><span>🌙 Offline grove · click or tap anywhere to return</span></div>
+<div id="offlineDim" role="button" tabindex="0" aria-label="Return online" hidden><span><strong>🌙 Offline mode</strong><br>Your grove is resting. Tap anywhere to return and collect offline production.</span></div>
 <div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubMin" title="Minimize critter hub">−</button></span></div>
 <div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubAdventures" type="button">View bugs</button><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
 <div id="carriedBug" aria-hidden="true">🪲</div>
@@ -1366,6 +1366,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-offline-session-rest',date:'October 11, 2026',title:'Offline mode now rests the grove',notes:[
+    'Going offline now pauses the live grove and hides its activity. Your capped offline production is applied when you return, with a Welcome Back earnings summary.'
+  ]},
   {id:'2026-10-11-grove-bough-upgrades',date:'October 11, 2026',title:'Two new Grove upgrades',notes:[
     'Mighty Boughs adds branch capacity deeper in the Deep Canopy path. Sun Crown boosts leaf production beyond Starfall.'
   ]},
@@ -5759,7 +5762,7 @@ const offlineCapSecNow = () => (4 + 4 * S.roots.heartwood + 2 * metaLvl('enduran
 // from the main loop / visibilitychange when the tab was suspended without a
 // reload (laptop asleep, tab backgrounded) — those paths never re-run load(),
 // so without this the tree earned nothing while the JS clock was frozen.
-function creditOffline(awaySecRaw) {
+function creditOffline(awaySecRaw, manual = false) {
   // Offline catchup advances production and spell timers, but mana only refills
   // while the game is open. Re-anchor the clock so the next frame cannot credit
   // this same away interval as foreground regeneration.
@@ -5770,7 +5773,7 @@ function creditOffline(awaySecRaw) {
   advanceTraining(Math.max(0,(Date.now()-META.training.lastTickAt)/1000)*offlineRateNow());
   advanceAdventures(Math.max(0,(Date.now()-META.adventures.lastTickAt)/1000)*offlineRateNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
-  if (away <= 30) { if(!frozenOn()) for(const b of activeBlooms()) if(b.kind==='festival') b.t=Math.max(0,b.t-elapsed); advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
+  if (away <= 30 && !manual) { if(!frozenOn()) for(const b of activeBlooms()) if(b.kind==='festival') b.t=Math.max(0,b.t-elapsed); advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   const rate = offlineRateNow();
@@ -5811,13 +5814,13 @@ function creditOffline(awaySecRaw) {
   }
   const acornsRipened = acornsRipe() - beforeAcorns;
   const expeditionNews = advanceExpeditions(expeditionElapsed * offlineRateNow());
-  showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs, expeditionNews });
+  showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs, expeditionNews }, manual);
 }
 // Fill and open the Welcome Back popup. Shared by the away paths (creditOffline)
 // and the foreground-idle path, which both produce a lump summary on return.
-function showWelcomeBack(s) {
-  if (!s || s.away < 30) return;
-  if (s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0 && !(s.expeditionNews || []).length) return;
+function showWelcomeBack(s, force = false) {
+  if (!s || (!force && s.away < 30)) return;
+  if (!force && s.sap + s.resin <= 0 && s.acornsRipened <= 0 && s.growthMs <= 0 && !(s.expeditionNews || []).length) return;
   const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   set('wbDur', `You were away for ${fmtAcornTimer(s.away * 1000)}.${s.credited < s.away ? ` Earnings capped at ${fmtAcornTimer(s.credited * 1000)}.` : ''}`);
   set('wbSap', fmt(s.sap));
@@ -6179,7 +6182,7 @@ async function initAccount() {
     if (accountSession && lbConfigured) await accountAction(() => checkCloud(true));
   } catch (e) { cloudReady = false; accountMessage('Sign in again to reconnect cloud saving.'); }
 }
-setInterval(() => { if (cloudReady && !document.hidden) accountAction(() => uploadCloud()); }, 30000);
+setInterval(() => { if (!offlineModeRequested && cloudReady && !document.hidden) accountAction(() => uploadCloud()); }, 30000);
 
 // ---------- player feature suggestions ----------
 const playerIdeaForm = document.getElementById('playerIdeaForm');
@@ -6746,11 +6749,12 @@ async function submitPlayerSnapshot() {
   } catch (e) { /* Online profile reporting is best-effort. */ }
 }
 setInterval(() => {
+  if (offlineModeRequested) return;
   submitPlayerSnapshot();
   submitLeaderboardScore();
 }, 60000);
-setInterval(loadLiveChallenges, 60000);
-window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
+setInterval(() => { if (!offlineModeRequested) loadLiveChallenges(); }, 60000);
+window.addEventListener('beforeunload', () => { if (!offlineModeRequested) submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
 async function saveLeaderboardName() {
   const button = document.getElementById('lbNameSave');
@@ -9206,7 +9210,7 @@ document.addEventListener('pointerdown', e => {
   }
 });
 // Keep the open drawer live while the numbers tick up.
-setInterval(() => { if (statsPanel.classList.contains('open')) renderStats(); }, 1000);
+setInterval(() => { if (!offlineModeRequested && statsPanel.classList.contains('open')) renderStats(); }, 1000);
 document.getElementById('exitblight')?.addEventListener('click', () => {
   if (!hardMode() || (META.treesCut || 0) < 1) return;
   if (!confirm('Leave Blight mode? Critters calm down, the leaf tax lifts, and codes work again — but this is permanent. You can never re-enter Blight mode on this save (only a full hard reset starts a new one).')) return;
@@ -9248,17 +9252,17 @@ document.getElementById('restore').addEventListener('click', () => {
   buildPanel();
   settings.classList.remove('open'); gear.classList.remove('open');
 });
-setInterval(save, 6000);
-window.addEventListener('beforeunload', save);
+setInterval(() => { if (!offlineModeRequested) save(); }, 6000);
+window.addEventListener('beforeunload', () => { if (!offlineModeRequested) save(); });
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { save(); hiddenAt = Date.now(); }
+  if (document.hidden) { if (!offlineModeRequested) save(); hiddenAt = Date.now(); }
   else if (hiddenAt) {
     // Tab came back from the background. rAF was paused while hidden, so credit
     // the gap at the offline rate and re-anchor the wall clock to avoid the
     // main loop double-counting it below.
     const gap = (Date.now() - hiddenAt) / 1000; hiddenAt = 0;
-    creditOffline(gap);
+    if (!offlineModeRequested) creditOffline(gap);
     wallLast = Date.now();
   }
 });
@@ -9273,7 +9277,7 @@ const IDLE_AFTER_MS = 3 * 60 * 1000; // 3 min of no input → idle
 let lastInput = Date.now();
 let wasIdle = false;
 let offlineModeRequested = false;
-let idleWasManual = false;
+let manualOfflineStartedAt = 0;
 // Accumulators for the foreground-idle stretch, summed into the Welcome Back
 // popup shown when input resumes.
 let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0, idleExpeditionNews = [], idleExpeditionStart = [];
@@ -9281,21 +9285,27 @@ const goOfflineButton = document.getElementById('goOffline');
 const offlineDim = document.getElementById('offlineDim');
 function startOfflineMode() {
   if (offlineModeRequested) return;
+  save();
   offlineModeRequested = true;
+  manualOfflineStartedAt = Date.now();
   wasIdle = false;
-  idleWasManual = false;
-  idleSap = 0; idleResin = 0; idleGrowth = 0;
-  idleExpeditionNews = [];
   goOfflineButton.hidden = true;
   offlineDim.hidden = false;
   offlineDim.focus({ preventScroll: true });
 }
 function endOfflineMode() {
   if (!offlineModeRequested) return;
+  const away = Math.max(0, (Date.now() - manualOfflineStartedAt) / 1000);
   offlineModeRequested = false;
+  manualOfflineStartedAt = 0;
   lastInput = Date.now();
+  wasIdle = false;
   offlineDim.hidden = true;
   goOfflineButton.hidden = false;
+  last = performance.now();
+  wallLast = Date.now();
+  creditOffline(away, true);
+  save();
 }
 goOfflineButton.addEventListener('click', startOfflineMode);
 offlineDim.addEventListener('click', endOfflineMode);
@@ -9311,6 +9321,12 @@ for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove'])
 let last = performance.now();
 let wallLast = Date.now();
 function frame(now) {
+  if (offlineModeRequested) {
+    last = now;
+    wallLast = Date.now();
+    requestAnimationFrame(frame);
+    return;
+  }
   // Wrap the body in try/finally so an exception in any subsystem can't kill
   // the RAF chain. The chain dying was the source of the post-cut freeze: a
   // throw inside frame() skipped the requestAnimationFrame call at the end.
@@ -9328,13 +9344,8 @@ function frame(now) {
     last = now;
     // Active play time: real foreground seconds the loop runs (dt is clamped, so a
     // sleep/suspend gap can't inflate it — that time is counted offline instead).
-    if (offlineModeRequested) {
-      S.treeOfflineMs = (S.treeOfflineMs || 0) + dt * 1000;
-      META.offlineMs = (META.offlineMs || 0) + dt * 1000;
-    } else {
-      S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
-      META.playMs = (META.playMs || 0) + dt * 1000;
-    }
+    S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
+    META.playMs = (META.playMs || 0) + dt * 1000;
     const time = now / 1000;
     tickSpellMana();
     advanceSpellTimers(dt);
@@ -9342,11 +9353,10 @@ function frame(now) {
     // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
     // instead of full, matching the away mechanic so leaving the window open
     // can't farm full income. wallGap (sleep) above is credited separately.
-    const idle = offlineModeRequested || (Date.now() - lastInput) > IDLE_AFTER_MS;
+    const idle = (Date.now() - lastInput) > IDLE_AFTER_MS;
     if (idle && !wasIdle) {
       idleSap = 0; idleResin = 0; idleGrowth = 0;
       idleExpeditionNews = [];
-      idleWasManual = offlineModeRequested;
       idleExpeditionStart = META.expeditions.entries.map(slot => slot && slot.active ? slot.active.progress : null);
       idleRipeStart = acornsRipe(); idleEnteredAt = Date.now();
     }
@@ -9358,14 +9368,11 @@ function frame(now) {
         }
       });
       const away = (Date.now() - idleEnteredAt) / 1000;
-      showWelcomeBack({ away, credited: idleWasManual ? Math.min(away, offlineCapSecNow()) : away, rate: offlineRateNow(),
+      showWelcomeBack({ away, credited: away, rate: offlineRateNow(),
         sap: idleSap, resin: idleResin, acornsRipened: acornsRipe() - idleRipeStart, growthMs: idleGrowth, expeditionNews: idleExpeditionNews });
-      idleWasManual = false;
     }
     wasIdle = idle;
-    const idleAge = Math.max(0, (Date.now() - idleEnteredAt) / 1000);
-    const offlineScale = idle && idleWasManual ? (dt > 0 ? clamp((offlineCapSecNow() - idleAge) / dt, 0, 1) : 1) : 1;
-    const prod = idle ? offlineRateNow() * offlineScale : 1;
+    const prod = idle ? offlineRateNow() : 1;
     accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), challengeProductionRates(prod), true);
     const channelSeconds = S.channeling && touchOwned() && !frozenOn() ? Math.min(dt, Number(S.touch?.charge) || 0) : 0;
     if (channelSeconds > 0) accrueChallengeWindow(liveChallengeNow() - channelSeconds * 1000, liveChallengeNow(), {channel:1}, true);
@@ -9431,7 +9438,7 @@ function frame(now) {
     // Acorn ripening — driven by active-play wall-clock; offline time is
     // handled separately in load() at a 10% rate.
     if (META && META.canopy && acornsUnlocked()) {
-      const gm = dt * 1000 * (idle ? 0.1 * offlineScale : 1);
+      const gm = dt * 1000 * (idle ? 0.1 : 1);
       tickAcorns(gm);
       if (idle) idleGrowth += gm * seasonNow().acorn;
     }

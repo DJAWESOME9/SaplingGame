@@ -123,10 +123,13 @@ Settings → Suggest a feature posts 5–1,000 characters and the player's displ
 
 The game stores two JSON records in browser `localStorage`:
 
-The fixed “Go offline” button starts a foreground idle session: production and
-time-based progress use the current offline rate and offline time cap. The page
-dims until the player clicks or taps to return, then shows the existing Welcome
-Back earnings summary. This does not change the device network connection.
+The fixed “Go offline” button starts a manual offline session. The opaque
+full-screen view hides the grove and pauses its animation and simulation; local
+autosaves and online score/quest polling pause as well. On return, `creditOffline`
+applies production and time-based progress at the current offline rate, bounded
+by the offline time cap, and opens the Welcome Back earnings summary. This does
+not change the device network connection. Closing or reloading the page while
+offline leaves the departure save intact so normal reload catch-up can run.
 
 | Key | Contents | Recovery |
 |---|---|---|
