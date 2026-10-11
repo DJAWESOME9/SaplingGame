@@ -1587,6 +1587,9 @@ const UPDATE_LOG = [
     'The draggable challenge window now shows a separate progress bar and current totals for every task in the challenge.',
     'Removed the challenge list that stretched across the screen. Challenge details and rewards are now in Settings.'
   ] },
+  { id:'2026-10-11-mobile-node-tap-fix', date:'October 11, 2026', title:'Mobile node tap fix', notes:[
+    'Tapping a node on a phone no longer triggers a newly opened Grow leaf action by accident.'
+  ] },
   { id:'2026-10-06-staggered-wither', date:'October 6, 2026', title:'Staggered node withering', notes:[
     'In Blight mode, nodes now have slightly different grace periods, so neglected nodes are less likely to start withering all at once.'
   ] },
@@ -5190,7 +5193,19 @@ function refreshPanel() {
     if (ah) ah.innerHTML = b.dataset.maxed === '1' ? '' : affordHint(parseFloat(b.dataset.cost), b.dataset.cur);
   });
 }
+let panelPointerStartedInside = false;
+document.addEventListener('pointerdown', e => {
+  panelPointerStartedInside = panel.contains(e.target);
+}, true);
 panel.addEventListener('click', e => {
+  // On touch browsers a synthesized click can land on a node action that
+  // appeared under the finger when selection opened the panel.
+  if (e.detail > 0 && !panelPointerStartedInside) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+  panelPointerStartedInside = false;
   const b = e.target.closest('button[data-act]');
   if (!b) return;
   const act = b.dataset.act;
