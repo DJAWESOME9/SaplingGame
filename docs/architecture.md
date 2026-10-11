@@ -39,13 +39,37 @@ The Spellbook appears beside the Pantheon and expeditions in the minigame dock o
 
 Spell timers expire offline unless frozen. `creditOffline` splits income at those expiration times so short production spells cannot boost an entire offline interval. Sap and resin spell windfalls count as earned resources rather than tree production. Spell surges share a ×2 leaf multiplier; they can combine with existing blooms but do not multiply one another. Bark Ward prevents critter penalties, spawning, and Blight damage across the tree; its backfire removes one terminal node and never the Core. Amber Echo affects the prune preview and is consumed by the next actual prune. Expedition reward estimates temporarily remove spell effects along with other transient boosts.
 
+## Berry garden
+
+`bushes` is a tier-3 Grove upgrade beneath Critter Hub, gated by acorn unlock,
+with four ring purchases (60/120/240/480). `deepbaskets` costs 120 rings and
+increases ripe storage from 24 to 96 per bush. `META.garden` stores the 500-berry
+basket, bush ripe counts and partial growth, wall-clock anchor, provisions,
+cosmetics, and festival count. `ensureGarden` supplies defaults for old saves;
+`tickGarden` grows one berry per 300 seconds, including offline time, stopping
+at ripe capacity and pausing during Freeze. Purchases tick old bushes before
+adding new ones. The Berry garden dialog is accessible from the Grove.
+
+Provisions are paid reservations, refundable before use: adventure rations
+(24 berries, +10% trip health) or focus preserve (40, one free Heavy), training
+treats (36, 15% shorter next session), picnic (30, 10% shorter next expedition),
+and nestling feast (60, next hatch at level 4). Adventure health/free Heavy live
+in the persistent trip snapshot. Recovery Jam costs 24 and clears one existing
+nest retry timer; failed fights now set 600 active seconds, preserved on reload.
+Garden cosmetics cost 100–300 berries. Festival costs 100 and adds a fixed
+600-second `festival` bloom with ×1.2 leaf production and edge capacity; resin
+produced from that leaf flow also increases. It cannot stack or be extended by
+Stillwood. Offline credit splits at its expiration, Freeze holds its timer,
+and cutting resets it with other run blooms. Five purchases earn a garden badge.
+Existing expedition reward calculations still remove transient blooms.
+
 ## Bird nests and egg warriors
 
-`BIRD_SPECIES` defines sparrow, robin, and crow visitors, with 90/150/210 seconds of nest-building and distinct health, attack, defense, and warrior traits. Birds begin nesting only after the Critter Hub is unlocked. `updateCritters` advances building and the 30-second failed-battle recovery timer only during visible, non-idle, unfrozen play. Visiting birds can be swatted away; completed nests keep the existing branch slowdown and resist swatting, capture, and pesticide. Bark Ward still suppresses their production penalty. Pruning, lightning, and other node removal clear occupants through the existing critter filters; cutting starts a fresh tree.
+`BIRD_SPECIES` defines sparrow, robin, and crow visitors, with 90/150/210 seconds of nest-building and distinct health, attack, defense, and warrior traits. Birds begin nesting only after the Critter Hub is unlocked. `updateCritters` advances building and the 600-second failed-battle recovery timer only during visible, non-idle, unfrozen play. Visiting birds can be swatted away; completed nests keep the existing branch slowdown and resist swatting, capture, and pesticide. Bark Ward still suppresses their production penalty. Pruning, lightning, and other node removal clear occupants through the existing critter filters; cutting starts a fresh tree.
 
 `savedBirds` stores surviving bird occupants and their construction/recovery state in the run save's `birds` array; `restoreBirds` validates species, nodes, and timers and restores them on load. There is no offline construction or battle catchup. Save codes carry this array through the existing run-save string. Insects remain transient. Eggs live in `META.birdEggs`, a three-species count array normalized by `ensureAdventures`, and survive cuts, reloads, and exports.
 
-The dock's native `birdGuide` dialog offers swatting, warrior selection, battles, and hatching. `fightNest` accepts an available level-2-or-higher roster member, uses equipment-adjusted `bugStats`, and resolves alternating attacks immediately with at least one damage per hit. Victory removes the nest, awards one matching egg and 45 XP, and saves both state records. Defeat leaves the nest with 30 active seconds of recovery and safely returns the warrior. Hatching spends one egg and requires a free hub space; it creates a level-3 sparrow/robin/crow warrior (kinds 4–6), with attack/health/defense specialties, in the existing persistent roster. Wild captures still use insect kinds 0–3. Bird warriors participate in training, gear, expeditions, adventures, and quest level counts through the same roster helpers.
+The dock's native `birdGuide` dialog offers swatting, warrior selection, battles, and hatching. `fightNest` accepts an available level-2-or-higher roster member, uses equipment-adjusted `bugStats`, and resolves alternating attacks immediately with at least one damage per hit. Victory removes the nest, awards one matching egg and 45 XP, and saves both state records. Defeat leaves the nest with 600 active seconds of recovery and safely returns the warrior. Hatching spends one egg and requires a free hub space; it creates a level-3 sparrow/robin/crow warrior (kinds 4–6), with attack/health/defense specialties, in the existing persistent roster. Wild captures still use insect kinds 0–3. Bird warriors participate in training, gear, expeditions, adventures, and quest level counts through the same roster helpers.
 
 ## Seasons
 

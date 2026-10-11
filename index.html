@@ -1050,7 +1050,7 @@
 <div id="viewBugs" role="dialog" aria-modal="true" aria-labelledby="bugsTitle"><div class="expbox"><div class="exphead"><h2 id="bugsTitle">🪲 Your bugs</h2><button id="bugsClose" type="button" aria-label="Close bug list">✕</button></div><p id="bugsSummary" class="expsub"></p><div id="bugRoster" class="expgrid"></div></div></div>
 <dialog id="birdGuide" aria-labelledby="birdTitle">
   <div class="exphead"><h2 id="birdTitle">🪺 Nests &amp; eggs</h2><button id="birdClose" type="button" aria-label="Close nests and eggs">✕</button></div>
-  <p class="expsub">Once you own the Bug Hub, birds can build nests. Tap a bird or use Scare away before it finishes. A finished nest slows its branch and resists swatting and pesticide: send a hub warrior at level 2 or above to fight for an egg and XP. Battles resolve immediately using health, attack, defense, and equipment; defeated warriors return safely, but that nest needs 30 seconds before another attempt. Nest-building and recovery pause while hidden, idle, or frozen. Nests survive reloads; pruning their branch or cutting the tree removes them.</p>
+  <p class="expsub">Once you own the Bug Hub, birds can build nests. Tap a bird or use Scare away before it finishes. A finished nest slows its branch and resists swatting and pesticide: send a hub warrior at level 2 or above to fight for an egg and XP. Battles resolve immediately using health, attack, defense, and equipment; defeated warriors return safely, but that nest needs 10 active minutes before another attempt. Nest-building and recovery pause while hidden, idle, or frozen. Nests survive reloads; pruning their branch or cutting the tree removes them.</p>
   <label for="nestWarrior">Choose a warrior</label><select id="nestWarrior"></select>
   <p id="birdResult" class="expsub" role="status"></p>
   <h3>Birds in your tree</h3><div id="birdNests" class="expgrid"></div>
@@ -1171,6 +1171,8 @@ const SPECIES = {
 };
 // Eternal upgrades bought with rings; levels persist across every tree.
 const GROVE = {
+  bushes: {name:'Bushes',glyph:'🫐',tier:3,parent:'critterhub',max:4,cost:l=>[60,120,240,480][l],desc:'Plant a permanent berry bush. Each grows 12 berries/hour and holds 24 ripe berries. Requires acorns unlocked.'},
+  deepbaskets: {name:'Deep Baskets',glyph:'🧺',tier:4,parent:'bushes',max:1,cost:_=>120,desc:'Each bush holds 96 ripe berries (8 hours). Production speed stays the same.'},
   seasonturning: { name:'Season Turning', glyph:'🗓️', tier:4, parent:'patience', max:1, cost:_=>120, desc:'Unlocks Advance season in the season guide. Pay 1 hour of this tree’s highest unbuffed resin production (minimum 50,000 resin) to begin the next season with a full hour remaining.' },
   spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
   manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellstudy', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
@@ -1281,7 +1283,7 @@ const speciesUnlocked = sp => {
 const groveVisible = k => !GROVE[k].blightOnly || hardMode();
 const groveAvailable = k => {
   const g = GROVE[k];
-  return groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0)
+  return (k !== 'bushes' || acornsUnlocked()) && groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0)
     && (!['spellstudy','manawell','manaspring'].includes(k) || spellbookOwned());
 };
 // Some grove nodes are repurposed in Blight mode and show different name/glyph/text.
@@ -1293,6 +1295,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-berry-garden',date:'2026-10-11',title:'Bushes and berry provisions',notes:[
+    'Unlock Bushes in the Grove after the Critter Hub and acorns. Plant up to four permanent bushes, harvest berries, and expand storage with Deep Baskets.',
+    'Spend berries on adventure health or a free Heavy attack, faster training and expeditions, level-4 hatchlings, and nest recovery jam. Failed nest battles now recover for 10 active minutes.',
+    'Craft garden palettes, decorations, lanterns and bug nameplate styles. Garden Festivals cost 100 berries and give 20% more production and branch capacity for 10 minutes; celebrate five times for a badge.',
+    'Bushes and berries survive cuts and saves. Bushes grow offline up to their storage limit; Freeze pauses growth.'
+  ]},
   { id:'2026-10-11-start-sign-in', date:'October 11, 2026', title:'A smoother start', notes:[
     'Choose your leaderboard username once when starting. Sign in or create an account directly from the welcome screen or username popup, or continue playing locally without a name.'
   ] },
@@ -1810,6 +1818,7 @@ function loadMeta() {
   if (!META || typeof META !== 'object') META = newMeta();
   if (!Number.isFinite(META.seasonStartedAt) || META.seasonStartedAt <= 0 || META.seasonStartedAt > Date.now()) META.seasonStartedAt = Date.now();
   META.up = META.up || {};
+  ensureGarden();
   META.achievements = META.achievements || {};
   META.liveChallengeAchievements = META.liveChallengeAchievements || {};
   META.liveChallengeProgress = META.liveChallengeProgress || {};
@@ -2135,6 +2144,7 @@ const soilMult   = () => Math.pow(1.25, S.roots.soil);
 // Bloom variants — picked at random when a big gold leaf is harvested.
 const goldBloomMult = base => 1 + (base - 1) * (1 + 0.15 * metaLvl('bloomcraft'));
 const BLOOMS = {
+  festival: {name:'Garden Festival',icon:'🏮',color:'#eca8d3',dur:600,weight:0,leafMult:()=>1.2,edgeMult:()=>1.2,descOf:()=>'+20% production and branch capacity'},
   bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>goldBloomMult(3), descOf:()=>`×${goldBloomMult(3).toFixed(1)} leaf production` },
   surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>goldBloomMult(5), descOf:()=>`×${goldBloomMult(5).toFixed(1)} leaf production (short)` },
   resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>goldBloomMult(1+0.2*S.counts.amp), relevant:()=>(S.counts.amp||0)>0, descOf:()=>`each amp boosts leaf production (×${goldBloomMult(1+0.2*S.counts.amp).toFixed(1)})` },
@@ -5583,6 +5593,7 @@ const KEY = 'sapling-save-v1';
 function save() {
   if (window.__SAPLING_WIPED) return;
   tickSpellMana();
+  tickGarden();
   const prev = localStorage.getItem(KEY);
   if (prev) {
     localStorage.setItem(KEY + '-bak', prev);
@@ -5622,7 +5633,7 @@ function creditOffline(awaySecRaw) {
   advanceTraining(Math.max(0,(Date.now()-META.training.lastTickAt)/1000)*offlineRateNow());
   advanceAdventures(Math.max(0,(Date.now()-META.adventures.lastTickAt)/1000)*offlineRateNow());
   const expeditionElapsed = Math.max(0, (Date.now() - META.expeditions.lastTickAt) / 1000);
-  if (away <= 30) { advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
+  if (away <= 30) { if(!frozenOn()) for(const b of activeBlooms()) if(b.kind==='festival') b.t=Math.max(0,b.t-elapsed); advanceSpellTimers(elapsed); advanceExpeditions(expeditionElapsed * offlineRateNow()); return; }
   S.treeOfflineMs = (S.treeOfflineMs || 0) + elapsed * 1000;
   if (META) META.offlineMs = (META.offlineMs || 0) + elapsed * 1000;
   const rate = offlineRateNow();
@@ -5635,7 +5646,7 @@ function creditOffline(awaySecRaw) {
     while (remaining > 0) {
       seasonEvaluationAt = cursor;
       computeFlow(0, false);
-      const timers = frozenOn() ? [] : SPELL_TIMERS.map(k=>S.spells[k]).filter(t=>t>0);
+      const timers = frozenOn() ? [] : [...SPELL_TIMERS.map(k=>S.spells[k]),...activeBlooms().filter(b=>b.kind==='festival').map(b=>b.t)].filter(t=>t>0);
       const segment = Math.min(remaining, (nextSeasonAt(cursor) - cursor) / 1000, ...timers);
       const end = cursor + segment * 1000 + liveChallengeClockOffsetMs;
       accrueChallengeWindow(end - segment * 1000, end, challengeProductionRates(rate), true);
@@ -5646,11 +5657,13 @@ function creditOffline(awaySecRaw) {
         tickAcorns(ms);
       }
       advanceSpellTimers(segment);
+      if(!frozenOn()) for(const b of activeBlooms()) if(b.kind==='festival') b.t=Math.max(0,b.t-segment);
       remaining = Math.max(0, remaining - segment);
       cursor += segment * 1000;
     }
   } finally { seasonEvaluationAt = null; }
   advanceSpellTimers(elapsed - away);
+  if(!frozenOn()) for(const b of activeBlooms()) if(b.kind==='festival') b.t=Math.max(0,b.t-(elapsed-away));
   computeFlow(0, false);
   recordProduction(sap, resin);
   if (sap + resin > 0) {
@@ -6852,6 +6865,8 @@ function replantIfPristine() {
   if (S && S.pristine) { newGame(false); computeFlow(0); buildPanel(); save(); }
 }
 function buyGrove(k, n) {
+  if (!groveAvailable(k) || META.treesCut < 1) return;
+  tickGarden();
   const g = GROVE[k];
   let bought = 0;
   while (bought < n && metaLvl(k) < g.max) {
@@ -6869,6 +6884,7 @@ function buyGrove(k, n) {
     if (have.length >= Object.keys(SPECIES).length) grantAchievement('speciesAll');
   }
   if (bought > 0) {
+    if (k === 'bushes') { ensureGarden(); META.garden.lastAt = Date.now(); }
     groveJustBought = k;
     sfx('buy'); saveMeta(); replantIfPristine();
     if (k === 'critterhub') renderCritterHub();
@@ -7164,6 +7180,9 @@ function positionGrovePopover(k) {
 }
 
 function renderGrove() {
+  let gardenLink=document.getElementById('gardenLink');
+  if(!gardenLink) { gardenLink=document.createElement('button'); gardenLink.id='gardenLink'; gardenLink.textContent='🫐 Berry garden'; gardenLink.onclick=()=>{renderGarden(); document.getElementById('berryGarden').showModal();}; document.getElementById('ringbanner').before(gardenLink); }
+  gardenLink.hidden=metaLvl('bushes')<1;
   const ringWord = n => `${n} ring${n === 1 ? '' : 's'}`;
   document.getElementById('ringtotal').textContent = `· ${ringWord(META.rings)} to spend`;
   const gain = ringGain();
@@ -7727,7 +7746,7 @@ function castSpell(key) {
       for (const n of Object.values(S.nodes)) { n.idle = 0; n.wither = 0; }
     }
   } else if (key === 'stillwood') {
-    for (const x of activeBlooms()) if (x.kind !== 'channel') x.t = failed ? x.t * 0.75 : x.t + Math.min(60,x.t * 0.25);
+    for (const x of activeBlooms()) if (x.kind !== 'channel' && x.kind !== 'festival') x.t = failed ? x.t * 0.75 : x.t + Math.min(60,x.t * 0.25);
     for (const k of positiveSpellEffects()) effects[k] = failed ? effects[k] * 0.75 : effects[k] + Math.min(60,effects[k] * 0.25);
   } else if (key === 'transmute') {
     const cost = S.incomeS * 60, gain = S.incomeR * (failed ? 30 : 120);
@@ -7799,6 +7818,86 @@ spellPanel.addEventListener('keydown', e => {
   }
 });
 
+
+// ---------- permanent berry garden ----------
+function ensureGarden() {
+  if(!META.garden || typeof META.garden!=='object') META.garden={};
+  const g=META.garden;
+  g.berries=clamp(Math.floor(Number(g.berries)||0),0,500);
+  g.bushes=Array.from({length:clamp(Math.floor(metaLvl('bushes')),0,4)},(_,i)=>{
+    const b=g.bushes?.[i]||{};
+    return {ripe:clamp(Math.floor(Number(b.ripe)||0),0,metaLvl('deepbaskets')?96:24),progress:clamp(Number(b.progress)||0,0,300)};
+  });
+  if(!Number.isFinite(g.lastAt)) g.lastAt=Date.now();
+  g.adventure=g.adventure&&typeof g.adventure==='object'?g.adventure:{};
+  g.training=g.training&&typeof g.training==='object'?g.training:{};
+  g.cosmetics=Array.isArray(g.cosmetics)?g.cosmetics:[];
+  g.festivals=Math.max(0,Math.floor(Number(g.festivals)||0));
+  return g;
+}
+function tickGarden() {
+  if(!META || !S) return;
+  const g=ensureGarden(), now=Date.now(), elapsed=Math.max(0,(now-g.lastAt)/1000);
+  g.lastAt=now;
+  if(frozenOn()) return;
+  const cap=metaLvl('deepbaskets')?96:24;
+  for(const b of g.bushes) {
+    if(b.ripe>=cap) {b.progress=0;continue;}
+    b.progress+=elapsed;
+    const grown=Math.min(cap-b.ripe,Math.floor(b.progress/300));
+    b.ripe+=grown; b.progress=b.ripe>=cap?0:b.progress-grown*300;
+  }
+}
+const GARDEN_CRAFTS={palette:['Autumn berry palette',100],decor:['Garden mushrooms',150],nameplate:['Berry bug nameplates',200],fireflies:['Firefly lanterns',150],warm:['Warm lanterns',200],glow:['Glowing berry lanterns',300]};
+function renderGarden() {
+  const selected=document.getElementById('gardenBug')?.value, focus=document.activeElement, action=focus?.dataset.garden, focusIndex=focus?.dataset.index, craft=focus?.dataset.craft;
+  tickGarden(); const g=ensureGarden(), cap=metaLvl('deepbaskets')?96:24;
+  document.getElementById('gardenBody').innerHTML=`<p>${g.berries}/500 berries · ${g.bushes.length*12} berries/hour${frozenOn()?' · Frozen':''}</p>
+    <p>Bushes grow independently of tree production, including offline. Full bushes stop growing. Harvest only transfers what fits.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:12px">${g.bushes.map((b,i)=>`<section class="expcard" style="flex:1;min-width:130px;background:${g.cosmetics.includes('palette')?'#49352c':'#243d2c'}"><h3>🌳 🫐 Bush ${i+1}</h3><p>${b.ripe}/${cap} ripe · ${b.ripe>=cap?'Full':fmtAcornTimer((300-b.progress)*1000)}</p><button data-garden="harvest" data-index="${i}">Harvest</button><button data-garden="swap" data-index="${i}">Move to next plot</button></section>`).join('')}</div>
+    <button data-garden="all">Harvest all</button>
+    <h3>Provisions</h3><p>Reserve berries for the next activity. Reservations survive cuts; cancel to refund. Choose rations or focus per bug.</p>
+    <label>Available warrior <select id="gardenBug">${availableBugs().map(b=>`<option value="${b.id}">${escapeHtml(b.name)} · Lv ${b.level}${g.adventure[b.id]?' · '+g.adventure[b.id]:''}${g.training[b.id]?' · treat':''}</option>`).join('')}</select></label>
+    <p><button data-garden="ration">Trail Rations · 24 · +10% adventure health</button> <button data-garden="focus">Focus Preserve · 40 · one free Heavy</button> <button data-garden="training">Training Treat · 36 · 15% shorter session</button> <button data-garden="cancel">Refund this bug’s provisions</button> <button data-garden="cancelall">Refund all bug provisions</button></p>
+    <p><button data-garden="picnic">Expedition Picnic · 30 · 10% shorter next trip${g.picnic?' · Reserved':''}</button> <button data-garden="feast">Nestling Feast · 60 · next hatch at level 4${g.feast?' · Reserved':''}</button> <button data-garden="refund">Refund picnic &amp; feast</button></p>
+    <h3>Recovery Jam · 24 berries</h3><p>Clear one failed nest battle’s remaining recovery time.</p>${critters.filter(c=>c.type==='bird'&&c.nested&&c.retry>0).map(c=>`<button data-garden="jam" data-index="${c.nodeId}">Nest ${c.nodeId} · ${fmtAcornTimer(c.retry*1000)}</button>`).join('')||'<p>No recovering nests.</p>'}
+    <h3>Garden Festival</h3><p>100 berries · 10 minutes of ×1.2 sap/resin production and branch capacity. Cannot stack or extend. Ends on a cut. ${g.festivals}/5 celebrations ${g.festivals>=5?'🏅 Festival badge':''}</p><button data-garden="festival">Celebrate · 100 berries</button>
+    <h3>Berry Dye Workshop</h3>${Object.entries(GARDEN_CRAFTS).map(([k,[name,cost]])=>`<button data-garden="craft" data-craft="${k}" ${g.cosmetics.includes(k)?'disabled':''}>${name} · ${g.cosmetics.includes(k)?'Owned':cost+' berries'}</button>`).join('')}
+    <p style="font-size:24px" aria-label="Garden decorations">${g.cosmetics.includes('decor')?'🍄 🌼 🍄':''} ${g.cosmetics.includes('fireflies')?'✨ 🦋 ✨':''} ${g.cosmetics.includes('warm')?'🏮 🏮':''} ${g.cosmetics.includes('glow')?'🫐 ✨ 🫐':''} ${activeBlooms().some(b=>b.kind==='festival')?'🎉 🐿️ 🦋 🎊':''}</p>`;
+  if(selected) document.getElementById('gardenBug').value=selected;
+  if(action) gardenDialog.querySelector(`[data-garden="${action}"]${focusIndex!==undefined?`[data-index="${focusIndex}"]`:''}${craft?`[data-craft="${craft}"]`:''}`)?.focus({preventScroll:true});
+  else if(focus?.id==='gardenBug') document.getElementById('gardenBug').focus({preventScroll:true});
+}
+const gardenDialog=document.createElement('dialog'); gardenDialog.id='berryGarden'; gardenDialog.setAttribute('aria-label','Berry garden');
+gardenDialog.style.cssText='box-sizing:border-box;max-width:720px;width:calc(100% - 32px);max-height:85vh;overflow:auto;background:#17281d;color:#dbecd8;border:1px solid #739777;border-radius:16px;padding:20px';
+gardenDialog.innerHTML='<h2>🫐 Berry garden</h2><button id="gardenClose">Close</button><div id="gardenBody"></div>';
+document.body.append(gardenDialog);
+const gardenStyle=document.createElement('style');gardenStyle.textContent='#berryGarden button,#berryGarden select{font:inherit;color:#dbecd8;background:#29442f;border:1px solid #739777;border-radius:8px;padding:9px 12px;margin:4px 0;max-width:100%;white-space:normal}#berryGarden button:disabled{opacity:.5}#berryGarden::backdrop{background:rgba(0,0,0,.65)}';document.head.append(gardenStyle);
+let gardenRenderAt=0;
+document.getElementById('gardenClose').onclick=()=>gardenDialog.close();
+gardenDialog.addEventListener('click',e=>{
+  const el=e.target.closest('[data-garden]'); if(!el || frozenOn() || metaLvl('bushes')<1) return;
+  tickGarden(); const g=ensureGarden(), act=el.dataset.garden, i=Number(el.dataset.index), id=document.getElementById('gardenBug')?.value;
+  const pay=n=>{if(g.berries<n){toast('Not enough berries.');return false;}g.berries-=n;return true;};
+  const harvest=b=>{const n=Math.min(b.ripe,500-g.berries);g.berries+=n;b.ripe-=n;};
+  if(act==='harvest'&&g.bushes[i]) harvest(g.bushes[i]);
+  if(act==='all') g.bushes.forEach(harvest);
+  if(act==='swap'&&g.bushes[i]) {const j=(i+1)%g.bushes.length;[g.bushes[i],g.bushes[j]]=[g.bushes[j],g.bushes[i]];}
+  if(['ration','focus','training'].includes(act)&&availableBugs().some(b=>b.id===id)) {
+    const target=act==='training'?g.training:g.adventure;
+    if(!target[id]&&pay(act==='ration'?24:act==='focus'?40:36)) target[id]=act==='training'?true:act;
+  }
+  if(act==='cancel') {const n=(g.adventure[id]==='ration'?24:g.adventure[id]==='focus'?40:0)+(g.training[id]?36:0); if(g.berries+n<=500){g.berries+=n;delete g.adventure[id];delete g.training[id];}else toast('Make room in the basket before refunding.');}
+  if(act==='cancelall') {const n=Object.values(g.adventure).reduce((n,v)=>n+(v==='ration'?24:v==='focus'?40:0),0)+Object.values(g.training).filter(Boolean).length*36;if(g.berries+n<=500){g.berries+=n;g.adventure={};g.training={};}else toast('Make room in the basket before refunding.');}
+  if(act==='refund') {const n=(g.picnic?30:0)+(g.feast?60:0);if(g.berries+n<=500){g.berries+=n;g.picnic=false;g.feast=false;}else toast('Make room in the basket before refunding.');}
+  if(act==='picnic'&&!g.picnic&&pay(30)) g.picnic=true;
+  if(act==='feast'&&!g.feast&&pay(60)) g.feast=true;
+  if(act==='jam') {const c=critters.find(c=>c.type==='bird'&&c.nested&&c.nodeId===i&&c.retry>0);if(c&&pay(24))c.retry=0;}
+  if(act==='festival'&&!activeBlooms().some(b=>b.kind==='festival')&&pay(100)) {S.blooms=S.blooms||[];S.blooms.push({kind:'festival',t:600});g.festivals++;spawnBurst(0,0,'#eca8d3',40,120,1);}
+  if(act==='craft') {const k=el.dataset.craft;if(GARDEN_CRAFTS[k]&&!g.cosmetics.includes(k)&&pay(GARDEN_CRAFTS[k][1]))g.cosmetics.push(k);}
+  save();saveMeta();renderGarden();
+});
+
 // ---------- bug training (persistent across trees) ----------
 function ensureTraining() {
   if (!META.training || typeof META.training !== 'object') META.training={slots:0,entries:[],completed:0,lastTickAt:Date.now()};
@@ -7822,9 +7921,11 @@ function startTraining(slot, id) {
   const t=META.training, b=META.critterHub.roster.find(b=>b.id===id);
   if (!Number.isInteger(slot) || slot<0 || slot>=t.slots || t.entries[slot] || !b || bugBusy(id) || b.level>=100 || frozenOn()) return;
   const q=trainingQuote(b);
+  const treat=ensureGarden().training[b.id];
   if (S.sap<q.sap || S.resin<q.resin || S.amber<q.amber) { toast('Need more resources to train this bug.'); return; }
   S.sap-=q.sap; S.resin-=q.resin; S.amber-=q.amber;
-  t.entries[slot]={bugId:id,duration:q.duration,progress:0};
+  t.entries[slot]={bugId:id,duration:q.duration*(treat ? 0.85 : 1),progress:0};
+  if(treat) delete META.garden.training[b.id];
   t.lastTickAt=Date.now(); syncHubBugs(); save(); renderCritterHub(); refreshHud(); sfx('buy');
 }
 function advanceTraining(seconds, now=Date.now()) {
@@ -7855,11 +7956,11 @@ function renderTraining() {
   document.getElementById('trainingSlots').innerHTML=t.entries.map((a,i)=> {
     if (a) {
       const b=META.critterHub.roster.find(b=>b.id===a.bugId), percent=Math.min(100,a.progress/a.duration*100);
-      return `<section class="expcard"><h3>Training ${i+1}</h3><p>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)} · Lv ${b.level} → ${b.level+1}</p><div class="expprogress" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(1)}"><span style="width:${percent}%"></span></div><p>${fmtAcornTimer((a.duration-a.progress)*1000)} left · ${Math.floor(percent)}% done${frozenOn()?' · Frozen':''}</p></section>`;
+      return `<section class="expcard"><h3>Training ${i+1}</h3><p>${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)}${META.garden?.cosmetics?.includes('nameplate')?' 🫐':''} · Lv ${b.level} → ${b.level+1}</p><div class="expprogress" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(1)}"><span style="width:${percent}%"></span></div><p>${fmtAcornTimer((a.duration-a.progress)*1000)} left · ${Math.floor(percent)}% done${frozenOn()?' · Frozen':''}</p></section>`;
     }
     const id=`trainingBug${i}`, b=bugs.find(b=>b.id===choices.get(id))||bugs[0], q=b?trainingQuote(b):null;
     const before=b?bugStats(b):null, after=b?bugStats({...b,level:b.level+1}):null;
-    return `<section class="expcard"><h3>Training ${i+1}</h3><label>Bug<select id="${id}" ${bugs.length?'':'disabled'}>${bugs.map(x=>`<option value="${x.id}" ${x.id===b.id?'selected':''}>${BUG_KINDS[x.kind].icon} ${escapeHtml(x.name)} · ${x.id.slice(0,4)} · Lv ${x.level}</option>`).join('')}</select></label>${q?`<p>Lv ${b.level} → ${b.level+1} · ${fmtAcornTimer(q.duration*1000)}</p><p>♥ ${before.hp} → ${after.hp} · ATK ${before.attack} → ${after.attack} · DEF ${before.defense} → ${after.defense}</p><p>Cost: ${fmt(q.resin)} resin + ${fmt(q.sap)} sap${q.amber?` + ${q.amber} amber`:''}</p>`:'<p>No eligible bugs. Recruit one at the Critter Hub, or wait for a busy bug to return. Maximum level is 100.</p>'}<button type="button" data-training="start" data-slot="${i}" ${!q||frozenOn()||S.sap<q.sap||S.resin<q.resin||S.amber<q.amber?'disabled':''}>Pay &amp; train</button></section>`;
+    return `<section class="expcard"><h3>Training ${i+1}</h3><label>Bug<select id="${id}" ${bugs.length?'':'disabled'}>${bugs.map(x=>`<option value="${x.id}" ${x.id===b.id?'selected':''}>${BUG_KINDS[x.kind].icon} ${escapeHtml(x.name)} · ${x.id.slice(0,4)} · Lv ${x.level}</option>`).join('')}</select></label>${q?`<p>Lv ${b.level} → ${b.level+1} · ${fmtAcornTimer(q.duration*(META.garden?.training?.[b.id] ? 0.85 : 1)*1000)}${META.garden?.training?.[b.id]?' · Berry treat reserved':''}</p><p>♥ ${before.hp} → ${after.hp} · ATK ${before.attack} → ${after.attack} · DEF ${before.defense} → ${after.defense}</p><p>Cost: ${fmt(q.resin)} resin + ${fmt(q.sap)} sap${q.amber?` + ${q.amber} amber`:''}</p>`:'<p>No eligible bugs. Recruit one at the Critter Hub, or wait for a busy bug to return. Maximum level is 100.</p>'}<button type="button" data-training="start" data-slot="${i}" ${!q||frozenOn()||S.sap<q.sap||S.resin<q.resin||S.amber<q.amber?'disabled':''}>Pay &amp; train</button></section>`;
   }).join('')+(t.slots<3?`<section class="expcard"><h3>${t.slots?'Another training slot':'Unlock Bug Training'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][t.slots]}.</p><button type="button" data-training="unlock" ${META.acorns<[1,3,5][t.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][t.slots]}</button></section>`:'');
   if(selectId) document.getElementById(selectId)?.focus({preventScroll:true});
   if(action) trainingPanel.querySelector(`[data-training="${action}"]${slot?`[data-slot="${slot}"]`:''}`)?.focus({preventScroll:true});
@@ -7895,7 +7996,7 @@ function restoreBirds(saved) {
   for(const data of Array.isArray(saved)?saved:[]) {
     if(!data || !N(data.nodeId) || N(data.nodeId).type==='core' || !BIRD_SPECIES[data.species] || critters.some(c=>c.nodeId===data.nodeId)) continue;
     const maxHp=clamp(Math.floor(Number(data.maxHp)||2),2,20), progress=clamp(Number(data.nestProgress)||0,0,BIRD_SPECIES[data.species].seconds);
-    critters.push({type:'bird',nodeId:data.nodeId,species:data.species,hp:clamp(Number(data.hp)||maxHp,1,maxHp),maxHp,nestProgress:progress,nested:!!data.nested||progress===BIRD_SPECIES[data.species].seconds,retry:clamp(Number(data.retry)||0,0,30),state:'sitting',t:0,wing:0,jolt:0,x:N(data.nodeId).x,y:N(data.nodeId).y});
+    critters.push({type:'bird',nodeId:data.nodeId,species:data.species,hp:clamp(Number(data.hp)||maxHp,1,maxHp),maxHp,nestProgress:progress,nested:!!data.nested||progress===BIRD_SPECIES[data.species].seconds,retry:clamp(Number(data.retry)||0,0,600),state:'sitting',t:0,wing:0,jolt:0,x:N(data.nodeId).x,y:N(data.nodeId).y});
   }
 }
 const birdGuide=document.getElementById('birdGuide'), birdBtn=document.getElementById('birdbtn');
@@ -7905,7 +8006,7 @@ document.getElementById('birdClose').addEventListener('click',()=>birdGuide.clos
 birdGuide.addEventListener('close',()=>birdBtn.focus());
 function renderBirdGuide() {
   const select=document.getElementById('nestWarrior'), chosen=select.value;
-  const bugs=availableBugs().filter(b=>b.level>=2), choices=bugs.map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)} · Lv ${b.level} · ATK ${bugStats(b).attack} / DEF ${bugStats(b).defense}</option>`).join('')||'<option value="">No level-2 warriors home — train a bug first</option>';
+  const bugs=availableBugs().filter(b=>b.level>=2), choices=bugs.map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].icon} ${escapeHtml(b.name)}${META.garden?.cosmetics?.includes('nameplate')?' 🫐':''} · Lv ${b.level} · ATK ${bugStats(b).attack} / DEF ${bugStats(b).defense}</option>`).join('')||'<option value="">No level-2 warriors home — train a bug first</option>';
   if(select.innerHTML!==choices) { select.innerHTML=choices; if(bugs.some(b=>b.id===chosen)) select.value=chosen; }
   select.disabled=!bugs.length;
   const birds=critters.filter(c=>c.type==='bird' && c.state==='sitting' && N(c.nodeId));
@@ -7914,7 +8015,7 @@ function renderBirdGuide() {
     const b=BIRD_SPECIES[c.species], left=Math.max(0,b.seconds-(c.nestProgress||0));
     return `<section class="expcard"><h3>${b.icon} ${b.name} · branch ${c.nodeId}</h3><p>${b.trait}</p><p>${c.nested?`Nest complete · ♥ ${b.hp} / ATK ${b.attack} / DEF ${b.defense}`:`Building · ${fmtAcornTimer(left*1000)} left · ${c.hp} swats remaining`}</p><button type="button" data-bird-action="${c.nested?'fight':'scare'}" data-node="${c.nodeId}" ${frozenOn()||(c.nested&&(!bugs.length||c.retry>0))?'disabled':''}>${c.nested?c.retry>0?`Recovering · ${Math.ceil(c.retry)}s`:'Fight for an egg':'Scare away'}</button></section>`;
   }).join('')||'<p class="expsub">No birds nesting yet. Watch for the colored building bar above a visiting bird.</p>';
-  document.getElementById('birdEggs').innerHTML=BIRD_SPECIES.map((b,i)=>`<section class="expcard"><h3>${b.icon} ${b.name} eggs · ${META.birdEggs[i]}</h3><p>${b.trait.split('. ').at(-1)}</p><p>Hatches at level 3 · ♥ ${BUG_KINDS[b.kind].hp+10} / ATK ${Math.round(BUG_KINDS[b.kind].attack+2.4)} / DEF ${Math.round(BUG_KINDS[b.kind].defense+1.2)}</p><button type="button" data-bird-action="hatch" data-species="${i}" ${!META.birdEggs[i]||availableBugs().length>=hubCapacity()||frozenOn()?'disabled':''}>Hatch · 1 egg</button></section>`).join('');
+  document.getElementById('birdEggs').innerHTML=BIRD_SPECIES.map((b,i)=>`<section class="expcard"><h3>${b.icon} ${b.name} eggs · ${META.birdEggs[i]}</h3><p>${b.trait.split('. ').at(-1)}</p><p>Hatches at level ${ensureGarden().feast?4:3}${META.garden.feast?' · Feast reserved':''}</p><button type="button" data-bird-action="hatch" data-species="${i}" ${!META.birdEggs[i]||availableBugs().length>=hubCapacity()||frozenOn()?'disabled':''}>Hatch · 1 egg</button></section>`).join('');
   if(action) birdGuide.querySelector(`[data-bird-action="${action}"]${node?`[data-node="${node}"]`:species?`[data-species="${species}"]`:''}`)?.focus({preventScroll:true});
 }
 function fightNest(c,b) {
@@ -7932,8 +8033,8 @@ function fightNest(c,b) {
     document.getElementById('birdResult').textContent=`${b.name} defeated the ${foe.name} in ${turns} rounds! +1 ${foe.name} egg, +45 XP. Warrior returned safely.`;
     sfx('buy');
   } else {
-    c.retry=30;
-    document.getElementById('birdResult').textContent=`${b.name} retreated after ${turns} rounds and returned safely. Train or equip a stronger warrior. This nest recovers for 30 active seconds.`;
+    c.retry=600;
+    document.getElementById('birdResult').textContent=`${b.name} retreated after ${turns} rounds and returned safely. Train or equip a stronger warrior. This nest recovers for 10 active minutes.`;
   }
   save(); renderCritterHub(); renderBirdGuide();
 }
@@ -7943,9 +8044,9 @@ birdGuide.addEventListener('click',e=> {
   if(act==='hatch') {
     const species=Number(button.dataset.species), bird=BIRD_SPECIES[species];
     if(!bird || !(META.birdEggs[species]>0) || availableBugs().length>=hubCapacity()) return;
-    const b=makeBug(); b.kind=bird.kind; b.name=BUG_KINDS[b.kind].name; b.level=3; b.hpBonus=0; b.attackBonus=0; b.defenseBonus=0;
+    const b=makeBug(); b.kind=bird.kind; b.name=BUG_KINDS[b.kind].name; b.level=ensureGarden().feast?4:3; META.garden.feast=false; b.hpBonus=0; b.attackBonus=0; b.defenseBonus=0;
     META.birdEggs[species]--; META.critterHub.roster.push(b); syncHubBugs();
-    document.getElementById('birdResult').textContent=`${b.name} hatched at level 3 and joined the hub!`;
+    document.getElementById('birdResult').textContent=`${b.name} hatched at level ${b.level} and joined the hub!`;
     saveMeta(); renderCritterHub(); renderBirdGuide(); sfx('buy');
   } else {
     const c=critters.find(c=>c.type==='bird' && c.nodeId===Number(button.dataset.node) && c.state==='sitting');
@@ -8084,8 +8185,10 @@ function startAdventure(slot, route, bugId) {
   if(frozenOn() || META.adventures.entries[slot] || slot>=META.adventures.slots || !ADVENTURE_ROUTES[route]) return;
   if(!adventureRouteUnlocked(route)) { toast(`Complete ${ADVENTURE_ROUTES[route-1].name} to unlock this route.`); return; }
   const b=availableBugs().find(b=>b.id===bugId); if(!b) return;
+  const provision=ensureGarden().adventure[b.id];
   const rates=expeditionBaseRates(), rings=expeditionRingRange();
-  META.adventures.entries[slot]={bugId,route,journeySeconds:ADVENTURE_ROUTES[route].seconds,stage:0,travel:0,enemyHp:null,hp:bugStats(b).hp,focus:0,rest:2,turns:0,autoTime:0,baseSap:rates.sap,baseResin:rates.resin,ringMin:rings[0],ringMax:rings[1],log:'Setting out…'};
+  META.adventures.entries[slot]={bugId,route,journeySeconds:ADVENTURE_ROUTES[route].seconds,stage:0,travel:0,enemyHp:null,hp:Math.ceil(bugStats(b).hp*(provision==='ration'?1.1:1)),berryHealth:provision==='ration',freeHeavy:provision==='focus',focus:0,rest:2,turns:0,autoTime:0,baseSap:rates.sap,baseResin:rates.resin,ringMin:rings[0],ringMax:rings[1],log:'Setting out…'};
+  delete META.garden.adventure[b.id];
   syncHubBugs(); save(); renderCritterHub(); renderAdventures();
 }
 function finishAdventure(i, won) {
@@ -8108,11 +8211,11 @@ function finishAdventure(i, won) {
 function adventureMove(i, move, automatic=false) {
   const a=META.adventures.entries[i]; if(!a || a.enemyHp===null || frozenOn() || !['strike','heavy','guard','rest'].includes(move)) return;
   const b=META.critterHub.roster.find(b=>b.id===a.bugId), stats=bugStats(b), e=adventureEnemy(a);
-  if(move==='heavy' && a.focus<2 || move==='rest' && a.rest<=0) return;
+  if(move==='heavy' && a.focus<2 && !a.freeHeavy || move==='rest' && a.rest<=0) return;
   let damage=0;
-  if(move==='rest') {a.rest--; a.hp=Math.min(stats.hp,a.hp+Math.ceil(stats.hp*.35));}
+  if(move==='rest') {a.rest--; a.hp=Math.min(Math.ceil(stats.hp*(a.berryHealth?1.1:1)),a.hp+Math.ceil(stats.hp*.35));}
   else { damage=Math.max(1,Math.round(stats.attack*(move==='heavy'?1.9:move==='guard'?.55:1)-e.defense)); a.enemyHp=Math.max(0,a.enemyHp-damage); }
-  if(move==='heavy') a.focus=0; else a.focus=Math.min(2,a.focus+1);
+  if(move==='heavy') { if(a.freeHeavy) a.freeHeavy=false; else a.focus=0; } else a.focus=Math.min(2,a.focus+1);
   a.turns++; a.log=`${move==='rest'?'Recovered health':`${move}: ${damage} damage`}.`;
   if(a.enemyHp<=0) {
     bugXp(b,8+ADVENTURE_ROUTES[a.route].tier*2); a.stage++; a.enemyHp=null; a.travel=0; a.turns=0; a.autoTime=0;
@@ -8137,7 +8240,7 @@ function advanceAdventures(seconds, now=Date.now()) {
         if(a.autoTime<3) break;
         a.autoTime=0;
         const b=META.critterHub.roster.find(b=>b.id===a.bugId);
-        adventureMove(i,a.hp<bugStats(b).hp*.45&&a.rest>0?'rest':a.focus>=2?'heavy':'strike',true);
+        adventureMove(i,a.hp<bugStats(b).hp*.45&&a.rest>0?'rest':(a.focus>=2||a.freeHeavy)?'heavy':'strike',true);
       } else {
         const leg=a.journeySeconds/(r.foes.length+1), used=Math.min(left,Math.max(0,leg-a.travel)); a.travel+=used; left-=used;
         if(a.travel<leg) break;
@@ -8156,7 +8259,7 @@ function renderAdventures() {
   document.getElementById('advSlots').innerHTML=a.entries.map((trip,i)=> {
     if(!trip) return `<section class="expcard"><h3>Adventure ${i+1}</h3><label>Bug<select id="advBug${i}">${availableBugs().map(b=>`<option value="${b.id}">${BUG_KINDS[b.kind].name} ${b.id.slice(0,4)} · Lv ${b.level}</option>`).join('')}</select></label><label>Route<select id="advRoute${i}">${ADVENTURE_ROUTES.map((r,j)=>`<option value="${j}" ${adventureRouteUnlocked(j)?'':'disabled'}>${adventureRouteUnlocked(j)?`${r.name} · ${fmtAcornTimer(r.seconds*1000)} · ${r.foes.length} enemies${a.routeCompletions[j]?' · ✓ completed':''}`:`🔒 ${r.name} · complete ${ADVENTURE_ROUTES[j-1].name}`}</option>`).join('')}</select></label><p>Complete each route to unlock the next. Times are journey time plus battles. Tougher routes need levels and gear. Rewards: sap, resin, possible rings, rare acorns and boosts; one gear piece on every success.</p><button data-adv="start" data-slot="${i}" ${!availableBugs().length||frozenOn()?'disabled':''}>Send bug</button></section>`;
     const b=roster.find(b=>b.id===trip.bugId), r=ADVENTURE_ROUTES[trip.route], stats=bugStats(b), fighting=trip.enemyHp!==null, enemy=fighting?adventureEnemy(trip):null;
-    return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${stats.hp} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,trip.journeySeconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
+    return `<section class="expcard"><h3>${r.name}</h3><p>${BUG_KINDS[b.kind].icon} Lv ${b.level} · ♥ ${Math.ceil(trip.hp)}/${Math.ceil(stats.hp*(trip.berryHealth?1.1:1))} · ATK ${stats.attack} · DEF ${stats.defense}</p><p>${trip.stage}/${r.foes.length} enemies defeated · ${frozenOn()?'Frozen':metaLvl('bugtactics')?'Auto-fight enabled':'Manual battles'}</p>${fighting?`<p>${enemy.icon} ${enemy.name} · ♥ ${trip.enemyHp}/${enemy.hp} · ATK ${enemy.attack} · DEF ${enemy.defense}</p><p>${trip.turns%3===2?'⚠ Heavy attack next turn':'Enemy attacks after your move'} · Focus ${trip.focus}/2${trip.freeHeavy?' · 1 free Heavy':''}</p>${[['strike','Strike'],['heavy','Heavy · 2 focus'],['guard','Guard · weak hit, block 65%'],['rest',`Recover · ${trip.rest} left`]].map(([k,v])=>`<button data-adv="${k}" data-slot="${i}" ${frozenOn()||(k==='heavy'&&trip.focus<2&&!trip.freeHeavy)||(k==='rest'&&!trip.rest)?'disabled':''}>${v}</button>`).join('')}`:`<p>🌿 Journeying · ${fmtAcornTimer(Math.max(0,trip.journeySeconds/(r.foes.length+1)-trip.travel)*1000)} to ${trip.stage===r.foes.length?'home':'next enemy'}</p>`}<p aria-live="polite">${escapeHtml(trip.log)}</p><button data-adv="retreat" data-slot="${i}">Return home · no loot</button></section>`;
   }).join('')+(a.slots<3?`<section class="expcard"><h3>${unlocked?'Another adventure slot':'Unlock Adventures'}</h3><p>A permanent slot costs 🌰 ${[1,3,5][a.slots]}.</p><button data-adv="unlock" ${META.acorns<[1,3,5][a.slots]?'disabled':''}>Unlock · 🌰 ${[1,3,5][a.slots]}</button></section>`:'');
   document.getElementById('advBugs').innerHTML='Manage bugs and their equipment with View bugs at the hub.';
   for(const [id,value] of choices) { const el=document.getElementById(id); if(el&&[...el.options].some(o=>o.value===value&&!o.disabled)) el.value=value; }
@@ -8365,7 +8468,8 @@ function startExpedition(i) {
   const team=availableBugs().slice(0,t.critters);
   const speed=1+Math.min(.15,team.reduce((sum,b)=>sum+(b.level-1)*.01,0)/team.length);
   const [ringMin, ringMax] = expeditionRingRange();
-  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration/speed, bugIds:team.map(b=>b.id), progress:0, critters:t.critters, crittersDeparted:true, ringMin, ringMax };
+  slot.active = { kind:slot.offer.kind, duration:slot.offer.duration/speed*(ensureGarden().picnic ? 0.9 : 1), bugIds:team.map(b=>b.id), progress:0, critters:t.critters, crittersDeparted:true, ringMin, ringMax };
+  META.garden.picnic=false;
   slot.offer = null; syncHubBugs();
   META.expeditions.lastTickAt = Date.now();
   renderCritterHub(); saveMeta(); renderExpeditions(); sfx('buy');
@@ -8668,6 +8772,7 @@ function refreshFreeze() {
 }
 freezeBtn?.addEventListener('click', () => {
   if (!freezeOwned()) return;
+  tickGarden();
   if (frozenOn()) {
     S.frozen = false;
     toast('❄️ Thawed — buff timers resume');
@@ -8935,6 +9040,8 @@ function frame(now) {
     // The rAF clock (performance.now) freezes while the machine is asleep, and
     // dt below is clamped to 0.1s — so a sleep gap would earn nothing. Watch the
     // wall clock for a jump the loop can't otherwise see and credit it offline.
+    tickGarden();
+    if(gardenDialog.open && now-gardenRenderAt>1000) {gardenRenderAt=now;renderGarden();}
     const wallNow = Date.now();
     const wallGap = (wallNow - wallLast) / 1000;
     wallLast = wallNow;
