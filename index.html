@@ -10,6 +10,13 @@
     -webkit-text-size-adjust:100%; }
   button { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   canvas { position:fixed; inset:0; display:block; touch-action:none; }
+  .lightning-glow { position:fixed; inset:0; z-index:90; pointer-events:none; opacity:0;
+    background:radial-gradient(ellipse at var(--strike-x) 0%, rgba(196,228,255,.34), transparent 72%),
+      radial-gradient(ellipse at var(--strike-x) var(--strike-y), rgba(255,221,166,.16), transparent 48%),
+      rgba(174,211,246,.075); box-shadow:inset 0 0 90px rgba(166,211,255,.16);
+    animation:lightningGlow 950ms ease-out both; }
+  @keyframes lightningGlow { 0% { opacity:0; } 12% { opacity:.7; } 42% { opacity:.24; } 100% { opacity:0; } }
+  @media(prefers-reduced-motion:reduce) { .lightning-glow { display:none; animation:none; } }
   #critterHub { position:fixed; right:20px; bottom:20px; z-index:12; width:74px; height:74px; box-sizing:border-box; border:2px solid #9a7545; border-radius:50%; background:radial-gradient(circle,#34412b,#19251b 72%); color:#f5ddb1; box-shadow:0 5px 18px #0009; display:none; align-items:center; justify-content:center; flex-direction:column; touch-action:none; user-select:none; cursor:grab; font-size:12px; text-align:center; }
   #critterHub.open { display:flex; }
   #critterHub.minimized { width:42px!important; height:42px!important; font-size:9px; }
@@ -1257,6 +1264,10 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-10-lightning-glow', date:'October 10, 2026', title:'A brighter lightning strike', notes:[
+    'Lightning now briefly lights the page with a soft blue-white glow, brighter forked bolts, and a warm glow where it strikes your tree.',
+    'Reduced-motion settings keep a quiet fading strike marker without the page flash or moving debris.'
+  ] },
   { id:'2026-10-10-admin-lite', date:'October 10, 2026', title:'Admin Lite catalog access', notes:[
     'Admin Lite can browse every achievement, including secrets, all adventure and quest reward gear, and live and past challenges in a read-only dashboard.',
     'The admin achievement catalog now also displays all quest completion milestones.'
@@ -4070,6 +4081,17 @@ function startNaturalEvent(kind, level = 2) {
   const rain = RAIN_LEVELS[naturalWeather.level];
   toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : '⚡ Thunderclouds gather above the tree.');
 }
+function illuminateLightning(x, y) {
+  if (seasonMotionPreference.matches) return;
+  // A one-shot CSS pulse expires even when weather or the game loop pauses.
+  const glow = document.createElement('div');
+  glow.className = 'lightning-glow'; glow.setAttribute('aria-hidden', 'true');
+  glow.style.setProperty('--strike-x', `${clamp(sx(x) / cw * 100, 0, 100)}%`);
+  glow.style.setProperty('--strike-y', `${clamp(sy(y) / ch * 100, 0, 100)}%`);
+  glow.addEventListener('animationend', () => glow.remove(), {once:true});
+  document.body.appendChild(glow);
+  setTimeout(() => glow.remove(), 1200);
+}
 function strikeTree(cause = 'lightning') {
   // One terminal node per strike bounds the loss, even on large upgraded trees.
   const candidates = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length &&
@@ -4081,11 +4103,12 @@ function strikeTree(cause = 'lightning') {
   const hit = parent ? curvePt(edgeCurve(n), .65) : { x:n.x, y:n.y };
   const protectedTree = !parent;
   // Snapshot world geometry before layout moves the surviving tree.
-  const strike = { cause, x:hit.x, y:hit.y, age:0, bolt:Array.from({length:10}, () => Math.random() - .5),
+  const strike = { cause, x:hit.x, y:hit.y, age:0, visualAt:performance.now(), bolt:Array.from({length:10}, () => Math.random() - .5),
     debris:parent ? { x:n.x, y:n.y, dx:hit.x - n.x, dy:hit.y - n.y,
       radius:nodeRadius(n), width:branchStrokeWidth(n), color:n.type === 'leaf' ? (SP().tint || '#3f9e4f') : '#a58458',
       spin:(Math.random() < .5 ? -1 : 1) * .8 } : null };
   naturalWeather.strike = strike;
+  if (cause !== 'wind') illuminateLightning(hit.x, hit.y);
   if (protectedTree) {
     toast(`${cause === 'wind' ? '💨 Wind gusts!' : '⚡ Lightning hits!'} The Core and your last leaf are safe.`);
     return;
@@ -4198,20 +4221,45 @@ function drawNaturalWeather() {
   const s = w.strike;
   if (s) {
     const x = sx(s.x), y = sy(s.y);
-    if (s.age < .9 && s.cause !== 'wind') {
-      ctx.globalAlpha = 1 - s.age / .9;
-      ctx.shadowColor = '#a3d9ff'; ctx.shadowBlur = reduced ? 0 : 18;
-      ctx.strokeStyle = '#d6edff'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
-      const topX = x - 60 * cam.scale;
-      ctx.moveTo(topX, -10);
-      for (let i = 1; i <= 10; i++) {
-        const p = i / 10;
-        ctx.lineTo(lerp(topX, x, p) + (i === 10 ? 0 : s.bolt[i - 1] * 65), lerp(-10, y, p));
+    const lightAge = (performance.now() - s.visualAt) / 1000;
+    if (lightAge < 1.05 && s.cause !== 'wind') {
+      const fade = Math.pow(1 - lightAge / 1.05, 1.4);
+      ctx.globalAlpha = fade;
+      if (!reduced) {
+        const topX = x - Math.min(85, cw * .14);
+        const points = [{x:topX, y:-12}];
+        for (let i = 1; i <= 10; i++) {
+          const p = i / 10;
+          points.push({x:lerp(topX, x, p) + (i === 10 ? 0 : s.bolt[i - 1] * 55), y:lerp(-12, y, p)});
+        }
+        // Forks share the strike's fixed geometry, so they never flicker between frames.
+        const boltPath = () => {
+          ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+          for (const [at, direction] of [[4,-1], [7,1]]) {
+            const p = points[at], span = Math.min(48, Math.max(20, Math.abs(y) * .1));
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x + direction * span * .65, p.y + span * .4);
+            ctx.lineTo(p.x + direction * span * .5, p.y + span * .75);
+            ctx.lineTo(p.x + direction * span, p.y + span * 1.2);
+          }
+        };
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        boltPath(); ctx.strokeStyle = 'rgba(98,170,244,.22)'; ctx.lineWidth = 11; ctx.stroke();
+        ctx.shadowColor = '#8ecfff'; ctx.shadowBlur = 16;
+        boltPath(); ctx.strokeStyle = '#91caff'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.shadowBlur = 0;
+        boltPath(); ctx.strokeStyle = '#f1f9ff'; ctx.lineWidth = 1.5; ctx.stroke();
+        const radius = 62 + lightAge * 22;
+        const impact = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        impact.addColorStop(0, 'rgba(255,244,211,.6)');
+        impact.addColorStop(.18, 'rgba(244,193,112,.25)');
+        impact.addColorStop(1, 'rgba(244,193,112,0)');
+        ctx.fillStyle = impact; ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
       }
-      ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.moveTo(x - 10, y - 45); ctx.lineTo(x + 35, y - 75); ctx.lineTo(x + 20, y - 105); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, reduced ? 14 : 12 + s.age * 28, 0, TAU);
-      ctx.strokeStyle = '#efc981'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.globalAlpha = fade * (reduced ? .55 : .8);
+      ctx.beginPath(); ctx.arc(x, y, reduced ? 14 : 9 + lightAge * 23, 0, TAU);
+      ctx.strokeStyle = '#efcc91'; ctx.lineWidth = 1.5; ctx.stroke();
     }
     if (s.debris && s.age < 2.5 && !reduced) {
       const d = s.debris, t = s.age;
