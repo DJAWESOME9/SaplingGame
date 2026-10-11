@@ -66,12 +66,13 @@
   <header><h1>🌱 Sapling Admin</h1><a href="index.html" style="color:#9db89f">Back to game</a></header>
   <section class="card" id="loginCard">
     <h2>Administrator sign in</h2>
-    <p class="muted">Use the allowlisted administrator email, or enter AdminLite and your access code to browse achievements, gear, and challenge history, and send up to three lightning strikes and give out 100,000 sap per day. Full administrators can create a Supabase Auth account with their allowlisted email first.</p>
+    <p class="muted">Use the allowlisted administrator email, or enter AdminLite and your access code to browse achievements, gear, and challenge history, and send up to three lightning strikes and give out 100,000 sap and take away up to 100,000 sap per day. Full administrators can create a Supabase Auth account with their allowlisted email first.</p>
     <form id="loginForm"><input id="email" type="text" autocomplete="username" placeholder="Admin email or AdminLite" value="djdavidfreeman@gmail.com" required><input id="password" type="password" autocomplete="current-password" placeholder="Password or access code" required><button>Sign in</button><button id="createAccount" type="button">Create / resend account confirmation</button></form>
   </section>
   <section id="dashboard" hidden>
     <div class="toolbar"><input data-full-admin id="search" placeholder="Filter players by name or ID"><button data-full-admin id="refresh">Refresh players</button><button id="logout">Sign out</button></div>
     <div class="card" id="liteSap" hidden><h2>🌱 Daily sap gifts</h2><p class="muted">Give out up to 100,000 sap total per day, shared across all tabs and devices. Resets at midnight Eastern; unused sap does not carry over. Gifts arrive at the player's next online check-in.</p><p id="liteSapStatus" role="status"></p><div class="toolbar"><select id="liteSapPlayer" aria-label="Sap recipient"><option value="">Choose a player</option></select><input id="liteSapAmount" type="number" min="1" max="100000" step="1" placeholder="Sap amount" aria-label="Sap amount"><button id="liteSapSend" type="button" disabled>Give sap</button><button id="liteSapRefresh" type="button">Refresh balance and players</button></div><p id="liteSapFeedback" role="status"></p></div>
+    <div class="card" id="liteSapRemoval" hidden><h2>Daily sap removals</h2><p class="muted">Take away up to 100,000 sap total per day, shared across all tabs and devices. Resets at midnight Eastern; unused allowance does not carry over. This is separate from the gift allowance. Removals apply at the player's next online check-in.</p><p id="liteSapRemovalStatus" role="status"></p><div class="toolbar"><select id="liteSapRemovalPlayer" aria-label="Sap removal target"><option value="">Choose a player</option></select><input id="liteSapRemovalAmount" type="number" min="1" max="100000" step="1" placeholder="Sap amount" aria-label="Sap amount"><button id="liteSapRemovalSend" type="button" disabled>Take away sap</button><button id="liteSapRemovalRefresh" type="button">Refresh balance and players</button></div><p id="liteSapRemovalFeedback" role="status"></p></div>
     <div class="card" id="liteLightning" hidden><h2>⚡ Lightning strikes</h2><p class="muted">Admin Lite can send 3 strikes total per day, shared across all tabs and devices. Resets at midnight Eastern. Each strike queues for the player's next check-in and active play.</p><p id="liteLightningStatus" role="status"></p><div class="toolbar"><select id="liteLightningPlayer" aria-label="Lightning target"><option value="">Choose a player</option></select><button id="liteLightningSend" type="button" disabled>Send lightning strike</button><button id="liteLightningRefresh" type="button">Refresh allowance and players</button></div><p id="liteLightningFeedback" role="status"></p></div>
     <div class="card"><h2>Achievements <span class="muted" id="achievementCount"></span></h2><p class="muted">Full game achievement catalog, including secret achievements. This is a read-only view.</p><div class="toolbar"><input id="achievementSearch" placeholder="Filter achievements by name, ID, or description"><button id="refreshAchievements" type="button">Refresh achievements</button></div><div id="achievementList" aria-live="polite"></div></div>
     <div class="card"><h2>Live and past challenges</h2><p data-full-admin class="muted">You can run several challenges at once. Publishing starts each clock immediately. Production and action goals start at zero when the challenge opens. Bug-level goals count bugs currently owned, including existing bugs. The first database-recorded finisher gets the additional bonus.</p><button id="refreshChallenges" type="button">Refresh challenges</button>
@@ -170,7 +171,7 @@ async function restoreAdminSession() {
       setAccess(false);
     } else { clearAdminSession(); return; }
     $('loginCard').hidden = true; $('dashboard').hidden = false;
-    if (liteCredentials) { await refreshLiteLightning(); await refreshLiteSap(); }
+    if (liteCredentials) { await refreshLiteLightning(); await refreshLiteSap(); await refreshLiteSapRemoval(); }
     else await refreshPlayers();
     await refreshChallenges(); await refreshAchievements();
     say('Sign-in restored.');
@@ -184,6 +185,7 @@ let liteLightningRemaining = 0, liteLightningBusy = false;
 function setAccess(lite) {
   $('liteLightning').hidden = !lite;
   $('liteSap').hidden = !lite;
+  $('liteSapRemoval').hidden = !lite;
   document.querySelectorAll('[data-full-admin]').forEach(el => { el.hidden = lite; });
   document.querySelector('h1').textContent = lite ? '🌱 Sapling Admin Lite' : '🌱 Sapling Admin';
 }
@@ -273,6 +275,50 @@ $('liteSapSend').addEventListener('click', async () => {
     say($('liteSapFeedback').textContent);
     await refreshLiteSap();
   } finally { liteSapBusy = false; updateLiteSapButton(); }
+});
+let liteSapRemovalRemaining = 0, liteSapRemovalBusy = false;
+function updateLiteSapRemovalButton() {
+  const amount = Number($('liteSapRemovalAmount').value);
+  $('liteSapRemovalAmount').max = String(liteSapRemovalRemaining);
+  $('liteSapRemovalSend').disabled = liteSapRemovalBusy || !liteCredentials || !Number.isInteger(amount) || amount < 1 || amount > liteSapRemovalRemaining || !$('liteSapRemovalPlayer').value;
+}
+function showLiteSapRemovalAllowance(data) {
+  liteSapRemovalRemaining = Number(data.remaining) || 0;
+  const reset = new Date(data.resets_at).toLocaleString(undefined, {timeZone:'America/New_York', timeZoneName:'short'});
+  $('liteSapRemovalStatus').textContent = `${liteSapRemovalRemaining.toLocaleString()} of 100,000 sap remaining. Resets ${reset}.`;
+  updateLiteSapRemovalButton();
+}
+async function refreshLiteSapRemoval() {
+  if (!liteCredentials) return;
+  liteSapRemovalRemaining = 0; updateLiteSapRemovalButton();
+  try {
+    const data = await rpc('admin_lite_sap_removal_status', {p_login:liteCredentials.login, p_code:liteCredentials.code});
+    if (!liteCredentials) return;
+    const old = $('liteSapRemovalPlayer').value;
+    $('liteSapRemovalPlayer').innerHTML = '<option value="">Choose a player</option>' + data.players.map(p => `<option value="${escapeHtml(p.player_id)}">${escapeHtml(p.display_name)} · ${escapeHtml(p.player_id.slice(0,8))}</option>`).join('');
+    $('liteSapRemovalPlayer').value = data.players.some(p => p.player_id === old) ? old : '';
+    showLiteSapRemovalAllowance(data);
+  } catch(err) { $('liteSapRemovalStatus').textContent = `Could not load sap allowance: ${err.message}`; }
+}
+$('liteSapRemovalAmount').addEventListener('input', updateLiteSapRemovalButton);
+$('liteSapRemovalPlayer').addEventListener('change', updateLiteSapRemovalButton);
+$('liteSapRemovalRefresh').addEventListener('click', refreshLiteSapRemoval);
+$('liteSapRemovalSend').addEventListener('click', async () => {
+  if (!liteCredentials || liteSapRemovalBusy || $('liteSapRemovalSend').disabled) return;
+  liteSapRemovalBusy = true; updateLiteSapRemovalButton();
+  const target = $('liteSapRemovalPlayer').selectedOptions[0].textContent;
+  $('liteSapRemovalFeedback').textContent = 'Queuing sap removal…';
+  try {
+    const data = await rpc('admin_lite_queue_sap_removal', {p_login:liteCredentials.login, p_code:liteCredentials.code, p_player_id:$('liteSapRemovalPlayer').value, p_amount:Number($('liteSapRemovalAmount').value)});
+    if (!liteCredentials) return;
+    showLiteSapRemovalAllowance(data);
+    $('liteSapRemovalFeedback').textContent = `Sap removal queued for ${target}; ${Number(data.remaining).toLocaleString()} sap left today.`;
+    say($('liteSapRemovalFeedback').textContent);
+  } catch(err) {
+    $('liteSapRemovalFeedback').textContent = `Could not confirm sap removal: ${err.message}. Check the refreshed allowance before retrying.`;
+    say($('liteSapRemovalFeedback').textContent);
+    await refreshLiteSapRemoval();
+  } finally { liteSapRemovalBusy = false; updateLiteSapRemovalButton(); }
 });
 function renderGearCatalog() {
   const q = $('gearSearch').value.trim().toLowerCase();
@@ -489,8 +535,8 @@ $('loginForm').addEventListener('submit',async e=>{
       setAccess(true);
       $('password').value = '';
       $('loginCard').hidden=true; $('dashboard').hidden=false;
-      await refreshChallenges(); await refreshAchievements(); await refreshLiteLightning(); await refreshLiteSap();
-      say('Admin Lite: browse all catalogs and send up to 3 lightning strikes and give out 100,000 sap per day.');
+      await refreshChallenges(); await refreshAchievements(); await refreshLiteLightning(); await refreshLiteSap(); await refreshLiteSapRemoval();
+      say('Admin Lite: browse all catalogs and send up to 3 lightning strikes and give out 100,000 sap and take away up to 100,000 sap per day.');
       return;
     }
     liteCredentials = null;
@@ -555,7 +601,7 @@ $('search').addEventListener('input',render);
 $('achievementSearch').addEventListener('input',renderAchievements);
 $('refreshAchievements').addEventListener('click',refreshAchievements);
 $('refresh').addEventListener('click',refreshPlayers);
-$('logout').addEventListener('click',()=>{clearAdminSession();token='';liteCredentials=null;liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
+$('logout').addEventListener('click',()=>{clearAdminSession();token='';liteCredentials=null;liteSapRemovalRemaining=0;$('liteSapRemovalPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapRemovalStatus').textContent='';$('liteSapRemovalFeedback').textContent='';$('liteSapRemovalAmount').value='';updateLiteSapRemovalButton();liteSapRemaining=0;$('liteSapPlayer').innerHTML='<option value="">Choose a player</option>';$('liteSapStatus').textContent='';$('liteSapFeedback').textContent='';$('liteSapAmount').value='';updateLiteSapButton();liteLightningRemaining=0;$('liteLightningPlayer').innerHTML='<option value="">Choose a player</option>';$('liteLightningStatus').textContent='';$('liteLightningFeedback').textContent='';updateLiteLightningButton();selected=null;players=[];achievements=[];standardGear=[];questGear=[];leaderboardRecords.clear();$('challengeList').textContent='';renderAchievements();renderGearCatalog();$('details').textContent='';$('players').textContent='';$('password').value='';setAccess(false);$('dashboard').hidden=true;$('loginCard').hidden=false;say('Signed out.');});
 $('grantSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',v,0);});
 $('takeSap').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',-v,0);});
 $('grantResin').addEventListener('click',()=>{const v=Number($('amount').value);if(v>0)act('balance',0,v);});
