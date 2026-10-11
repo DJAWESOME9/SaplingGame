@@ -841,10 +841,7 @@
       <li><span class="ig">🍃</span><b>Cut the tree</b> when it's grown to bank <b>rings</b> — eternal upgrades and new species in the Grove.</li>
     </ul>
     <p class="introtip">Tip: tap the 🔓 lock on any node's panel to protect it from accidental upgrades or pruning. Drag to pan, pinch or scroll to zoom.</p>
-    <label class="intro-name" id="introNameRow">Choose your username
-      <input id="introName" maxlength="20" autocomplete="nickname" placeholder="Your username" required>
-      <small>This is the name shown on the leaderboard. You can change it there later.</small>
-    </label>
+    <button id="introSignIn" type="button">Sign in / create account</button>
     <label class="introhard" id="introHard">
       <input type="checkbox" id="introHardCheck">
       <span class="ihtext"><b>🥀 Activate Blight mode</b> — for veterans who want a fight. <span>Critters swarm harder, leaf output is taxed −15%, and every cheat code is disabled. You may leave after your first cut — but once you do, you can't re-enter.</span></span>
@@ -855,11 +852,13 @@
 <div id="usernamePrompt" role="dialog" aria-modal="true" aria-labelledby="usernameTitle">
   <div class="usernamebox">
     <h2 id="usernameTitle">Choose a leaderboard username</h2>
-    <p>The leaderboards have been reset. Choose an available name to report your current scores. Your game progress is unchanged.</p>
+    <p>Choose a name for the leaderboard, or sign in to use your existing account and cloud save. You can also continue playing locally.</p>
     <form id="usernameForm">
       <input id="usernameChoice" maxlength="20" autocomplete="nickname" aria-label="Leaderboard username" required>
       <button id="usernameClaim" type="submit">Use this name</button>
     </form>
+    <button id="usernameSignIn" type="button">Sign in / create account</button>
+    <button id="usernameLater" type="button">Continue locally</button>
     <p id="usernameStatus" role="status"></p>
   </div>
 </div>
@@ -1294,6 +1293,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-11-start-sign-in', date:'October 11, 2026', title:'A smoother start', notes:[
+    'Choose your leaderboard username once when starting. Sign in or create an account directly from the welcome screen or username popup, or continue playing locally without a name.'
+  ] },
   { id:'2026-10-10-admin-lite-extra-allowances', date:'October 10, 2026', title:'Extra Admin Lite allowances', notes:[
     'Full admins can now grant Admin Lite extra sap gifts, sap removals, and lightning strikes for the day. Extra allowances are shared across devices and expire at midnight Eastern.'
   ] },
@@ -5952,7 +5954,22 @@ async function signInAccount(create) {
   await checkCloud();
   submitLeaderboardScore();
 }
-document.getElementById('accountOpen').addEventListener('click', () => { accountView(); accountDialog.showModal(); if (accountSession) accountAction(checkCloud); });
+function openAccount() {
+  accountView();
+  if (!accountDialog.open) accountDialog.showModal();
+  if (accountSession) accountAction(checkCloud);
+}
+document.getElementById('accountOpen').addEventListener('click', openAccount);
+document.getElementById('introSignIn').addEventListener('click', openAccount);
+document.getElementById('usernameSignIn').addEventListener('click', () => {
+  usernamePromptDeferred = true;
+  document.getElementById('usernamePrompt').classList.remove('open');
+  openAccount();
+});
+document.getElementById('usernameLater').addEventListener('click', () => {
+  usernamePromptDeferred = true;
+  document.getElementById('usernamePrompt').classList.remove('open');
+});
 document.getElementById('accountForm').addEventListener('submit', e => { e.preventDefault(); accountAction(() => signInAccount(false)); });
 document.getElementById('accountCreate').addEventListener('click', () => accountAction(() => signInAccount(true)));
 document.getElementById('cloudSave').addEventListener('click', () => accountAction(() => uploadCloud(true)));
@@ -6373,10 +6390,11 @@ function escapeHtml(value) {
 }
 const LB_CLAIM_KEY = 'sapling-leaderboard-claimed-name-v2';
 let claimedUsername = (() => { try { return localStorage.getItem(LB_CLAIM_KEY) || ''; } catch (e) { return ''; } })();
-let leaderboardSubmitBusy = false;
+let leaderboardSubmitBusy = false, usernamePromptDeferred = false;
 function showUsernamePrompt() {
-  if (!lbConfigured || !lbPlayerId) return;
+  if (!lbConfigured || !lbPlayerId || usernamePromptDeferred || accountDialog.open || document.getElementById('intro').classList.contains('open')) return;
   const prompt = document.getElementById('usernamePrompt');
+  if (prompt.classList.contains('open')) return;
   const choice = document.getElementById('usernameChoice');
   choice.value = lbName.value || claimedUsername;
   document.getElementById('usernameStatus').textContent = '';
@@ -6575,6 +6593,7 @@ window.addEventListener('beforeunload', () => { submitPlayerSnapshot(); });
 lbName.value = (() => { try { return localStorage.getItem('sapling-leaderboard-name-v1') || ''; } catch (e) { return ''; } })();
 lbName.addEventListener('change', () => {
   if (lbName.value.trim() === claimedUsername) return;
+  usernamePromptDeferred = false;
   showUsernamePrompt();
 });
 // The utility drawers can be pinned and placed independently of the top bar.
@@ -9132,10 +9151,6 @@ document.getElementById('wbClose')?.addEventListener('click', () => {
 function openIntro() {
   const el = document.getElementById('intro');
   if (el) el.classList.add('open');
-  const nameRow = document.getElementById('introNameRow');
-  const introName = document.getElementById('introName');
-  if (nameRow) nameRow.style.display = META.seenIntro ? 'none' : '';
-  if (introName && !META.seenIntro) introName.value = lbName.value;
   // The Blight-mode opt-in is only offered on a genuine first run (or after a
   // hard reset, which clears seenIntro). Hide it when re-opened via "Show intro"
   // or if the save is already running Blight mode.
@@ -9157,27 +9172,11 @@ introHardCheck?.addEventListener('change', () => {
 // chosen we throw up one last warning of what it entails; returns false (leaving
 // the intro open) if the player backs out at that gate.
 function beginRun() {
-  if (!META.seenIntro) {
-    const introName = document.getElementById('introName');
-    const name = (introName.value.trim()).replace(/[^\w\u00C0-\u024F _.-]/g, '').trim().slice(0, 20);
-    if (!name) {
-      introName.setCustomValidity('Please enter a username using letters, numbers, spaces, or _ . -');
-      introName.reportValidity();
-      introName.focus();
-      return false;
-    }
-    introName.setCustomValidity('');
-    introName.value = name;
-  }
   if (introHardCheck?.checked && !META.seenIntro && !META.blightExited) {
     if (!confirm('Begin in Blight mode? This is the hard mode: critters swarm harder, leaf output is taxed −15%, neglected nodes wither and rot away, and every cheat code is disabled. You may leave only after your first cut — and leaving is permanent, you can never re-enter Blight on this save. Embrace the Blight?')) return false;
     META.hardMode = true;
     grantAchievement('blightStart'); sfx('blightStart');
     refreshCheatBadges();
-  }
-  if (!META.seenIntro) {
-    lbName.value = document.getElementById('introName').value;
-    try { localStorage.setItem('sapling-leaderboard-name-v1', lbName.value); } catch (e) {}
   }
   META.seenIntro = true; saveMeta();
   closeIntro();
@@ -9187,8 +9186,6 @@ function beginRun() {
   return true;
 }
 document.getElementById('introBegin')?.addEventListener('click', () => { beginRun(); });
-document.getElementById('introName')?.addEventListener('input', e => e.target.setCustomValidity(''));
-document.getElementById('introName')?.addEventListener('keydown', e => { if (e.key === 'Enter') beginRun(); });
 document.getElementById('intro')?.addEventListener('click', e => {
   // Click the dimmed backdrop to dismiss (counts as seen, since they've at least skimmed it)
   if (e.target.id === 'intro') beginRun();
