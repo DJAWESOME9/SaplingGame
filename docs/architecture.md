@@ -123,6 +123,11 @@ Settings → Suggest a feature posts 5–1,000 characters and the player's displ
 
 The game stores two JSON records in browser `localStorage`:
 
+The fixed “Go offline” button starts a foreground idle session: production and
+time-based progress use the current offline rate and offline time cap. The page
+dims until the player clicks or taps to return, then shows the existing Welcome
+Back earnings summary. This does not change the device network connection.
+
 | Key | Contents | Recovery |
 |---|---|---|
 | `sapling-save-v1` | Current tree/run state, currently written with `v: 2` | `-bak`, slower `-snap`, plus `-prereset` used by restore/import flows |

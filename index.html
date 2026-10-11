@@ -26,6 +26,12 @@
   @keyframes lightningGlow { 0% { opacity:0; } 12% { opacity:.7; } 42% { opacity:.24; } 100% { opacity:0; } }
   @media(prefers-reduced-motion:reduce) { .lightning-glow { display:none; animation:none; } }
   #critterHub { position:fixed; right:20px; bottom:20px; z-index:12; width:74px; height:74px; box-sizing:border-box; border:2px solid #9a7545; border-radius:50%; background:radial-gradient(circle,#34412b,#19251b 72%); color:#f5ddb1; box-shadow:0 5px 18px #0009; display:none; align-items:center; justify-content:center; flex-direction:column; touch-action:none; user-select:none; cursor:grab; font-size:12px; text-align:center; }
+  #goOffline { position:fixed; z-index:60; right:max(20px,env(safe-area-inset-right)); bottom:max(108px,calc(88px + env(safe-area-inset-bottom))); border:1px solid #60745a; border-radius:10px; background:rgba(18,29,20,.94); color:#dceade; box-shadow:0 5px 18px #0009; padding:10px 14px; min-height:44px; font:600 13px/1.2 ui-sans-serif,system-ui,sans-serif; cursor:pointer; }
+  #goOffline:hover { border-color:#9fd9a8; color:#f0f7e8; }
+  #goOffline[hidden], #offlineDim[hidden] { display:none; }
+  #offlineDim { position:fixed; inset:0; z-index:61; display:flex; align-items:flex-end; justify-content:center; box-sizing:border-box; padding:24px 16px max(24px,env(safe-area-inset-bottom)); background:rgba(0,0,0,.66); color:#e1e8d7; text-align:center; cursor:pointer; user-select:none; }
+  #offlineDim span { padding:10px 14px; border:1px solid #4d614a; border-radius:10px; background:rgba(13,21,14,.88); font-size:14px; }
+  @media(max-width:600px) { #goOffline { right:max(12px,env(safe-area-inset-right)); bottom:max(106px,calc(88px + env(safe-area-inset-bottom))); } }
   #critterHub.open { display:flex; }
   #critterHub.minimized { width:42px!important; height:42px!important; font-size:9px; }
   #critterHub .hubBugs { font-size:17px; line-height:1.1; }
@@ -861,6 +867,8 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
+<button id="goOffline" type="button" aria-label="Go offline">🌙 Go offline</button>
+<div id="offlineDim" role="button" tabindex="0" aria-label="Return online" hidden><span>🌙 Offline grove · click or tap anywhere to return</span></div>
 <div id="critterHub" aria-label="Critter hub"><span class="hubBugs">🪲</span><span class="hubCount"></span><span class="hubActions"><button id="hubMin" title="Minimize critter hub">−</button></span></div>
 <div id="hubPopover"><div class="hubUpgradeText"></div><button id="hubAdventures" type="button">View bugs</button><button id="hubUpgrade" title="Buy one more space with acorns">+ 🌰</button></div>
 <div id="carriedBug" aria-hidden="true">🪲</div>
@@ -1356,6 +1364,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-offline-button',date:'October 11, 2026',title:'Go offline from the grove',notes:[
+    'Use the 🌙 Go offline button in the lower-right corner to dim the game and earn at your offline rate, up to your offline time limit. Click or tap anywhere to return and see your offline earnings.'
+  ]},
   {id:'2026-10-11-app-install-reminder',date:'October 11, 2026',title:'Install and notification help',notes:[
     'Sapling now occasionally shows an install guide with steps for your device. You can also reopen it from Settings, snooze future reminders, or turn them off.'
   ]},
@@ -9256,9 +9267,36 @@ document.addEventListener('visibilitychange', () => {
 const IDLE_AFTER_MS = 3 * 60 * 1000; // 3 min of no input → idle
 let lastInput = Date.now();
 let wasIdle = false;
+let offlineModeRequested = false;
+let idleWasManual = false;
 // Accumulators for the foreground-idle stretch, summed into the Welcome Back
 // popup shown when input resumes.
 let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0, idleExpeditionNews = [], idleExpeditionStart = [];
+const goOfflineButton = document.getElementById('goOffline');
+const offlineDim = document.getElementById('offlineDim');
+function startOfflineMode() {
+  if (offlineModeRequested) return;
+  offlineModeRequested = true;
+  wasIdle = false;
+  idleWasManual = false;
+  idleSap = 0; idleResin = 0; idleGrowth = 0;
+  idleExpeditionNews = [];
+  goOfflineButton.hidden = true;
+  offlineDim.hidden = false;
+  offlineDim.focus({ preventScroll: true });
+}
+function endOfflineMode() {
+  if (!offlineModeRequested) return;
+  offlineModeRequested = false;
+  lastInput = Date.now();
+  offlineDim.hidden = true;
+  goOfflineButton.hidden = false;
+}
+goOfflineButton.addEventListener('click', startOfflineMode);
+offlineDim.addEventListener('click', endOfflineMode);
+offlineDim.addEventListener('keydown', event => {
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); endOfflineMode(); }
+});
 const markInput = () => { lastInput = Date.now(); };
 for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove']) {
   window.addEventListener(ev, markInput, { passive: true });
@@ -9285,8 +9323,13 @@ function frame(now) {
     last = now;
     // Active play time: real foreground seconds the loop runs (dt is clamped, so a
     // sleep/suspend gap can't inflate it — that time is counted offline instead).
-    S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
-    META.playMs = (META.playMs || 0) + dt * 1000;
+    if (offlineModeRequested) {
+      S.treeOfflineMs = (S.treeOfflineMs || 0) + dt * 1000;
+      META.offlineMs = (META.offlineMs || 0) + dt * 1000;
+    } else {
+      S.treePlayMs = (S.treePlayMs || 0) + dt * 1000;
+      META.playMs = (META.playMs || 0) + dt * 1000;
+    }
     const time = now / 1000;
     tickSpellMana();
     advanceSpellTimers(dt);
@@ -9294,10 +9337,11 @@ function frame(now) {
     // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
     // instead of full, matching the away mechanic so leaving the window open
     // can't farm full income. wallGap (sleep) above is credited separately.
-    const idle = (Date.now() - lastInput) > IDLE_AFTER_MS;
+    const idle = offlineModeRequested || (Date.now() - lastInput) > IDLE_AFTER_MS;
     if (idle && !wasIdle) {
       idleSap = 0; idleResin = 0; idleGrowth = 0;
       idleExpeditionNews = [];
+      idleWasManual = offlineModeRequested;
       idleExpeditionStart = META.expeditions.entries.map(slot => slot && slot.active ? slot.active.progress : null);
       idleRipeStart = acornsRipe(); idleEnteredAt = Date.now();
     }
@@ -9308,11 +9352,15 @@ function frame(now) {
           if (gained >= 1) idleExpeditionNews.push(`Slot ${i + 1}: +${fmtAcornTimer(gained * 1000)} progress`);
         }
       });
-      showWelcomeBack({ away: (Date.now() - idleEnteredAt) / 1000, rate: offlineRateNow(),
+      const away = (Date.now() - idleEnteredAt) / 1000;
+      showWelcomeBack({ away, credited: idleWasManual ? Math.min(away, offlineCapSecNow()) : away, rate: offlineRateNow(),
         sap: idleSap, resin: idleResin, acornsRipened: acornsRipe() - idleRipeStart, growthMs: idleGrowth, expeditionNews: idleExpeditionNews });
+      idleWasManual = false;
     }
     wasIdle = idle;
-    const prod = idle ? offlineRateNow() : 1;
+    const idleAge = Math.max(0, (Date.now() - idleEnteredAt) / 1000);
+    const offlineScale = idle && idleWasManual ? (dt > 0 ? clamp((offlineCapSecNow() - idleAge) / dt, 0, 1) : 1) : 1;
+    const prod = idle ? offlineRateNow() * offlineScale : 1;
     accrueChallengeWindow(liveChallengeNow() - dt * 1000, liveChallengeNow(), challengeProductionRates(prod), true);
     const channelSeconds = S.channeling && touchOwned() && !frozenOn() ? Math.min(dt, Number(S.touch?.charge) || 0) : 0;
     if (channelSeconds > 0) accrueChallengeWindow(liveChallengeNow() - channelSeconds * 1000, liveChallengeNow(), {channel:1}, true);
@@ -9378,7 +9426,7 @@ function frame(now) {
     // Acorn ripening — driven by active-play wall-clock; offline time is
     // handled separately in load() at a 10% rate.
     if (META && META.canopy && acornsUnlocked()) {
-      const gm = dt * 1000 * (idle ? 0.1 : 1);
+      const gm = dt * 1000 * (idle ? 0.1 * offlineScale : 1);
       tickAcorns(gm);
       if (idle) idleGrowth += gm * seasonNow().acorn;
     }
@@ -9716,7 +9764,7 @@ function openAppPromo() {
   (appPromoInstall.hidden ? document.getElementById('appPromoLater') : appPromoInstall).focus({ preventScroll: true });
 }
 function maybeShowAppPromo() {
-  if (appPromoState.disabled || Date.now() < Number(appPromoState.nextAt || 0) || document.hidden || !pushPublicKey) return;
+  if (offlineModeRequested || appPromoState.disabled || Date.now() < Number(appPromoState.nextAt || 0) || document.hidden || !pushPublicKey) return;
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
   const blocked = ['intro', 'welcome', 'updates', 'usernamePrompt', 'adminNotice']
     .some(id => document.getElementById(id)?.classList.contains('open'));
