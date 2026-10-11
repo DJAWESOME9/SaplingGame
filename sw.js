@@ -1,5 +1,5 @@
 /* Bump this name whenever the app shell or its assets change. */
-const CACHE_NAME = 'sapling-shell-2026-10-11-4';
+const CACHE_NAME = 'sapling-shell-2026-10-11-5';
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './bookmark-icon.svg', './favicon.png', './apple-touch-icon.png', './sethatubby.png'];
 
 self.addEventListener('install', event => {
