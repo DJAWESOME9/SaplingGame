@@ -183,10 +183,12 @@ the installed Home Screen app (iOS/iPadOS 16.4 or later). Safari on macOS and
 supported Chromium browsers on Android, macOS, and Windows use the same web push
 subscription flow. Delivery is best-effort and requires platform notification
 settings to allow Sapling. Apply `supabase/web_push.sql`, deploy the function,
-set its VAPID and `PUSH_ADMIN_TOKEN` secrets, and copy the VAPID public key into
-`leaderboard-config.js` before asking players to opt in. Keep the private VAPID
-key and push admin token only in Supabase secrets. Admin sends call the function
-with action `send`; they are not exposed through the public game UI.
+set its VAPID and `PUSH_ADMIN_TOKEN` secrets before asking players to opt in.
+The function returns the public VAPID key to the game at runtime. Keep the
+private VAPID key and push admin token only in Supabase secrets. Admin sends
+call the function with action `send`; they are not exposed through the public
+game UI. Supabase gateway JWT verification is enabled, and `publicKey` returns
+only the public VAPID key.
 
 ## Accounts and cloud saves
 

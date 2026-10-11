@@ -16,16 +16,18 @@ Deno.serve(async request => {
 
   const url = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const adminToken = Deno.env.get('PUSH_ADMIN_TOKEN');
   const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY');
   const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@sapling.game';
-  if (!url || !serviceKey || !anonKey || !adminToken || !vapidPublic || !vapidPrivate) return respond({ error: 'Push service is not configured' }, 503);
+  if (!url || !serviceKey || !adminToken || !vapidPublic || !vapidPrivate) return respond({ error: 'Push service is not configured' }, 503);
 
   const db = createClient(url, serviceKey, { auth: { persistSession: false } });
   try {
     const payload = await request.json();
+    // Supabase gateway JWT verification is enabled for this function. The VAPID
+    // public key is public by design; serving it here avoids putting it in source.
+    if (payload.action === 'publicKey') return respond({ publicKey: vapidPublic });
     if (payload.action === 'send') {
       if (request.headers.get('x-push-admin-token') !== adminToken) return respond({ error: 'Not authorized' }, 401);
       const title = String(payload.title || '').trim().slice(0, 80);
@@ -52,9 +54,6 @@ Deno.serve(async request => {
       return respond({ sent, removed, failed, total: rows?.length || 0 });
     }
 
-    const auth = request.headers.get('authorization') || '';
-    const suppliedKey = request.headers.get('apikey') || '';
-    if (suppliedKey !== anonKey || auth !== `Bearer ${anonKey}`) return respond({ error: 'Not authorized' }, 401);
     const playerId = String(payload.playerId || '');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(playerId)) return respond({ error: 'Invalid player id' }, 400);
     const subscription = payload.subscription;

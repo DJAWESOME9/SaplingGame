@@ -9561,6 +9561,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 const pushButton = document.getElementById('pushNotifications');
 const pushStatus = document.getElementById('pushStatus');
+let pushPublicKey = '';
 function refreshPushControls() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     pushButton.hidden = true; pushStatus.textContent = 'Push notifications are not supported by this browser.'; return;
@@ -9574,7 +9575,7 @@ function refreshPushControls() {
   if (Notification.permission === 'denied') { pushButton.disabled = true; pushButton.textContent = '🔔 Notifications blocked'; pushStatus.textContent = 'Allow notifications for Sapling in your browser or device settings to turn these back on.'; return; }
   pushButton.disabled = false;
   pushButton.textContent = Notification.permission === 'granted' ? '🔕 Turn off notifications' : '🔔 Enable notifications';
-  if (!LEADERBOARD_CONFIG.vapidPublicKey) pushStatus.textContent = 'Notification delivery will be available after the game’s push service is configured.';
+  if (!pushPublicKey) pushStatus.textContent = 'Connecting to Sapling’s notification service…';
   else pushStatus.textContent = Notification.permission === 'granted' ? 'Notifications are enabled on this device.' : 'Get important Sapling news. You can turn this off anytime.';
 }
 function base64UrlBytes(value) {
@@ -9590,6 +9591,20 @@ async function syncPushSubscription(action, subscription) {
   if (!res.ok) throw new Error(result?.error || `Push setup failed (${res.status})`);
   return result;
 }
+async function loadPushPublicKey() {
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/functions/v1/sapling-push`, {
+      method: 'POST', headers: { ...lbHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'publicKey' }), signal: AbortSignal.timeout(15000)
+    });
+    const result = await res.json().catch(() => null);
+    if (!res.ok || typeof result?.publicKey !== 'string') throw new Error(result?.error || 'Notification service is not ready.');
+    pushPublicKey = result.publicKey;
+    refreshPushControls();
+  } catch (_) {
+    pushStatus.textContent = 'Notifications are not configured yet. Try again later.';
+  }
+}
 pushButton.addEventListener('click', async () => {
   pushButton.disabled = true;
   try {
@@ -9599,10 +9614,10 @@ pushButton.addEventListener('click', async () => {
       if (current) { await syncPushSubscription('unsubscribe', current.toJSON()); await current.unsubscribe(); }
       pushStatus.textContent = 'Notifications turned off on this device.';
     } else {
-      if (!LEADERBOARD_CONFIG.vapidPublicKey) throw new Error('Push delivery is not configured yet.');
+      if (!pushPublicKey) throw new Error('Notifications are not configured yet. Try again later.');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('Notification permission was not granted.');
-      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlBytes(LEADERBOARD_CONFIG.vapidPublicKey) });
+      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlBytes(pushPublicKey) });
       await syncPushSubscription('subscribe', subscription.toJSON());
       pushStatus.textContent = 'Notifications enabled for this device.';
     }
@@ -9610,6 +9625,7 @@ pushButton.addEventListener('click', async () => {
   finally { refreshPushControls(); pushButton.disabled = false; }
 });
 refreshPushControls();
+loadPushPublicKey();
 requestAnimationFrame(frame);
 </script>
 </body>

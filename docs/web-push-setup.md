@@ -22,9 +22,9 @@ the existing project's billing before assuming the total service is free.
 
 4. Deploy `supabase/functions/sapling-push` to the existing project. For
    example, from the repository root: `supabase functions deploy sapling-push`.
-5. Copy the VAPID **public** key to `vapidPublicKey` in `leaderboard-config.js`
-   and deploy the site. This is public client configuration; never put the
-   private key or admin token there.
+5. Deploy the latest game source. It retrieves the VAPID **public** key from
+   the deployed function; no key needs to be copied into browser code. Never put
+   the private key or admin token in game source.
 6. Players install Sapling (required on iPhone/iPad), open Settings, and choose
    **Enable notifications**. Permission is requested only after that tap.
 
