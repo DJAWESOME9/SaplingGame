@@ -1148,8 +1148,8 @@ const SEASONS = [
     desc:'New nodes cost 15% less. Branch capacity +20%.', tip:'Expand your tree and establish new production branches.' },
   { name:'Summer', glyph:'☀️', color:'#f0cf75', growth:1, leaf:1.2, edge:1.2, resin:1, acorn:1, amber:1,
     desc:'Leaf production +20%. Branch capacity +20%.', tip:'Upgrade leaves and route their summer surge to the Core.' },
-  { name:'Autumn', glyph:'🍂', color:'#e9ad77', growth:1, leaf:1, edge:1, resin:1, acorn:1.5, amber:1.25,
-    desc:'Acorns ripen 50% faster once unlocked. Pruning yields 25% more amber.', tip:'Bank ripe acorns and harvest mature branches for Roots upgrades.' },
+  { name:'Autumn', glyph:'🍂', color:'#e9ad77', growth:1, leaf:1, edge:1, resin:1, acorn:1.3, amber:1.25,
+    desc:'Acorns ripen 30% faster once unlocked. Pruning yields 25% more amber.', tip:'Bank ripe acorns and harvest mature branches for Roots upgrades.' },
   { name:'Winter', glyph:'❄️', color:'#a6d7ed', growth:1, leaf:1, edge:1, resin:1.25, acorn:1, amber:1,
     desc:'Refinery resin yield +25%.', tip:'Feed your refineries, then invest resin in polish, capacitors, or bug training.' },
 ];
@@ -1305,6 +1305,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-leaf-amp-upgrade-costs',date:'October 11, 2026',title:'Leaf and amplifier upgrades cost more',notes:[
+    'Enriching leaf upgrades now cost more from level 4 onward; the first three levels are unchanged. Strengthening amplifiers costs more at every level.'
+  ]},
+  {id:'2026-10-11-autumn-acorn-balance',date:'October 11, 2026',title:'Autumn acorn balance',notes:[
+    'Autumn now ripens acorns 30% faster, down from 50%. Pruning still yields 25% more amber.'
+  ]},
   {id:'2026-10-11-faster-nests',date:'October 11, 2026',title:'Birds build nests faster',notes:[
     'Nest building is 30% faster: sparrows take 42 seconds, robins 70 seconds, and crows 98 seconds of active play.'
   ]},
@@ -1425,7 +1431,7 @@ const UPDATE_LOG = [
   ]},
   { id:'2026-10-09-seasons', date:'October 9, 2026', title:'The turning seasons', notes:[
     'Spring, Summer, Autumn, and Winter now rotate every hour in a four-hour cycle. Tap the season badge for the countdown, bonuses, and planning guide. Seasons continue through cuts, reloads, time away, and Freeze.',
-    'Spring makes new nodes 15% cheaper and adds 20% branch capacity. Summer adds 20% leaf production and 20% capacity, plus 5% extra capacity per Wood root level up to 25%. Autumn ripens acorns 50% faster and gives 25% more pruning amber. Winter adds 25% refinery yield and branch capacity.',
+    'Spring makes new nodes 15% cheaper and adds 20% branch capacity. Summer adds 20% leaf production and 20% capacity, plus 5% extra capacity per Wood root level up to 25%. Autumn ripens acorns 30% faster and gives 25% more pruning amber. Winter adds 25% refinery yield and branch capacity.',
     'Offline production and acorn growth account for the seasons crossed while away. Existing saves begin in Spring without changing past earnings.',
     'Season Turning is a late Grove upgrade after Patience. Advance to the next season for 1 hour of this tree’s highest unbuffed resin production, with a 50,000 resin minimum. Each paid advance starts a full new hour.'
   ]},
@@ -2390,8 +2396,8 @@ const growUnlocked = t =>
   (t === 'funnel' && metaLvl('funnels') > 0);
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
-  leaf: 20 * Math.pow(2.0, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)),
-  amp:  80 * Math.pow(3.0, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
+  leaf: 20 * Math.pow(2.0, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)) * Math.pow(1.5, Math.max(0, n.lvl - 3)),
+  amp:  100 * Math.pow(3.0, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
   cap:  32 * Math.pow(2.3, n.lvl - 1),
 }[n.type] * crowdMult());
