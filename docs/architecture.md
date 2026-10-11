@@ -190,6 +190,12 @@ call the function with action `send`; they are not exposed through the public
 game UI. Supabase gateway JWT verification is enabled, and `publicKey` returns
 only the public VAPID key.
 
+The install/notification guide in `index.html` first appears after 90 seconds
+of play, then at most once per day. Its schedule and opt-out live in a
+separate localStorage key; Settings → Install & notification help can reopen it.
+The reminder waits behind startup and account overlays, and stops recurring
+once the app is installed. Players can still reopen the guide from Settings.
+
 ## Accounts and cloud saves
 
 Account leaderboard linking was installed on the configured project on October 11, 2026, including the deletion registry required by older leaderboard installations. Existing cloud accounts must reconnect on their original browser once to associate its claimed name with the account, then reconnect other devices. Names come from the shared server profile independently of the cloud progress snapshot.

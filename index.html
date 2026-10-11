@@ -94,6 +94,18 @@
   #installApp, #applyAppUpdate { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:9px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #pushNotifications { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:9px; padding:9px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
   #pushStatus { color:#9db89f; font-size:11px; line-height:1.4; margin:-4px 0 8px; }
+  #appHelpOpen { width:100%; background:#1d2c20; border:1px solid #3c5340; color:#dceade; border-radius:9px; padding:9px 10px; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  #appPromo { position:fixed; inset:0; z-index:68; display:none; align-items:center; justify-content:center; padding:max(16px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:rgba(6,10,7,.84); backdrop-filter:blur(5px); }
+  #appPromo.open { display:flex; animation:overlayIn .22s ease-out both; }
+  .app-promobox { position:relative; box-sizing:border-box; width:min(440px,100%); max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow:auto; padding:22px; border:1px solid #63876a; border-radius:16px; background:#101a12; color:#e5eadc; box-shadow:0 20px 60px #0009; }
+  .app-promobox h2 { margin:0 32px 8px 0; color:#e7ddc4; font-size:21px; }
+  .app-promobox p { margin:0 0 14px; color:#cad9c8; font-size:14px; line-height:1.55; }
+  .app-promo-actions { display:grid; gap:8px; }
+  .app-promo-actions button, #appPromoLater, #appPromoNever { width:100%; min-height:44px; border:1px solid #63876a; border-radius:9px; background:#25402b; color:#edf6e9; padding:10px 12px; font:inherit; cursor:pointer; }
+  #appPromoLater { margin-top:8px; background:#1d2c20; }
+  #appPromoNever { margin-top:6px; border-color:transparent; background:transparent; color:#9db89f; font-size:12px; }
+  #appPromoInstall[hidden], #appPromoSettings[hidden] { display:none; }
+  #appPromoClose { position:absolute; top:12px; right:12px; width:40px; height:40px; border:1px solid #3c5340; border-radius:9px; background:#1d2c20; color:#dceade; font-size:22px; cursor:pointer; }
   #installApp[hidden], #appUpdate[hidden] { display:none; }
   #appUpdate { position:fixed; z-index:110; left:50%; bottom:max(16px,env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(420px,calc(100vw - 24px)); box-sizing:border-box; padding:12px; border:1px solid #63876a; border-radius:12px; background:#152319; color:#e5eadc; box-shadow:0 8px 28px #0008; font-size:13px; }
   #appUpdate p { margin:0 0 8px; }
@@ -495,7 +507,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #settings.open, #leaderboard.open, #achievements.open, #statspanel.open, #panel[style*="display: block"],
-    #intro.open, #welcome.open, #updates.open, #pantheon.open, #pantheon.open .panbox, #grove.open, #grove.open .grovebox {
+    #intro.open, #welcome.open, #updates.open, #appPromo.open, #pantheon.open, #pantheon.open .panbox, #grove.open, #grove.open .grovebox {
       animation-duration:.01ms !important;
     }
   }
@@ -895,6 +907,19 @@
     <button id="updatesClose" type="button">Back to the grove</button>
   </div>
 </div>
+<section id="appPromo" role="dialog" aria-modal="true" aria-labelledby="appPromoTitle" aria-describedby="appPromoInstructions">
+  <div class="app-promobox">
+    <button id="appPromoClose" type="button" aria-label="Close install help">×</button>
+    <h2 id="appPromoTitle">Take Sapling with you</h2>
+    <p id="appPromoInstructions"></p>
+    <div class="app-promo-actions">
+      <button id="appPromoInstall" type="button" hidden>Install Sapling</button>
+      <button id="appPromoSettings" type="button">Open notification settings</button>
+    </div>
+    <button id="appPromoLater" type="button">Remind me later</button>
+    <button id="appPromoNever" type="button">Don’t show this again</button>
+  </div>
+</section>
 <div id="adminNotice" role="dialog" aria-modal="true" aria-labelledby="adminNoticeTitle">
   <div class="adminnoticebox">
     <h2 id="adminNoticeTitle">Message from Sapling</h2>
@@ -973,6 +998,7 @@
   <button id="installApp" type="button" hidden>Install Sapling</button>
   <button id="pushNotifications" type="button">🔔 Enable notifications</button>
   <p id="pushStatus" role="status" aria-live="polite">Get important Sapling news. You can turn this off anytime.</p>
+  <button id="appHelpOpen" type="button">📲 Install &amp; notification help</button>
   <button id="accountOpen" type="button" style="width:100%;margin-bottom:12px">Account &amp; cloud save</button>
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
@@ -1330,6 +1356,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-app-install-reminder',date:'October 11, 2026',title:'Install and notification help',notes:[
+    'Sapling now occasionally shows an install guide with steps for your device. You can also reopen it from Settings, snooze future reminders, or turn them off.'
+  ]},
   {id:'2026-10-11-installable-push',date:'October 11, 2026',title:'Install Sapling and opt in to notifications',notes:[
     'Install Sapling from supported browsers on iPhone, iPad, Android, Mac, and Windows. On iPhone and iPad, use Safari’s Share menu and choose Add to Home Screen.',
     'After the push service is configured, enable notifications in Settings to receive occasional grove news. Notifications require permission and internet access; iPhone and iPad notifications require the installed Home Screen app.'
@@ -9562,6 +9591,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 const pushButton = document.getElementById('pushNotifications');
 const pushStatus = document.getElementById('pushStatus');
 let pushPublicKey = '';
+let hasPushSubscription = false;
 function refreshPushControls() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     pushButton.hidden = true; pushStatus.textContent = 'Push notifications are not supported by this browser.'; return;
@@ -9574,9 +9604,9 @@ function refreshPushControls() {
   pushButton.hidden = false;
   if (Notification.permission === 'denied') { pushButton.disabled = true; pushButton.textContent = '🔔 Notifications blocked'; pushStatus.textContent = 'Allow notifications for Sapling in your browser or device settings to turn these back on.'; return; }
   pushButton.disabled = false;
-  pushButton.textContent = Notification.permission === 'granted' ? '🔕 Turn off notifications' : '🔔 Enable notifications';
+  pushButton.textContent = hasPushSubscription ? '🔕 Turn off notifications' : '🔔 Enable notifications';
   if (!pushPublicKey) pushStatus.textContent = 'Connecting to Sapling’s notification service…';
-  else pushStatus.textContent = Notification.permission === 'granted' ? 'Notifications are enabled on this device.' : 'Get important Sapling news. You can turn this off anytime.';
+  else pushStatus.textContent = hasPushSubscription ? 'Notifications are enabled on this device.' : 'Get important Sapling news. You can turn this off anytime.';
 }
 function base64UrlBytes(value) {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
@@ -9609,16 +9639,19 @@ pushButton.addEventListener('click', async () => {
   pushButton.disabled = true;
   try {
     const registration = await navigator.serviceWorker.ready;
-    if (Notification.permission === 'granted') {
-      const current = await registration.pushManager.getSubscription();
-      if (current) { await syncPushSubscription('unsubscribe', current.toJSON()); await current.unsubscribe(); }
+    const current = await registration.pushManager.getSubscription();
+    if (current) {
+      await syncPushSubscription('unsubscribe', current.toJSON());
+      await current.unsubscribe();
+      hasPushSubscription = false;
       pushStatus.textContent = 'Notifications turned off on this device.';
     } else {
       if (!pushPublicKey) throw new Error('Notifications are not configured yet. Try again later.');
-      const permission = await Notification.requestPermission();
+      const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('Notification permission was not granted.');
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlBytes(pushPublicKey) });
       await syncPushSubscription('subscribe', subscription.toJSON());
+      hasPushSubscription = true;
       pushStatus.textContent = 'Notifications enabled for this device.';
     }
   } catch (error) { pushStatus.textContent = error.message || 'Could not update notification settings.'; }
@@ -9626,6 +9659,95 @@ pushButton.addEventListener('click', async () => {
 });
 refreshPushControls();
 loadPushPublicKey();
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  navigator.serviceWorker.ready.then(registration => registration.pushManager.getSubscription())
+    .then(subscription => { hasPushSubscription = !!subscription; refreshPushControls(); })
+    .catch(() => {});
+}
+const appPromo = document.getElementById('appPromo');
+const appPromoInstructions = document.getElementById('appPromoInstructions');
+const appPromoInstall = document.getElementById('appPromoInstall');
+const appPromoSettings = document.getElementById('appPromoSettings');
+const APP_PROMO_KEY = 'sapling-app-promo-v1';
+const APP_PROMO_INTERVAL = 24 * 60 * 60 * 1000;
+let appPromoState = { nextAt: Date.now() + 90000, disabled: false };
+try {
+  const saved = JSON.parse(localStorage.getItem(APP_PROMO_KEY) || 'null');
+  if (saved && typeof saved === 'object') appPromoState = { ...appPromoState, ...saved };
+  else localStorage.setItem(APP_PROMO_KEY, JSON.stringify(appPromoState));
+} catch (_) {}
+function saveAppPromoState(patch = {}) {
+  appPromoState = { ...appPromoState, ...patch };
+  try { localStorage.setItem(APP_PROMO_KEY, JSON.stringify(appPromoState)); } catch (_) {}
+}
+function appIsInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function closeAppPromo() { appPromo.classList.remove('open'); }
+function openAppPromo() {
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/i.test(ua);
+  const installed = appIsInstalled();
+  let steps;
+  if (installed && hasPushSubscription) {
+    steps = 'Sapling is installed and notifications are enabled on this device. You can manage notification permission in your device settings.';
+  } else if (ios && !installed) {
+    steps = 'In Safari, tap Share, then Add to Home Screen. Open Sapling from the new Home Screen icon, then open Settings and tap Enable notifications. Web push requires iOS or iPadOS 16.4 or later.';
+  } else if (ios) {
+    steps = Notification.permission === 'denied'
+      ? 'Sapling is installed. To enable notifications, allow them for Sapling in iPhone or iPad Settings, then return to Sapling Settings and try again.'
+      : 'Sapling is installed. Open Settings in the game and tap Enable notifications, then allow the device permission prompt.';
+  } else if (android && !installed) {
+    steps = 'Tap Install Sapling below if the install option is available, or open your browser menu (⋮) and choose Install app or Add to Home screen. Then open Sapling Settings and tap Enable notifications.';
+  } else if (!installed) {
+    steps = 'Use your browser’s install icon in the address bar, or open its menu and choose Install Sapling. Then open Sapling Settings and tap Enable notifications.';
+  } else if (Notification.permission === 'denied') {
+    steps = 'Sapling is installed. Allow notifications for Sapling in your browser or device settings, then return to Sapling Settings and try again.';
+  } else {
+    steps = 'Sapling is installed. Open Settings in the game and tap Enable notifications, then allow the browser or device permission prompt.';
+  }
+  appPromoInstructions.textContent = steps;
+  const installButton = document.getElementById('installApp');
+  appPromoInstall.hidden = installed || installButton.hidden;
+  appPromoSettings.hidden = ios && !installed;
+  appPromo.classList.add('open');
+  saveAppPromoState({ nextAt: Date.now() + APP_PROMO_INTERVAL });
+  (appPromoInstall.hidden ? document.getElementById('appPromoLater') : appPromoInstall).focus({ preventScroll: true });
+}
+function maybeShowAppPromo() {
+  if (appPromoState.disabled || Date.now() < Number(appPromoState.nextAt || 0) || document.hidden || !pushPublicKey) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  const blocked = ['intro', 'welcome', 'updates', 'usernamePrompt', 'adminNotice']
+    .some(id => document.getElementById(id)?.classList.contains('open'));
+  if (blocked || accountDialog?.open || appPromo.classList.contains('open')) return;
+  if (appIsInstalled()) {
+    saveAppPromoState({ nextAt: Date.now() + APP_PROMO_INTERVAL });
+    return;
+  }
+  openAppPromo();
+}
+document.getElementById('appHelpOpen').addEventListener('click', () => {
+  settings.classList.remove('open'); gear.classList.remove('open');
+  openAppPromo(true);
+});
+document.getElementById('appPromoClose').addEventListener('click', closeAppPromo);
+document.getElementById('appPromoLater').addEventListener('click', closeAppPromo);
+document.getElementById('appPromoNever').addEventListener('click', () => {
+  saveAppPromoState({ disabled: true }); closeAppPromo();
+});
+appPromoInstall.addEventListener('click', () => document.getElementById('installApp').click());
+appPromoSettings.addEventListener('click', () => {
+  closeAppPromo(); gear.classList.add('open'); settings.classList.add('open'); placeSettings();
+  pushButton.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  pushButton.focus({ preventScroll: true });
+});
+appPromo.addEventListener('click', event => { if (event.target === appPromo) closeAppPromo(); });
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && appPromo.classList.contains('open')) { event.preventDefault(); closeAppPromo(); }
+});
+window.addEventListener('appinstalled', () => { closeAppPromo(); saveAppPromoState({ nextAt: Date.now() + APP_PROMO_INTERVAL }); });
+setInterval(maybeShowAppPromo, 15000);
 requestAnimationFrame(frame);
 </script>
 </body>
