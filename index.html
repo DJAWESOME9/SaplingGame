@@ -1328,12 +1328,14 @@ const GROVE = {
   ringweaver:{ name:'Ringweaver',      glyph:'🧵', tier:6, parent:'godseed', max:5, cost:l=>7000*Math.pow(2.1,l), desc:'+15% rings from felling per level' },
   crownfire: { name:'Crownfire',       glyph:'🔥', tier:6, parent:'verdanttide', max:3, cost:l=>18000*Math.pow(2.2,l), desc:'Channel surges hit +35% harder per level' },
   deepcanopy:{ name:'Deep Canopy',     glyph:'🌲', tier:6, parent:'canopycharm', max:4, cost:l=>9000*Math.pow(2.1,l), desc:'+10% branch capacity per level' },
+  boughs:    { name:'Mighty Boughs',   glyph:'🌿', tier:6, parent:'deepcanopy', max:5, cost:l=>18000*Math.pow(2,l), desc:'+15% branch capacity per level' },
   goldenage: { name:'Golden Age',      glyph:'🪙', tier:6, parent:'apotheosis', max:4, cost:l=>10000*Math.pow(2.15,l), desc:'Gold leaves pay +20% more sap per level' },
   longsummer:{ name:'Long Summer',     glyph:'🌞', tier:6, parent:'everbloom', max:5, cost:l=>8000*Math.pow(2,l), desc:'All blooms last +10% longer per level' },
   rootmemory:{ name:'Root Memory',     glyph:'🌀', tier:6, parent:'expandedRoots', max:3, cost:l=>11000*Math.pow(2.2,l), desc:'New trees begin with +1 extra root unlocked per level' },
   rootstock: { name:'Rootstock',       glyph:'🪴', tier:6, parent:'expandedRoots', max:4, cost:l=>14000*Math.pow(2.15,l), desc:'Each level reveals another deep root: Artesian, Mycelium, Ironwood, then Raincatcher' },
   resinwell: { name:'Resinwell',       glyph:'🫙', tier:6, parent:'godseed', max:4, cost:l=>9500*Math.pow(2.1,l), desc:'Refinery resin yield +20% per level' },
   starfall:  { name:'Starfall',        glyph:'🌠', tier:6, parent:'worldtree', max:5, cost:l=>7500*Math.pow(2,l), desc:'+10% all production per level' },
+  sun-crown: { name:'Sun Crown',       glyph:'☀️', tier:6, parent:'starfall', max:5, cost:l=>16000*Math.pow(2,l), desc:'+20% leaf production per level' },
     // Species unlocks — single-purchase nodes that grant access to a tree type.
   unlock_apple: { name:'Graft Apple',  glyph:'🍎', tier:2, parent:'vitality',  max:1, cost:_=>5,  desc:'Unlocks Apple as a tree species', unlocks:'apple' },
   unlock_peach: { name:'Graft Peach',  glyph:'🍑', tier:3, parent:'seasoned',  max:1, cost:_=>6,  desc:'Unlocks Peach as a tree species', unlocks:'peach' },
@@ -1364,6 +1366,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-grove-bough-upgrades',date:'October 11, 2026',title:'Two new Grove upgrades',notes:[
+    'Mighty Boughs adds branch capacity deeper in the Deep Canopy path. Sun Crown boosts leaf production beyond Starfall.'
+  ]},
   {id:'2026-10-11-offline-button',date:'October 11, 2026',title:'Go offline from the grove',notes:[
     'Use the 🌙 Go offline button in the lower-right corner to dim the game and earn at your offline rate, up to your offline time limit. Click or tap anywhere to return and see your offline earnings.'
   ]},
@@ -2241,8 +2246,8 @@ const achBonusCount = () => Object.keys((META && META.achievements) || {})
     (ACHIEVEMENTS[k] || META.liveChallengeAchievements[k]).cat !== 'secret').length;
 const accoladesMult = () => metaLvl('accolades') > 0 ? 1 + 0.01 * achBonusCount() : 1;
 const laurelsMult   = () => metaLvl('laurels')   > 0 ? 1 + 0.01 * achBonusCount() : 1;
-const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (1 + 0.1 * metaLvl('sapheart')) * (1 + 0.1 * metaLvl('starfall')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf * seasonNow().leaf;
-const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * (1 + 0.1 * metaLvl('deepcanopy')) * laurelsMult() * SP().edge;
+const metaProdMult = () => (1 + 0.15 * metaLvl('vitality')) * (1 + 0.25 * metaLvl('ascendance')) * (1 + 0.5 * metaLvl('worldtree')) * (1 + 0.1 * metaLvl('sapheart')) * (1 + 0.1 * metaLvl('starfall')) * (1 + 0.2 * metaLvl('sun-crown')) * (metaLvl('primordial') > 0 ? 3 : 1) * forcedMult() * accoladesMult() * SP().leaf * seasonNow().leaf;
+const metaEdgeMult = () => (1 + 0.20 * metaLvl('girth')) * (1 + 1.0 * metaLvl('titanheart')) * (1 + 0.1 * metaLvl('deepcanopy')) * (1 + 0.15 * metaLvl('boughs')) * laurelsMult() * SP().edge;
 const ringMult     = () => (1 + 0.20 * metaLvl('windfall')) * (1 + 0.15 * metaLvl('ringweaver')) * SP().ring / (1 + ((META && META.totalRings) || 0) * 0.01);
 
 const soilMult   = () => Math.pow(1.25, S.roots.soil);
