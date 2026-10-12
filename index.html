@@ -1371,6 +1371,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-12-acorn-ripening-slower',date:'October 12, 2026',title:'Acorns take longer to ripen',notes:[
+    'New acorns now take 150 minutes of active play to ripen, up from 120 minutes. Squirrelry, Canopy Charm, and Autumn still speed up growth.'
+  ]},
   {id:'2026-10-11-frame-render-crash-fix',date:'October 11, 2026',title:'Fixed a blank tree after quest updates',notes:[
     'Fixed a missing quest-boost calculation that could stop the tree from drawing while leaving the rest of the game visible.'
   ]},
@@ -1834,7 +1837,7 @@ const UPDATE_LOG = [
 ];
 const newMeta = () => ({ seasonStartedAt: Date.now(), rings: 0, totalRings: 0, treesCut: 0, species: 'oak', up: {}, achievements: {}, liveChallengeAchievements: {}, liveChallengeProgress: {}, liveChallengeUi: {}, pendingLeafSapWindows: [], pendingChallengeEvents: [], hacks: false, acorns: 0, critterHub: { bugs: 0, extra: 0, x: null, y: null, minimized: false }, expeditions: { slots: 1, entries: [], lastTickAt: Date.now() }, canopy: { ripe: 0, growMs: ACORN_INTERVAL_MS }, godsUnlocked: {}, pantheonSlots: [], pantheonSlotsUnlocked: 0, deityFirstSlot: {}, pantheonOpened: false, hardMode: false, productionSap: 0, productionResin: 0, earnedTotalsMigrated: true, peakBuffS: 0, peakBuffR: 0, highestHeldSap: 0, highestHeldResin: 0, seenUpdateId: null });
 // ---------- acorns + pantheon ----------
-const ACORN_INTERVAL_MS = 120 * 60 * 1000;  // 120 real-world minutes per acorn (active play); offline counts at 10% rate
+const ACORN_INTERVAL_MS = 150 * 60 * 1000;  // 150 real-world minutes per acorn (active play); offline counts at 10% rate
 const ACORN_RIPE_CAP    = 5;               // base max ripe acorns waiting to be banked
 const acornInterval = () => ACORN_INTERVAL_MS * Math.pow(0.9, metaLvl('squirrelry')) * Math.pow(0.8, metaLvl('canopycharm'));
 const acornRipeCap  = () => ACORN_RIPE_CAP + metaLvl('canopycharm');
