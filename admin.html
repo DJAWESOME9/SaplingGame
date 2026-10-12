@@ -45,7 +45,7 @@
   .challenge-form label { display:grid; gap:4px; color:#c8d9c9; font-size:12px; }
   .goal-level-label[hidden] { display:none; }
   .goal-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:8px; align-items:end; margin-bottom:8px; }
-  .goal-row.bug-level-goal { grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto; }
+  .goal-row.bug-level-goal,.goal-row.typed-goal { grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto; }
   .goal-row button { height:38px; }
   .challenge-form label small { color:#8fa891; line-height:1.35; }
   .challenge-form fieldset { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; min-width:0; margin:0; padding:12px; border:1px solid #2e3f31; border-radius:8px; }
@@ -61,7 +61,7 @@
   .achievement-item p { margin:4px 0 0; color:#9db89f; font-size:12px; }
   .achievement-category { color:#8fa891; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
   #message { min-height:20px; color:#f0d9a0; font-size:13px; }
-  @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } .challenge-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .challenge-form .wide { grid-column:span 2; } .challenge-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); } .goal-row,.goal-row.bug-level-goal { grid-template-columns:1fr 1fr; } .goal-row button { grid-column:1 / -1; } }
+  @media(max-width:600px) { body { padding:14px; } header { align-items:flex-start; } form { grid-template-columns:1fr; } form button { grid-column:auto; } .challenge-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .challenge-form .wide { grid-column:span 2; } .challenge-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); } .goal-row,.goal-row.bug-level-goal,.goal-row.typed-goal { grid-template-columns:1fr 1fr; } .goal-row button { grid-column:1 / -1; } }
 </style>
 </head>
 <body>
@@ -93,6 +93,7 @@
           <label>Acorns<input id="challengeRewardAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeRewardRings" type="number" min="0" step="1" value="0"></label>
           <label style="grid-column:1 / -1">Gear reward<select id="challengeRewardGear"><option value="">None</option></select><small class="gearRewardHelp">Loading gear choices…</small></label><label>Amber<input id="challengeRewardAmber" type="number" min="0" step="1" value="0"></label>
+          <label>Boost effect<select id="challengeRewardBoostType"><option value="">None</option><option value="leaf">Leaf production</option><option value="capacity">Branch capacity</option><option value="amplifier">Amplifier strength</option></select></label><label>Boost multiplier<input id="challengeRewardBoostMult" type="number" min="1.01" max="100" step="0.01" value="2"></label><label>Boost time (minutes)<input id="challengeRewardBoostMinutes" type="number" min="0.01" max="10080" step="any" value="5"></label>
         </fieldset>
         <fieldset><legend>Extra reward for first finisher</legend>
           <label>Sap<input id="challengeFirstSap" type="number" min="0" step="any" value="0"></label>
@@ -100,6 +101,7 @@
           <label>Acorns<input id="challengeFirstAcorns" type="number" min="0" step="1" value="0"></label>
           <label>Rings<input id="challengeFirstRings" type="number" min="0" step="1" value="0"></label>
           <label style="grid-column:1 / -1">Bonus gear for first finisher<select id="challengeFirstGear"><option value="">None</option></select><small class="gearRewardHelp">Loading gear choices…</small></label><label>Amber<input id="challengeFirstAmber" type="number" min="0" step="1" value="0"></label>
+          <label>Bonus boost effect<select id="challengeFirstBoostType"><option value="">None</option><option value="leaf">Leaf production</option><option value="capacity">Branch capacity</option><option value="amplifier">Amplifier strength</option></select></label><label>Bonus boost multiplier<input id="challengeFirstBoostMult" type="number" min="1.01" max="100" step="0.01" value="2"></label><label>Bonus boost time (minutes)<input id="challengeFirstBoostMinutes" type="number" min="0.01" max="10080" step="any" value="5"></label>
         </fieldset>
         <button type="submit">Publish live challenge now</button>
       </form>
@@ -414,14 +416,14 @@ async function refreshAchievements() {
     renderAchievements();
   } catch(e) { $('achievementList').innerHTML=`<p class="muted">Could not load achievements: ${escapeHtml(e.message)}</p>`; }
 }
-const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',oak_sap:'Sap produced by leaf nodes while Oak is planted.',apple_sap:'Sap produced by leaf nodes while Apple is planted.',peach_sap:'Sap produced by leaf nodes while Peach is planted.',grape_sap:'Sap produced by leaf nodes while Grape is planted.',maple_sap:'Sap produced by leaf nodes while Maple is planted.',pine_sap:'Sap produced by leaf nodes while Pine is planted.',chocolate_sap:'Sap produced by leaf nodes while Chocolate is planted.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',channel:'Time spent actively channeling Verdant Touch, in seconds.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.',bug_level:'Currently owned bugs at this level or higher, including training, travelling, and waiting returns. Existing bugs count; released bugs do not.'};
-const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option><option value="bug_level">Have bugs at level or higher</option>';
+const challengeGoalHelp={sap:'Sap reaching the Core, including eligible offline production.',leaf_sap:'Sap produced at leaf nodes.',oak_sap:'Sap produced by leaf nodes while Oak is planted.',apple_sap:'Sap produced by leaf nodes while Apple is planted.',peach_sap:'Sap produced by leaf nodes while Peach is planted.',grape_sap:'Sap produced by leaf nodes while Grape is planted.',maple_sap:'Sap produced by leaf nodes while Maple is planted.',pine_sap:'Sap produced by leaf nodes while Pine is planted.',chocolate_sap:'Sap produced by leaf nodes while Chocolate is planted.',resin:'Resin reaching the Core, including eligible offline production.',refinery_resin:'Resin created at refinery nodes.',channel:'Time spent actively channeling Verdant Touch, in seconds.',expeditions:'Trips completed during the challenge.',amber:'Amber earned by pruning.',rings:'Rings earned by cutting or expeditions.',bugs:'Insects defeated by swatting; birds do not count.',bug_level:'Currently owned bugs at this level or higher, including training, travelling, and waiting returns.',grafts:'Grafts purchased during the challenge.',tree_height:'Reach a vertical tree size in pixels; your best height is recorded.',node_count:'Reach a total count of planted nodes at once.',acorns:'Acorns banked by collecting ripe acorns during the challenge.',upgrade_type:'Upgrade a selected node type the specified number of times.',leaf_rate:'Reach the requested leaf sap production rate; reaching it completes the goal.',idle_sap:'Go without pointer, touch, wheel, or keyboard input for the target number of consecutive seconds. Any input resets it.'};
+const goalOptions='<option value="sap">Make sap</option><option value="leaf_sap">Make sap with leaves</option><option value="oak_sap">Make sap with Oak</option><option value="apple_sap">Make sap with Apple</option><option value="peach_sap">Make sap with Peach</option><option value="grape_sap">Make sap with Grape</option><option value="maple_sap">Make sap with Maple</option><option value="pine_sap">Make sap with Pine</option><option value="chocolate_sap">Make sap with Chocolate</option><option value="leaf_rate">Reach leaf production rate</option><option value="idle_sap">Make sap without manual input</option><option value="resin">Make resin</option><option value="refinery_resin">Make resin with refineries</option><option value="channel">Channel Verdant Touch</option><option value="expeditions">Complete expeditions</option><option value="amber">Make amber</option><option value="rings">Make rings</option><option value="bugs">Kill bugs</option><option value="bug_level">Have bugs at level or higher</option><option value="grafts">Buy grafts</option><option value="upgrade_type">Upgrade node type</option><option value="tree_height">Reach tree height</option><option value="node_count">Have planted nodes</option><option value="acorns">Collect acorns</option>';
 function updateGoalRow(row) {
-  const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'), isBugs=type==='bug_level';
-  const whole=['expeditions','amber','rings','bugs','bug_level'].includes(type);
+  const type=row.querySelector('.goal-type').value, input=row.querySelector('.goal-target'), isBugs=type==='bug_level', hasNodeType=type==='upgrade_type';
+  const whole=['expeditions','amber','rings','bugs','bug_level','grafts','upgrade_type','node_count','acorns'].includes(type);
   input.step=whole?'1':'any'; input.min=whole?'1':'0.000001';
-  input.placeholder=type==='channel'?'Seconds':isBugs?'Number of bugs':'Goal amount';
-  const label=type==='channel'?'Seconds of channeling':isBugs?'Bugs needed':'Amount needed';
+  input.placeholder=type==='channel'?'Seconds':isBugs?'Number of bugs':type==='tree_height'?'Vertical reach in px':type==='leaf_rate'?'Sap per second':type==='idle_sap'?'Seconds without input':type==='node_count'?'Total node count':'Goal amount';
+  const label=type==='channel'?'Seconds of channeling':isBugs?'Bugs needed':type==='grafts'?'Grafts purchased':type==='upgrade_type'?'Upgrades needed':type==='tree_height'?'Vertical reach (px)':type==='node_count'?'Nodes needed':type==='acorns'?'Acorns collected':type==='leaf_rate'?'Leaf production rate (sap/s)':type==='idle_sap'?'Consecutive seconds without input':'Amount needed';
   input.setAttribute('aria-label',label); input.closest('label').firstChild.textContent=label;
   let level=row.querySelector('.goal-level');
   if(!level) {
@@ -430,7 +432,10 @@ function updateGoalRow(row) {
     label.append(level); row.insertBefore(label,row.querySelector('.remove-goal'));
   }
   level.closest('label').hidden=!isBugs; level.disabled=!isBugs; level.required=isBugs;
-  row.classList.toggle('bug-level-goal',isBugs); row.title=challengeGoalHelp[type];
+  let nodeType=row.querySelector('.goal-node-type');
+  if(!nodeType) { const label=document.createElement('label'); label.className='goal-node-type-label'; label.textContent='Node type'; nodeType=document.createElement('select'); nodeType.className='goal-node-type'; nodeType.innerHTML='<option value="leaf">Leaf</option><option value="amp">Amplifier</option><option value="ref">Refinery</option><option value="cap">Capacitor</option><option value="funnel">Funnel</option>'; label.append(nodeType); row.insertBefore(label,row.querySelector('.remove-goal')); }
+  nodeType.closest('label').hidden=!hasNodeType; nodeType.disabled=!hasNodeType; nodeType.required=hasNodeType;
+  row.classList.toggle('bug-level-goal',isBugs); row.classList.toggle('typed-goal',hasNodeType); row.title=challengeGoalHelp[type];
 }
 function updateGoalRows() { document.querySelectorAll('.goal-row').forEach(updateGoalRow); $('challengeGoalHelp').textContent=[...document.querySelectorAll('.goal-type')].map(el=>challengeGoalHelp[el.value]).join(' '); document.querySelectorAll('.remove-goal').forEach(b=>b.disabled=document.querySelectorAll('.goal-row').length<2); }
 function addGoalRow() { const row=document.createElement('div'); row.className='goal-row'; row.innerHTML=`<label>Goal<select class="goal-type">${goalOptions}</select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button">Remove</button>`; $('challengeGoals').append(row); updateGoalRows(); }
@@ -441,6 +446,9 @@ function readGoals() {
       goal.level=Number(row.querySelector('.goal-level').value);
       if(!Number.isInteger(goal.target)||goal.target<1||!Number.isInteger(goal.level)||goal.level<1||goal.level>100) throw new Error('Bug goals need a whole bug count and a level from 1 to 100.');
     }
+    if(goal.type==='upgrade_type') goal.node_type=row.querySelector('.goal-node-type').value;
+    if(goal.type==='upgrade_type' && (!Number.isInteger(goal.target)||goal.target<1)) throw new Error('Upgrade goals need a whole-number count of at least 1.');
+    if(['grafts','node_count','acorns'].includes(goal.type) && (!Number.isInteger(goal.target)||goal.target<1)) throw new Error('Graft, node, and acorn goals need a whole-number target of at least 1.');
     return goal;
   });
 }
@@ -512,12 +520,23 @@ async function publishChallenge(e) {
       p_title:$('challengeTitle').value.trim(), p_description:$('challengeDescription').value.trim(),
       p_goals:readGoals(), p_duration_hours:value('challengeHours'),
       p_reward_sap:value('challengeRewardSap'), p_reward_resin:value('challengeRewardResin'), p_reward_acorns:value('challengeRewardAcorns'), p_reward_rings:value('challengeRewardRings'), p_reward_amber:value('challengeRewardAmber'),
-      p_first_bonus_sap:value('challengeFirstSap'), p_first_bonus_resin:value('challengeFirstResin'), p_first_bonus_acorns:value('challengeFirstAcorns'), p_first_bonus_rings:value('challengeFirstRings'), p_first_bonus_amber:value('challengeFirstAmber')
+      p_first_bonus_sap:value('challengeFirstSap'), p_first_bonus_resin:value('challengeFirstResin'), p_first_bonus_acorns:value('challengeFirstAcorns'), p_first_bonus_rings:value('challengeFirstRings'), p_first_bonus_amber:value('challengeFirstAmber'),
+      p_reward_boost:readBoost('challengeRewardBoost'), p_first_bonus_boost:readBoost('challengeFirstBoost')
     });
     $('challengeForm').reset(); $('challengeHours').value='24'; $('challengeGoals').innerHTML='<div class="goal-row"><label>Goal<select class="goal-type">'+goalOptions+'</select></label><label>Amount needed<input class="goal-target" type="number" min="0.000001" step="any" placeholder="Goal amount" required></label><button class="remove-goal" type="button" aria-label="Remove goal" disabled>Remove</button></div>'; updateGoalRows();
     for (const id of ['challengeRewardSap','challengeRewardResin','challengeRewardAcorns','challengeRewardRings','challengeRewardAmber','challengeFirstSap','challengeFirstResin','challengeFirstAcorns','challengeFirstRings','challengeFirstAmber']) $(id).value='0';
+    for (const id of ['challengeRewardBoostType','challengeFirstBoostType']) $(id).value='';
+    for (const id of ['challengeRewardBoostMult','challengeFirstBoostMult']) $(id).value='2';
+    for (const id of ['challengeRewardBoostMinutes','challengeFirstBoostMinutes']) $(id).value='5';
     say('Challenge is live.'); await refreshChallenges();
   } catch(err) { say(`Could not publish challenge: ${err.message}`); }
+}
+function readBoost(prefix) {
+  const type=$(`${prefix}Type`).value;
+  if(!type) return null;
+  const mult=Number($(`${prefix}Mult`).value), seconds=Number($(`${prefix}Minutes`).value)*60;
+  if(!['leaf','capacity','amplifier'].includes(type)||!Number.isFinite(mult)||mult<=1||mult>100||!Number.isFinite(seconds)||seconds<=0||seconds>604800) throw new Error('Boost rewards need a multiplier above 1 (up to 100) and a duration up to 7 days.');
+  return {type,mult,duration:seconds};
 }
 async function act(type,sap=0,resin=0,acorns=0,rings=0,amber=0) {
   if (!selected) { say('Select a player first.'); return; }

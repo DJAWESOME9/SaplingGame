@@ -1374,6 +1374,13 @@ const UPDATE_LOG = [
   { id:'2026-10-11-species-on-cut', date:'October 11, 2026', title:'Choose tree species when you cut', notes:[
     'Tree species can now be changed only after cutting down your tree, so each planted tree keeps its species for its whole run.'
   ] },
+  {id:'2026-10-11-leaderboard-lightning-cooldown',date:'October 11, 2026',title:'Leaderboard lightning cooldown',notes:[
+    'Top-three players can see how many leaderboard lightning strikes remain today. Sending a strike starts a one-minute cooldown before another can be sent.'
+  ]},
+  {id:'2026-10-11-quest-creator-goals-boosts',date:'October 11, 2026',title:'More quest goals and timed boosts',notes:[
+    'Quest creators can set goals for leaf production rate, producing sap without manual input, grafts, upgrades by node type, tree height, planted node count, and collected acorns.',
+    'Quest rewards can grant timed multipliers to leaf production, branch capacity, or amplifier strength. First-finisher rewards can include their own boost.'
+  ]},
   {id:'2026-10-11-offline-button-settings',date:'October 11, 2026',title:'Offline button settings',notes:[
     'Settings can now hide the Go offline button and assign a keyboard shortcut to go offline or return online.'
   ]},
@@ -2275,6 +2282,9 @@ const soilMult   = () => Math.pow(1.25, S.roots.soil);
 const goldBloomMult = base => 1 + (base - 1) * (1 + 0.15 * metaLvl('bloomcraft'));
 const BLOOMS = {
   festival: {name:'Garden Festival',icon:'🏮',color:'#eca8d3',dur:600,weight:0,leafMult:()=>1.2,edgeMult:()=>1.2,descOf:()=>'+20% production and branch capacity'},
+  quest_leaf: {name:'Quest Leaf Boost',icon:'🏆',color:'#b6e889',dur:300,weight:0,leafMult:()=>Number(activeQuestBoosts().leaf)||1,descOf:()=>`×${Number(activeQuestBoosts().leaf)||1} leaf production`},
+  quest_capacity: {name:'Quest Capacity Boost',icon:'🏆',color:'#9fe0b0',dur:300,weight:0,edgeMult:()=>Number(activeQuestBoosts().capacity)||1,descOf:()=>`×${Number(activeQuestBoosts().capacity)||1} branch capacity`},
+  quest_amplifier: {name:'Quest Amplifier Boost',icon:'🏆',color:'#c6b8ff',dur:300,weight:0,ampMult:()=>Number(activeQuestBoosts().amplifier)||1,descOf:()=>`×${Number(activeQuestBoosts().amplifier)||1} amplifier strength`},
   bloom3:     { name:'Bloom',      icon:'✨', color:'#ff8a3a', dur:30, weight:8,  leafMult:()=>goldBloomMult(3), descOf:()=>`×${goldBloomMult(3).toFixed(1)} leaf production` },
   surge5:     { name:'Surge',      icon:'⚡', color:'#ffd24a', dur:15, weight:3,  leafMult:()=>goldBloomMult(5), descOf:()=>`×${goldBloomMult(5).toFixed(1)} leaf production (short)` },
   resonance:  { name:'Resonance',  icon:'🌀', color:'#c6b8ff', dur:25, weight:5,  leafMult:()=>goldBloomMult(1+0.2*S.counts.amp), relevant:()=>(S.counts.amp||0)>0, descOf:()=>`each amp boosts leaf production (×${goldBloomMult(1+0.2*S.counts.amp).toFixed(1)})` },
@@ -2307,9 +2317,11 @@ function applyBloom(kind, dur) {
   save();
 }
 function tickBlooms(dt) {
-  if (!S.blooms || !S.blooms.length) return;
-  for (const x of S.blooms) x.t = Math.max(0, x.t - dt);
-  S.blooms = S.blooms.filter(x => x.t > 0);
+  if (S.blooms && S.blooms.length) {
+    for (const x of S.blooms) x.t = Math.max(0, x.t - dt);
+    S.blooms = S.blooms.filter(x => x.t > 0);
+  }
+  if (Array.isArray(S.questBoosts)) { for (const x of S.questBoosts) x.t=Math.max(0,x.t-dt); S.questBoosts=S.questBoosts.filter(x=>x.t>0); }
 }
 const bloomProductOf = fn => activeBlooms().reduce((m, x) => m * (BLOOMS[x.kind][fn] ? BLOOMS[x.kind][fn]() : 1), 1);
 // The Channel surge only boosts the single leaf being channeled, so it's excluded
@@ -2440,7 +2452,7 @@ function declumpGiftTimers() {
     if (ls[i].giftT < minT) ls[i].giftT = minT;
   }
 }
-const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult();
+const ampMult  = n => (CFG.ampBase + 0.5 * rootLvl('resonance') + CFG.ampStep * (n.lvl - 1)) * SP().amp * polishMult(n) * pantheonAmpMult() * bloomProductOf('ampMult') * activeQuestBoosts().amplifier;
 const refRatio = n => Math.max(CFG.refRatioMin,
   CFG.refRatioBase * Math.pow(CFG.refRatioStep, n.lvl - 1) * Math.pow(0.85, rootLvl('fineness')));
 const capSize  = n => Math.max(
@@ -2455,7 +2467,7 @@ const canPolish   = n => n.type === 'leaf' || n.type === 'amp' || n.type === 'ca
 const polishCap   = () => 3 + metaLvl('lacquer');
 const polishAtCap = n => (n.polish || 0) >= polishCap();
 const costPolish  = n => Math.ceil(35 * Math.pow(3.0, n.polish || 0));
-const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1) * seasonEdgeMult();
+const edgeCap  = n => CFG.edgeBaseCap * Math.pow(CFG.edgeCapGrowth, n.edgeLvl) * woodMult() * capillaryMult() * Math.pow(1.2, rootLvl('ironwood')) * metaEdgeMult() * pantheonEdgeMult() * spellEdgeMult() * bloomEdgeMult() * activeQuestBoosts().capacity * (1 + 0.25 * rootLvl('marrow')) * (n.type === 'funnel' ? 10 : 1) * seasonEdgeMult();
 const maxKids  = n => {
   const canopyBonus = (n.type === 'amp' || n.type === 'ref' || n.type === 'cap') ? rootLvl('canopy') : 0;
   const crownBonus = n.type === 'core' ? rootLvl('crown') : 0;
@@ -2913,7 +2925,7 @@ function computeFlow(dt, includeWeather = true) {
   const rainBoost = includeWeather ? weatherProductionMult() : 1;
   // Rain rewards arrive at the Core, so branch capacity cannot erase the bonus.
   S.incomeS *= rainBoost; S.incomeR *= rainBoost;
-  S.leafSapRate = leafSapRate * rainBoost;
+  S.leafSapRate = leafSapRate * rainBoost * activeQuestBoosts().leaf;
   S.refineryResinRate = refineryResinRate * rainBoost;
 }
 
@@ -2935,6 +2947,8 @@ function grow(parentId, type) {
   const n = mkNode(type, parentId);
   n.x = p.x; n.y = p.y;
   S.counts[type]++;
+  recordChallengeEvent('node_' + type, 1);
+  recordNodeCountChallenge(); recordTreeHeightChallenge();
   if (type === 'leaf') declumpGiftTimers(); // slot the new leaf into an open phase
   if (_wasFirst) grantAchievement(({leaf:'firstLeaf',amp:'firstAmp',ref:'firstRef',cap:'firstCap',funnel:'firstFunnel'})[type]);
   sfx('buy');
@@ -2968,6 +2982,7 @@ function harvestLeaf(id) {
   n.giftT = freshGiftT(n);
   declumpGiftTimers(); // keep a freshly-recycled timer off any neighbour's phase
   S.sap += gain;
+  recordChallengeEvent('input',0);
   recordEarned(gain);
   if (wasBig) {
     grantAchievement('bloomBasic');
@@ -3011,6 +3026,8 @@ function upgrade(id) {
   if (n.lvl >= lvlMax(n)) return;
   if (S[cur] < c) return;
   S[cur] -= c; n.lvl++; S.pristine = false;
+  recordChallengeEvent('upgrade_' + n.type, 1);
+  recordTreeHeightChallenge();
   sfx('buy');
   pulseNode(n, 1.25, 0.8);
   spawnBurst(n.x, n.y,
@@ -3037,6 +3054,8 @@ function graft(id) {
   if (n.locked) return;
   if (S.resin < c || maxKids(n) >= CFG.maxKidsCap) return;
   S.resin -= c; n.extraKids++; S.graftsBought++; S.pristine = false; grantAchievement('firstGraft');
+  recordChallengeEvent('grafts', 1);
+  recordTreeHeightChallenge();
   sfx('buy');
   pulseNode(n, 0.7, 0.65);
   spawnBurst(n.x, n.y, '#f08a6a', 11, 68, 0.65);
@@ -5767,8 +5786,8 @@ function save() {
     witherGraceOffset: n.witherGraceOffset || 0,
     giftT: n.giftT || 0, giftAge: n.giftAge || 0, giftLife: n.giftLife || 0, giftGain: n.giftGain || 0, giftA: n.giftA || 0, giftBig: !!n.giftBig }));
   localStorage.setItem(KEY, JSON.stringify({
-    weather: savedWeather(), birds: savedBirds(),
-    v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber,
+    weather: savedWeather(), birds: savedBirds(), questBoostSavedAt:Date.now(),
+    v: 2, t: Date.now(), sap: S.sap, resin: S.resin, amber: S.amber, questBoosts:(S.questBoosts||[]).map(x=>({...x})),
     nextId: S.nextId, rootId: S.rootId, counts: S.counts, spells: S.spells, blooms: (S.blooms || []).map(x => ({ kind: x.kind, t: x.t })), pesticideOn: !!S.pesticideOn, frozen: !!S.frozen, forced: !!S.forced, dismissedHints: S.dismissedHints || [],
     roots: S.roots, graftsBought: S.graftsBought, blueprint: S.blueprint || null, ms: S.ms, runStart: S.runStart || Date.now(), treeSap: S.treeSap || 0, treeResin: S.treeResin || 0, peakBaseS: S.peakBaseS || 0, peakBaseR: S.peakBaseR || 0, peakBuffS: S.peakBuffS || 0, peakBuffR: S.peakBuffR || 0, goldClicked: S.goldClicked || 0, amberCarry: S.amberCarry || 0, treePlayMs: S.treePlayMs || 0, treeOfflineMs: S.treeOfflineMs || 0, touch: { charge: Math.max(0, Number(S.touch && S.touch.charge) || 0) }, nodes }));
   // Lifetime earnings and production change even when no new peak is reached.
@@ -5865,7 +5884,8 @@ function load() {
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; }
   if (!d || (d.v !== 1 && d.v !== 2)) { restoreWeather(null); newGame(); return; }
   restoreWeather(d.weather);
-  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, blooms: Array.isArray(d.blooms)
+  const questBoostElapsed=Math.max(0,(Date.now()-Number(d.questBoostSavedAt||d.t||Date.now()))/1000);
+  S = { sap: d.sap, resin: d.resin || 0, amber: d.amber || 0, questBoosts:Array.isArray(d.questBoosts)?d.questBoosts.filter(x=>x&&['leaf','capacity','amplifier'].includes(x.type)&&Number(x.t)>questBoostElapsed).map(x=>({type:x.type,mult:Number(x.mult)||1,t:Math.max(0,Number(x.t)-questBoostElapsed)})):[], blooms: Array.isArray(d.blooms)
     ? d.blooms.filter(x => x && BLOOMS[x.kind]).map(x => ({ kind: x.kind, t: x.t || 0 }))
     : (d.bloomT > 0 ? [{ kind: d.bloomKind || 'bloom3', t: d.bloomT }] : []),
     spells: hydrateSpells(d.spells), pesticideOn: !!d.pesticideOn, frozen: !!d.frozen, forced: !!d.forced, dismissedHints: Array.isArray(d.dismissedHints) ? d.dismissedHints : [],
@@ -6036,6 +6056,7 @@ const LB_BOARDS = {
 };
 let selectedLeaderboard = 'lifetime_sap';
 let leaderboardLoadId = 0;
+let lbStrikeState = {availableBoards:[], remaining:0, cooldownUntil:0};
 const lbRefresh = document.getElementById('lbRefresh');
 const lbConfigured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(LEADERBOARD_CONFIG.url || '') &&
   /^[a-z0-9._-]+$/i.test(LEADERBOARD_CONFIG.anonKey || '');
@@ -6309,20 +6330,60 @@ async function loadLeaderboard() {
     const rows = await res.json();
     if (loadId !== leaderboardLoadId) return;
     const myPlace = rows.findIndex(row => row.player_id === lbPlayerId);
+    let strikeStatusError = '';
+    if (lbPlayerId) {
+      try {
+        const strikeStatus = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_leaderboard_strike_status`, {
+          method:'POST', headers:lbHeaders(), body:JSON.stringify({p_player_id:lbPlayerId}), cache:'no-store'
+        });
+        const status = await strikeStatus.json().catch(() => null);
+        if (loadId !== leaderboardLoadId) return;
+        if (!strikeStatus.ok) throw new Error(status?.message || 'Could not check leaderboard strikes');
+        lbStrikeState = {
+          availableBoards:Array.isArray(status?.available_boards)?status.available_boards:[],
+          remaining:Math.max(0, Number(status?.remaining)||0),
+          cooldownUntil:Date.now()+Math.max(0, Number(status?.cooldown_seconds)||0)*1000
+        };
+      } catch (err) {
+        strikeStatusError = ' · Strike count unavailable; run leaderboard_strike_cooldown.sql';
+        lbStrikeState = {availableBoards:[], remaining:0, cooldownUntil:0};
+      }
+    } else lbStrikeState = {availableBoards:[], remaining:0, cooldownUntil:0};
     lbRows.innerHTML = rows.map((row, i) => {
       const canStrike = myPlace >= 0 && myPlace < 3 && row.player_id !== lbPlayerId;
-      return `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span>${canStrike ? `<button type="button" class="lb-strike" data-lb-strike="${escapeHtml(row.player_id)}" data-lb-board="${selectedLeaderboard}" aria-label="Send a lightning strike to ${escapeHtml(row.display_name)}">⚡ Strike</button>` : ''}</li>`;
+      const available = lbStrikeState.availableBoards.includes(selectedLeaderboard);
+      const coolingDown = lbStrikeState.cooldownUntil > Date.now();
+      return `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span>${canStrike ? `<button type="button" class="lb-strike" data-lb-strike="${escapeHtml(row.player_id)}" data-lb-board="${selectedLeaderboard}" aria-label="Send a lightning strike to ${escapeHtml(row.display_name)}" ${!available || coolingDown ? 'disabled' : ''}>⚡ Strike</button>` : ''}</li>`;
     }).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
-    lbStatus.textContent = 'Updated just now';
+    if (lbPlayerId && !strikeStatusError) renderLeaderboardStrikeStatus();
+    else lbStatus.textContent = `Updated just now${strikeStatusError}`;
   } catch (err) {
     if (loadId !== leaderboardLoadId) return;
     lbRows.innerHTML = '<li class="lb-empty"><strong>Could not load this record.</strong>Try Refresh again in a moment.</li>';
     lbStatus.textContent = `Could not load leaderboard: ${err.message}`;
   }
 }
+function renderLeaderboardStrikeStatus() {
+  if (!lbPlayerId) return;
+  const remaining = lbStrikeState.remaining;
+  const seconds = Math.max(0, Math.ceil((lbStrikeState.cooldownUntil-Date.now())/1000));
+  const cooldown = seconds ? ` · Ready in ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}` : '';
+  lbStatus.textContent = `⚡ Strikes remaining today: ${remaining}${cooldown}`;
+}
+setInterval(() => {
+  if (!lbPlayerId || !lbStrikeState.cooldownUntil) return;
+  if (lbStrikeState.cooldownUntil <= Date.now()) {
+    lbStrikeState.cooldownUntil = 0;
+    lbRows.querySelectorAll('button[data-lb-strike]').forEach(button => {
+      button.disabled = !lbStrikeState.availableBoards.includes(button.dataset.lbBoard);
+    });
+  }
+  renderLeaderboardStrikeStatus();
+}, 1000);
 lbRows.addEventListener('click', async e => {
   const button = e.target.closest('button[data-lb-strike]');
   if (!button || !lbConfigured || !lbPlayerId) return;
+  if (lbStrikeState.cooldownUntil > Date.now() || !lbStrikeState.availableBoards.includes(button.dataset.lbBoard)) return;
   button.disabled = true;
   lbStatus.textContent = 'Sending leaderboard strike…';
   try {
@@ -6332,11 +6393,18 @@ lbRows.addEventListener('click', async e => {
     });
     const result = await res.json().catch(() => null);
     if (!res.ok) throw new Error(result?.message || 'Strike unavailable');
-    lbStatus.textContent = '⚡ Strike sent. Your strike for this leaderboard is spent for today.';
-    lbRows.querySelectorAll(`button[data-lb-board="${button.dataset.lbBoard}"]`).forEach(strikeButton => strikeButton.remove());
+    lbStrikeState = {
+      availableBoards:Array.isArray(result?.available_boards)?result.available_boards:[],
+      remaining:Math.max(0, Number(result?.remaining)||0),
+      cooldownUntil:Date.now()+Math.max(0, Number(result?.cooldown_seconds)||60)*1000
+    };
+    lbRows.querySelectorAll('button[data-lb-strike]').forEach(strikeButton => {
+      strikeButton.disabled = lbStrikeState.cooldownUntil > Date.now() || !lbStrikeState.availableBoards.includes(strikeButton.dataset.lbBoard);
+    });
+    renderLeaderboardStrikeStatus();
   } catch (err) {
     lbStatus.textContent = err.message;
-    button.disabled = false;
+    button.disabled = !lbStrikeState.availableBoards.includes(button.dataset.lbBoard);
   }
 });
 let liveChallenges = [];
@@ -6434,27 +6502,32 @@ document.getElementById('eventHudNext')?.addEventListener('click', () => {
   head?.addEventListener('pointerup', stop); head?.addEventListener('pointercancel', stop);
 }
 window.addEventListener('resize', clampEventHud);
-const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', resin:'resin', refinery_resin:'resin', channel:'seconds', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs', bug_level:'bugs'};
-const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Sap with Chocolate', resin:'Resin made', refinery_resin:'Resin made by refineries', channel:'Channel Verdant Touch', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed', bug_level:'Bugs at level'};
-function challengeGoalLabel(goal) { return goal.type==='bug_level' ? `Bugs at level ${Number(goal.level)} or higher` : CHALLENGE_LABELS[goal.type] || goal.type; }
+const CHALLENGE_UNITS = {banked_sap:'sap', sap:'sap', leaf_sap:'sap', oak_sap:'sap', apple_sap:'sap', peach_sap:'sap', grape_sap:'sap', maple_sap:'sap', pine_sap:'sap', chocolate_sap:'sap', leaf_rate:'sap/s', idle_sap:'seconds', resin:'resin', refinery_resin:'resin', channel:'seconds', expeditions:'expeditions', amber:'amber', rings:'rings', bugs:'bugs', bug_level:'bugs', grafts:'grafts', upgrade_type:'upgrades', tree_height:'px', node_count:'nodes', acorns:'acorns'};
+const CHALLENGE_LABELS = {banked_sap:'Banked sap', sap:'Sap made', leaf_sap:'Sap made by leaves', oak_sap:'Sap with Oak', apple_sap:'Sap with Apple', peach_sap:'Sap with Peach', grape_sap:'Sap with Grape', maple_sap:'Sap with Maple', pine_sap:'Sap with Pine', chocolate_sap:'Chocolate sap', leaf_rate:'Leaf production rate', idle_sap:'No-input time', resin:'Resin made', refinery_resin:'Resin made by refineries', channel:'Channel Verdant Touch', expeditions:'Expeditions completed', amber:'Amber made', rings:'Rings made', bugs:'Bugs killed', bug_level:'Bugs at level', grafts:'Grafts purchased', upgrade_type:'Node upgrades', tree_height:'Tree height', node_count:'Planted nodes', acorns:'Acorns collected'};
+function challengeGoalLabel(goal) { return goal.type==='bug_level' ? `Bugs at level ${Number(goal.level)} or higher` : goal.type==='upgrade_type' ? `Upgrade ${String(goal.node_type||'leaf')} nodes` : goal.type==='idle_sap' ? `${fmt(Number(goal.target))} seconds without input` : CHALLENGE_LABELS[goal.type] || goal.type; }
 const challengeSpeciesTypes = Object.keys(SPECIES).map(id => `${id}_sap`);
 function challengeProductionRates(mult = 1) {
-  const rates = {sap:S.incomeS * mult, leaf_sap:S.leafSapRate * mult, resin:S.incomeR * mult, refinery_resin:S.refineryResinRate * mult};
+  const rates = {sap:S.incomeS * mult, leaf_sap:S.leafSapRate * mult, resin:S.incomeR * mult, refinery_resin:S.refineryResinRate * mult, idle_sap:S.incomeS * mult};
   const speciesType = `${META.species}_sap`;
   if (challengeSpeciesTypes.includes(speciesType)) rates[speciesType] = S.leafSapRate * mult;
   return rates;
 }
-function addChallengeProgress(challenge, amount) {
+function addChallengeProgress(challenge, amount, type) {
   if (!(amount > 0) || challenge.player_completed) return;
-  const goals = challengeGoals(challenge), type = arguments[2];
-  if (type && !goals.some(g => g.type === type)) return;
+  const goals = challengeGoals(challenge), eventType = type;
+  if (eventType && !goals.some(g => g.type === eventType || (g.type==='upgrade_type' && eventType===`upgrade_${g.node_type}`))) return;
   META.liveChallengeProgress = META.liveChallengeProgress || {};
   let progress = META.liveChallengeProgress[challenge.id];
   if (typeof progress === 'number') progress = [progress];
   if (!Array.isArray(progress)) progress = [];
-  progress = goals.map((g, i) => Math.min(Number(g.target), (Number(progress[i]) || 0) + (g.type === type || !type ? amount : 0)));
+  progress = goals.map((g, i) => {
+    if (!(g.type === eventType || !eventType || (g.type==='upgrade_type' && eventType===`upgrade_${g.node_type}`))) return Number(progress[i])||0;
+    const next=(Number(progress[i])||0)+amount;
+    return Math.min(Number(g.target), ['node_count','tree_height','leaf_rate'].includes(g.type) ? Math.max(Number(progress[i])||0,next) : next);
+  });
   META.liveChallengeProgress[challenge.id] = progress;
   peakMetaDirty = true;
+  renderLiveChallenges(); renderEventHud();
 }
 function challengeGoals(challenge) {
   return Array.isArray(challenge.goals) && challenge.goals.length ? challenge.goals : [{ type:challenge.target_type || 'banked_sap', target:Number(challenge.target_sap) || 0 }];
@@ -6465,7 +6538,7 @@ function ownedBugsAtLevel(level) {
 }
 function challengeProgressValues(challenge) {
   const goals=challengeGoals(challenge), raw=META.liveChallengeProgress?.[challenge.id];
-  return goals.map((g,i)=>g.type==='banked_sap' ? Number(S.sap)||0 : g.type==='bug_level' ? ownedBugsAtLevel(Number(g.level)) : Array.isArray(raw) ? Number(raw[i])||0 : i===0&&typeof raw==='number' ? raw : 0);
+  return goals.map((g,i)=>g.type==='banked_sap' ? Number(S.sap)||0 : g.type==='bug_level' ? ownedBugsAtLevel(Number(g.level)) : g.type==='node_count' ? Number(raw?.[i])||0 : g.type==='tree_height' ? Number(raw?.[i])||0 : g.type==='leaf_rate' ? Math.max(Number(raw?.[i])||0, S.leafSapRate||0) : Array.isArray(raw) ? Number(raw[i])||0 : i===0&&typeof raw==='number' ? raw : 0);
 }
 function challengeReady(challenge) { return challengeGoals(challenge).every((g, i) => challengeProgressValues(challenge)[i] >= Number(g.target)); }
 function challengeProgressPayload(challenge) { return challengeProgressValues(challenge); }
@@ -6473,11 +6546,19 @@ function accrueChallengeWindow(startMs, endMs, rates, queue = false, appliedIds 
   if (!(endMs > startMs)) return;
   const applied = new Set(appliedIds);
   for (const challenge of liveChallenges) {
-    const goals = challengeGoals(challenge), matching = goals.some(g => rates[g.type] > 0);
+    const goals = challengeGoals(challenge), matching = goals.some(g => rates[g.type] > 0 || (g.type==='idle_sap' && !queue) || (g.type === 'upgrade_type' && rates[`upgrade_${g.node_type}`] > 0));
     if (applied.has(challenge.id) || !matching) continue;
     const a = Math.max(startMs, Date.parse(challenge.opens_at));
     const b = Math.min(endMs, Date.parse(challenge.closes_at));
-    if (b > a) for (const goal of goals) if (rates[goal.type] > 0) addChallengeProgress(challenge, (b - a) / 1000 * rates[goal.type], goal.type);
+    if (b > a) for (const goal of goals) {
+      if (goal.type === 'leaf_rate' && S.leafSapRate >= Number(goal.target)) addChallengeProgress(challenge, Number(goal.target), goal.type);
+      else if(goal.type==='idle_sap' && !queue && !offlineModeRequested && !document.hidden) {
+        const idleStart=Math.max(a,Number(META.lastQuestInputAt)||0);
+        if(b>idleStart) addChallengeProgress(challenge,(b-idleStart)/1000,goal.type);
+      }
+      else if (rates[goal.type] > 0) addChallengeProgress(challenge, (b - a) / 1000 * rates[goal.type], goal.type);
+      else if (goal.type === 'upgrade_type' && rates[`upgrade_${goal.node_type}`] > 0) addChallengeProgress(challenge, (b - a) / 1000 * rates[`upgrade_${goal.node_type}`], goal.type);
+    }
     applied.add(challenge.id);
   }
   if (queue && lbConfigured && lbPlayerId && Object.values(rates).some(v => v > 0)) {
@@ -6494,20 +6575,65 @@ function accrueChallengeWindow(startMs, endMs, rates, queue = false, appliedIds 
   }
 }
 function recordChallengeEvent(type, amount) {
-  if (!(amount > 0) || !META || !lbConfigured || !lbPlayerId) return;
+  if (!META || !lbConfigured || !lbPlayerId) return;
+  if(type==='input') { META.lastQuestInputAt=liveChallengeNow(); resetIdleQuestProgress(); return; }
+  if (!(amount > 0)) return;
   const at = liveChallengeNow(), appliedIds = [];
   for (const challenge of liveChallenges) {
-    if (!challengeGoals(challenge).some(g => g.type === type)) continue;
-    if (at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, amount, type);
+    const goals=challengeGoals(challenge), matching=goals.some(g=>g.type===type || (g.type==='upgrade_type' && type===`upgrade_${g.node_type}`));
+    if (!matching) continue;
+    if (at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at))
+      for(const goal of goals) if(goal.type===type || (goal.type==='upgrade_type' && type===`upgrade_${goal.node_type}`)) addChallengeProgress(challenge,amount,goal.type);
     appliedIds.push(challenge.id);
   }
+  if(type.startsWith('node_') || type.startsWith('upgrade_') || type==='grafts') recordTreeHeightChallenge();
   const events = META.pendingChallengeEvents = META.pendingChallengeEvents || [];
   events.push({at, type, amount, appliedIds, offsetAtCapture:liveChallengeClockOffsetMs});
   if (events.length > 2000) events.splice(0, events.length - 2000);
   peakMetaDirty = true;
 }
+function recordTreeHeightChallenge() {
+  if(!META || !liveChallenges.length) return;
+  const ys=Object.values(S.nodes||{}).filter(n=>n.type!=='core').map(n=>Number(n.ty??n.y)||0);
+  const height=ys.length?Math.max(...ys)-Math.min(...ys):0;
+  const at=liveChallengeNow();
+  for(const challenge of liveChallenges) {
+    const goals=challengeGoals(challenge), raw=Array.isArray(META.liveChallengeProgress?.[challenge.id])?[...META.liveChallengeProgress[challenge.id]]:[];
+    goals.forEach((g,i)=>{if(g.type==='tree_height'&&at>=Date.parse(challenge.opens_at)&&at<Date.parse(challenge.closes_at)) raw[i]=Math.min(Number(g.target),Math.max(Number(raw[i])||0,height));});
+    if(goals.some(g=>g.type==='tree_height')) META.liveChallengeProgress[challenge.id]=raw;
+  }
+  peakMetaDirty=true;
+}
+function recordNodeCountChallenge() {
+  if(!META || !liveChallenges.length) return;
+  const at=liveChallengeNow();
+  for(const challenge of liveChallenges) {
+    const goals=challengeGoals(challenge), raw=Array.isArray(META.liveChallengeProgress?.[challenge.id])?[...META.liveChallengeProgress[challenge.id]]:[];
+    goals.forEach((g,i)=>{if(g.type==='node_count'&&at>=Date.parse(challenge.opens_at)&&at<Date.parse(challenge.closes_at)) raw[i]=Math.min(Number(g.target),Math.max(Number(raw[i])||0,totalNodes()));});
+    if(goals.some(g=>g.type==='node_count')) META.liveChallengeProgress[challenge.id]=raw;
+  }
+  peakMetaDirty=true;
+}
+function resetIdleQuestProgress() {
+  if(!META?.liveChallengeProgress) return;
+  for(const challenge of liveChallenges) if(challengeGoals(challenge).some(g=>g.type==='idle_sap') && liveChallengeNow()>=Date.parse(challenge.opens_at) && liveChallengeNow()<Date.parse(challenge.closes_at)) {
+    const i=challengeGoals(challenge).findIndex(g=>g.type==='idle_sap');
+    if(i>=0) { const p=Array.isArray(META.liveChallengeProgress[challenge.id])?[...META.liveChallengeProgress[challenge.id]]:[]; p[i]=0; META.liveChallengeProgress[challenge.id]=p; peakMetaDirty=true; }
+  }
+}
+function awardQuestBoost(boost) {
+  if(!boost || !['leaf','capacity','amplifier'].includes(boost.type)) return;
+  const mult=Number(boost.mult), duration=Number(boost.duration);
+  if(!Number.isFinite(mult)||mult<=1||mult>100||!Number.isFinite(duration)||duration<=0||duration>604800) return;
+  S.questBoosts=S.questBoosts||[];
+  const old=S.questBoosts.find(x=>x.type===boost.type&&x.mult===mult);
+  if(old) old.t=Math.max(old.t,duration); else S.questBoosts.push({type:boost.type,mult,t:duration});
+  toast(`🏆 Quest boost: ×${mult} ${boost.type==='leaf'?'leaf production':boost.type==='capacity'?'branch capacity':'amplifier strength'} for ${fmt(duration/60)} min`,8000);
+}
 function liveRewardText(challenge, prefix) {
-  return ['sap','resin','acorns','rings','amber'].map(k => Number(challenge[`${prefix}_${k}`]) ? `${fmt(Number(challenge[`${prefix}_${k}`]))} ${k}` : '').filter(Boolean).concat((challenge[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name))).join(' + ') || 'achievement';
+  const boost=challenge[`${prefix}_boost`];
+  const boostRows=(Array.isArray(boost)?boost:[boost]).filter(Boolean).map(b=>`×${Number(b.mult)} ${escapeHtml({leaf:'leaf production',capacity:'branch capacity',amplifier:'amplifier strength'}[b.type]||'boost')} for ${fmt(Number(b.duration)/60)} min`);
+  return ['sap','resin','acorns','rings','amber'].map(k => Number(challenge[`${prefix}_${k}`]) ? `${fmt(Number(challenge[`${prefix}_${k}`]))} ${k}` : '').filter(Boolean).concat((challenge[`${prefix}_gear`]||[]).map(g=>escapeHtml(g.name)),boostRows).join(' + ') || 'achievement';
 }
 function renderLiveChallenges() {
   if (!liveChallengesPanel) return;
@@ -6553,7 +6679,7 @@ async function loadLiveChallenges() {
       if (event.rates) accrueChallengeWindow(event.startMs + offset, event.endMs + offset, event.rates, false, event.appliedIds);
       else for (const challenge of liveChallenges) {
         const at = event.at + offset;
-        if (!event.appliedIds?.includes(challenge.id) && challengeGoals(challenge).some(g => g.type === event.type) && at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, event.amount, event.type);
+        if (!event.appliedIds?.includes(challenge.id) && challengeGoals(challenge).some(g => g.type === event.type || (g.type==='upgrade_type' && event.type===`upgrade_${g.node_type}`)) && at >= Date.parse(challenge.opens_at) && at < Date.parse(challenge.closes_at)) addChallengeProgress(challenge, event.amount, event.type);
       }
     }
     if (pending.length || events.length) { peakMetaDirty = true; saveMeta(); peakMetaDirty = false; }
@@ -6589,12 +6715,14 @@ async function claimLiveChallenge(id, button) {
     if (!result.already_completed) {
       const rewardSap = Number(result.reward_sap)||0, rewardResin = Number(result.reward_resin)||0;
       const rewardAcorns = Number(result.reward_acorns)||0, rewardRings = Number(result.reward_rings)||0, rewardAmber = Number(result.reward_amber)||0;
+      (Array.isArray(result.reward_boost)?result.reward_boost:[result.reward_boost]).filter(Boolean).forEach(awardQuestBoost);
       (result.reward_gear||[]).forEach((g,i)=>grantBugGear(g,1,`quest:${challenge.id}:${i}`));
       S.sap += rewardSap;
       S.resin += rewardResin;
       S.amber += rewardAmber;
       META.acorns += rewardAcorns;
       META.rings += rewardRings;
+      if(rewardRings) recordChallengeEvent('rings',rewardRings);
       META.totalRings = (META.totalRings || 0) + rewardRings;
       recordEarned(rewardSap, rewardResin);
       recordHighestBalances();
@@ -9042,6 +9170,7 @@ acornBtn?.addEventListener('click', () => {
   if (acornsRipe() > 0) {
     const banked = META.canopy.ripe;
     META.acorns = (META.acorns || 0) + banked;
+    recordChallengeEvent('acorns', banked);
     META.canopy.ripe = 0;
     grantAchievement('acornBank');
     toast(`🌰 Banked ${banked} acorn${banked === 1 ? '' : 's'} — ${META.acorns} total`);
@@ -9421,6 +9550,7 @@ offlineDim.addEventListener('keydown', event => {
 });
 const markInput = () => { lastInput = Date.now(); };
 for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove']) {
+  document.addEventListener(ev, () => recordChallengeEvent('input', 0), {passive:true});
   window.addEventListener(ev, markInput, { passive: true });
 }
 
