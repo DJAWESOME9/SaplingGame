@@ -786,6 +786,10 @@
   .spellbook-effects { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; color:#d9e8c3; font-size:12px; line-height:1.5; }
   .spellbook-effects:empty { display:none; }
   .spellbook-effects > span { padding:5px 9px; border:1px solid #61734b; border-radius:5px; background:#263b28; }
+  .spellbook-autocast { margin-top:12px; padding:12px 14px; border:1px solid #61734b; border-radius:7px; background:rgba(38,59,40,.7); color:#d9e8c3; font-size:12px; }
+  .spellbook-autocast label { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .spellbook-autocast select { max-width:60%; min-height:38px; padding:6px 9px; border:1px solid #84915c; border-radius:5px; color:#f3e9cf; background:#192b1f; font:inherit; }
+  .spellbook-autocast p { margin:8px 0 0; color:#bcccae; line-height:1.5; }
   .spellbook-warning { margin:16px 0 0; color:#cbbca0; font-size:12px; line-height:1.5; }
   .spellbook-warning strong { color:#f0c38e; font-weight:700; }
   .spellbook-result { min-height:18px; margin:7px 0 15px; color:#f2d699; font-size:13px; line-height:1.5; }
@@ -1098,6 +1102,10 @@
       <p>Mana refills while the game is open. Cutting preserves your mana. Freeze pauses mana refill and spell timers.</p>
     </section>
     <div id="spellEffects" class="spellbook-effects" aria-label="Active spell effects"></div>
+    <section id="spellAutocast" class="spellbook-autocast" hidden aria-label="Spell autocast">
+      <label for="spellAutocastSelect"><strong>🧵 Autocast</strong><select id="spellAutocastSelect" aria-label="Choose a spell to autocast"></select></label>
+      <p id="spellAutocastStatus" aria-live="polite"></p>
+    </section>
     <p class="spellbook-warning"><strong>15% chance to backfire.</strong> Every cast spends mana, whichever way the magic turns.</p>
     <p id="spellResult" class="spellbook-result" aria-live="polite" aria-atomic="true"></p>
     <div id="spellCards"></div>
@@ -1252,6 +1260,7 @@ const GROVE = {
   deepbaskets: {name:'Deep Baskets',glyph:'🧺',tier:4,parent:'bushes',max:1,cost:_=>120,desc:'Each bush holds 96 ripe berries (8 hours). Production speed stays the same.'},
   seasonturning: { name:'Season Turning', glyph:'🗓️', tier:4, parent:'patience', max:1, cost:_=>120, desc:'Unlocks Advance season in the season guide. Pay 1 hour of this tree’s highest unbuffed resin production (minimum 50,000 resin) to begin the next season with a full hour remaining.' },
   spellstudy: { name:'Spell Study', glyph:'📚', tier:3, parent:'vitality', max:3, cost:l=>[30,150,1500][l], desc:'Unlock more spells: level 1 utility magic, level 2 resin and golden-canopy magic, level 3 a three-minute Sap Surge. Earlier spells stay available.' },
+  spellweaving: { name:'Spellweaving', glyph:'🧵', tier:4, parent:'spellstudy', max:1, cost:_=>360, desc:'Choose one studied spell in the Spellbook to autocast when its requirements and mana are ready. Automatic casts are at least one minute apart.' },
   manawell: { name:'Mana Well', glyph:'🔮', tier:3, parent:'spellstudy', max:5, cost:l=>10*Math.pow(3,l), desc:'+10 maximum mana per level (100 → 150). Spell costs stay fixed; buying a level does not refill mana.' },
   manaspring: { name:'Mana Spring', glyph:'💫', tier:3, parent:'spellstudy', max:4, cost:l=>15*Math.pow(3,l), desc:'+15% mana refill speed per level. Mana refills while the game is open; Freeze pauses it.' },
   // Tier 1 — always available after first cut.
@@ -1363,7 +1372,8 @@ const groveVisible = k => !GROVE[k].blightOnly || hardMode();
 const groveAvailable = k => {
   const g = GROVE[k];
   return (k !== 'bushes' || acornsUnlocked()) && groveVisible(k) && (!g.parent || metaLvl(g.parent) > 0)
-    && (!['spellstudy','manawell','manaspring'].includes(k) || spellbookOwned());
+    && (!['spellstudy','manawell','manaspring','spellweaving'].includes(k) || spellbookOwned())
+    && (k !== 'spellweaving' || metaLvl('spellstudy') >= GROVE.spellstudy.max);
 };
 // Some grove nodes are repurposed in Blight mode and show different name/glyph/text.
 const groveName  = k => (hardMode() && GROVE[k].blightName)  || GROVE[k].name;
@@ -1374,6 +1384,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-12-spellweaving-autocast',date:'October 12, 2026',title:'Autocast a spell from the Spellbook',notes:[
+    'Max Spell Study to reveal Spellweaving in the Grove. Choose one studied spell to cast automatically when it has enough mana and its usual requirements are met; casts are at least one minute apart.'
+  ]},
+  {id:'2026-10-12-dismiss-menus-outside',date:'October 12, 2026',title:'Dismiss menus with an outside click',notes:[
+    'Click or tap outside an open menu, including Nests & eggs, to close it. Locked utility menus stay open until you unlock them.'
+  ]},
   {id:'2026-10-12-nest-battles',date:'October 12, 2026',title:'Play nest battles yourself',notes:[
     'Completed nests now start turn-by-turn battles. Choose Strike, Heavy, or Guard for your warrior; Nest Tactics in the Grove unlocks automatic nest battles.'
   ]},
@@ -8142,6 +8158,8 @@ function ensureSpellbook() {
   b.mana = Number.isFinite(b.mana) ? clamp(b.mana, 0, manaCap()) : 100;
   if (!Number.isFinite(b.lastTickAt)) b.lastTickAt = Date.now();
   b.casts = Number.isFinite(b.casts) ? Math.max(0, b.casts) : 0;
+  b.autocast = typeof b.autocast === 'string' && SPELLS[b.autocast] ? b.autocast : '';
+  b.lastCastAt = Number.isFinite(b.lastCastAt) ? Math.max(0, b.lastCastAt) : 0;
 }
 function tickSpellMana(now = Date.now()) {
   ensureSpellbook();
@@ -8206,7 +8224,7 @@ function spellReason(key) {
   return '';
 }
 function positiveSpellEffects() { return ['surge','greatsurge','rootward','ward'].filter(k => S.spells[k] > 0); }
-function castSpell(key) {
+function castSpell(key, options = {}) {
   const sp = SPELLS[key];
   if (!sp) return;
   tickSpellMana(); computeFlow(0);
@@ -8214,6 +8232,7 @@ function castSpell(key) {
   if (reason || META.spellbook.mana + 1e-8 < sp.cost) { toast(reason || 'Not enough mana'); return; }
   META.spellbook.mana = Math.max(0, META.spellbook.mana - sp.cost);
   META.spellbook.casts++;
+  META.spellbook.lastCastAt = Date.now();
   S.pristine = false; // Casting commits this tree; Grove purchases must not replant away its effects.
   const failed = Math.random() < 0.15;
   let outcome = '';
@@ -8263,7 +8282,18 @@ function castSpell(key) {
   recordHighestBalances(); computeFlow(0); buildPanel();
   const result = `${sp.icon} ${sp.name}${failed ? ' backfired!' : ' succeeded!'} ${outcome || (failed ? sp.bad : sp.good)}`;
   document.getElementById('spellResult').textContent = result;
-  toast(result); sfx(failed ? 'wither' : 'buy'); save(); renderSpellbook();
+  if (!options.automatic) toast(result);
+  sfx(failed ? 'wither' : 'buy'); save(); saveMeta(); renderSpellbook();
+}
+function tryAutocastSpell() {
+  ensureSpellbook();
+  const book = META.spellbook, key = book.autocast;
+  if (!key || metaLvl('spellweaving') < 1 || !spellbookOwned() || frozenOn() || cutAnim) return;
+  const wait = 60000 - (Date.now() - book.lastCastAt);
+  if (wait > 0) return;
+  const sp = SPELLS[key];
+  if (!sp || spellReason(key) || book.mana + 1e-8 < sp.cost) return;
+  castSpell(key, { automatic:true });
 }
 const spellPanel = document.getElementById('spellbook');
 const spellBtn = document.getElementById('spellbookbtn');
@@ -8276,6 +8306,24 @@ function renderSpellbook() {
   const active = SPELL_TIMERS.filter(k => S.spells[k] > 0).map(k => `${labels[k]} · ${fmtAcornTimer(S.spells[k]*1000)}`);
   if (S.spells.amber !== 1) active.push(`Next prune: ×${S.spells.amber} amber`);
   document.getElementById('spellEffects').textContent = active.join(' · ') || 'No active spells. Surges overlap at ×2; recasting refreshes duration.';
+  const auto = document.getElementById('spellAutocast');
+  auto.hidden = metaLvl('spellweaving') < 1;
+  if (!auto.hidden) {
+    const select = document.getElementById('spellAutocastSelect');
+    const study = metaLvl('spellstudy');
+    const selected = META.spellbook.autocast;
+    if (select.dataset.study !== String(study)) {
+      select.dataset.study = study;
+      const available = Object.entries(SPELLS).filter(([,sp]) => study >= sp.study);
+      select.innerHTML = `<option value="">Off</option>` + available.map(([key,sp]) => `<option value="${key}">${sp.icon} ${sp.name}</option>`).join('');
+    }
+    if (document.activeElement !== select) select.value = selected;
+    const wait = Math.max(0, 60000 - (Date.now() - META.spellbook.lastCastAt));
+    const reason = selected ? spellReason(selected) : '';
+    document.getElementById('spellAutocastStatus').textContent = !selected ? 'Choose one studied spell. It casts when its requirements and mana are ready.'
+      : reason ? `Waiting: ${reason}.` : META.spellbook.mana < SPELLS[selected].cost ? `Waiting for ${SPELLS[selected].cost} mana.`
+      : wait > 0 ? `Ready in ${fmtAcornTimer(wait)} · one cast per minute maximum.` : 'Will cast as soon as the one-minute interval allows.';
+  }
   // Build cards only when study changes; update buttons without moving keyboard focus.
   const grid = document.getElementById('spellCards');
   const study = metaLvl('spellstudy');
@@ -8310,10 +8358,19 @@ spellBtn.addEventListener('click', () => {
   tickSpellMana(); renderSpellbook(); spellPanel.classList.add('open'); document.getElementById('spellClose').focus();
 });
 function closeSpellbook() { spellPanel.classList.remove('open'); spellBtn.focus(); }
+document.addEventListener('pointerdown', e => {
+  if (spellPanel.classList.contains('open') && !spellPanel.contains(e.target)) closeSpellbook();
+});
 spellPanel.addEventListener('click', e => {
   if (e.target === spellPanel || e.target.closest('#spellClose')) { closeSpellbook(); return; }
   const button = e.target.closest('[data-spell]');
   if (button) castSpell(button.dataset.spell);
+});
+document.getElementById('spellAutocastSelect').addEventListener('change', e => {
+  ensureSpellbook();
+  const key = e.target.value;
+  META.spellbook.autocast = key && SPELLS[key] && metaLvl('spellstudy') >= SPELLS[key].study ? key : '';
+  saveMeta(); renderSpellbook();
 });
 spellPanel.addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.preventDefault(); closeSpellbook(); }
@@ -8562,6 +8619,7 @@ function playNestMove(move) {
 }
 
 birdGuide.addEventListener('click',e=> {
+  if(e.target===birdGuide) { birdGuide.close(); return; }
   const move=e.target.closest('[data-nest-move]'); if(move) { playNestMove(move.dataset.nestMove); return; }
   const button=e.target.closest('[data-bird-action]'); if(!button || !birdGuide.open || frozenOn() || metaLvl('critterhub')<=0) return;
   const act=button.dataset.birdAction;
@@ -9720,6 +9778,7 @@ function frame(now) {
     tickSpellMana();
     advanceSpellTimers(dt);
     computeFlow(dt);
+    tryAutocastSpell();
     // Foreground-idle: no input for IDLE_AFTER_MS → produce at the offline rate
     // instead of full, matching the away mechanic so leaving the window open
     // can't farm full income. wallGap (sleep) above is credited separately.
