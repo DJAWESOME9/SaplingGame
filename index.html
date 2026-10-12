@@ -1371,6 +1371,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-12-blueprint-partial-paste',date:'October 12, 2026',title:'Paste the part of a blueprint you can afford',notes:[
+    'Blueprint pasting now builds as many copied nodes as your sap and resin allow, then spreads remaining resources across their upgrades.'
+  ]},
   {id:'2026-10-12-acorn-ripening-slower',date:'October 12, 2026',title:'Acorns take longer to ripen',notes:[
     'New acorns now take 150 minutes of active play to ripen, up from 120 minutes. Squirrelry, Canopy Charm, and Autumn still speed up growth.'
   ]},
@@ -3146,6 +3149,26 @@ function bpCost() {
   S.counts = savedCounts; S.graftsBought = savedGrafts;
   return { sap, resin };
 }
+// Price copied node upgrades using the same live counters as manual purchases.
+function bpUpgradeCost(s) {
+  const savedCounts = { ...S.counts };
+  let sap = 0, resin = 0;
+  const add = (cur, v) => { if (cur === 'resin') resin += v; else sap += v; };
+  const upCurT = s.type === 'cap' ? 'resin' : 'sap';
+  for (let l = startLvl(s.type); l < s.lvl; l++) add(upCurT, costUp({ type: s.type, lvl: l }));
+  for (let e = metaLvl('birthright'); e < (s.edgeLvl || 0); e++) add('sap', costEdge({ edgeLvl: e }));
+  if (metaLvl('empyrean') === 0) {
+    const pStart = canPolish({ type: s.type }) ? metaLvl('mythos') : 0;
+    for (let p = pStart; p < (s.polish || 0); p++) add('resin', costPolish({ polish: p }));
+  }
+  S.counts = savedCounts;
+  return { sap, resin };
+}
+function bpTakeAffordable(cost) {
+  if (cost.sap > S.sap || cost.resin > S.resin) return false;
+  S.sap -= cost.sap; S.resin -= cost.resin;
+  return true;
+}
 function bpCopy(id) {
   const n = N(id);
   if (!n || n.type === 'core' || n.parent == null || metaLvl('blueprint') === 0) return false;
@@ -3165,17 +3188,38 @@ function bpCopy(id) {
 function bpPaste(targetId) {
   const bp = S.blueprint, target = N(targetId);
   if (!bp || !target || !bpCanPaste(target)) return false;
-  const cost = bpCost();
-  if (S.sap < cost.sap || S.resin < cost.resin) return false;
-  S.sap -= cost.sap; S.resin -= cost.resin;
+  const savedCounts = { ...S.counts }, savedGrafts = S.graftsBought;
+  const plans = [];
+  (function collect(s) { plans.push(s); s.children.forEach(collect); })(bp.root);
+  // Nodes are the priority: price them in normal tree order, including the
+  // graft slots needed to retain the copied shape, before buying any upgrades.
+  const affordableNodes = [];
+  for (const s of plans) {
+    const g = GROW[s.type], cost = g.cost();
+    S.counts[s.type] = (S.counts[s.type] || 0) + 1;
+    const grafts = bpNeededGrafts(s.type, s.children.length);
+    let graftCost = 0;
+    for (let k = 0; k < grafts; k++) { graftCost += costGraft(); S.graftsBought++; }
+    if (bpTakeAffordable({ sap: g.cur === 'sap' ? cost : 0, resin: g.cur === 'resin' ? cost : 0 }) && bpTakeAffordable({ sap: 0, resin: 0 })) {
+      if (S.resin >= graftCost) { S.resin -= graftCost; affordableNodes.push(s); }
+      else { // Refund the node growth cost if its required slots cannot be bought.
+        S[g.cur] += cost;
+        break;
+      }
+    } else break;
+  }
+  // Restore the simulation counters; the actual tree is created below.
+  S.counts = savedCounts; S.graftsBought = savedGrafts;
+  if (!affordableNodes.length) return false;
   S.pristine = false;
   let grafted = false;
+  const allowed = new Set(affordableNodes);
+  const nodes = [];
   const build = (s, parentId) => {
+    if (!allowed.has(s)) return null;
     const n = mkNode(s.type, parentId);
     S.counts[s.type] = (S.counts[s.type] || 0) + 1;
-    n.lvl = Math.max(n.lvl, s.lvl);
-    n.edgeLvl = Math.max(n.edgeLvl, s.edgeLvl || 0);
-    n.polish = Math.max(n.polish || 0, s.polish || 0);
+    nodes.push({ node: n, plan: s });
     const ng = bpNeededGrafts(s.type, s.children.length);
     if (ng > 0) { n.extraKids = (n.extraKids || 0) + ng; S.graftsBought += ng; grafted = true; }
     const p = N(parentId);
@@ -3184,11 +3228,43 @@ function bpPaste(targetId) {
     return n;
   };
   const rootNode = build(bp.root, targetId);
+  // Spread upgrade progress by fraction of each node's copied upgrade bill
+  // completed, buying one level/edge/polish step at a time while funds allow.
+  const upgrades = nodes.map(({ node, plan }) => {
+    const steps = [];
+    for (let l = startLvl(plan.type); l < plan.lvl; l++) steps.push({ kind: 'lvl', cost: () => ({ sap: plan.type === 'cap' ? 0 : costUp({ type: plan.type, lvl: node.lvl }), resin: plan.type === 'cap' ? costUp({ type: plan.type, lvl: node.lvl }) : 0 }) });
+    for (let e = metaLvl('birthright'); e < (plan.edgeLvl || 0); e++) steps.push({ kind: 'edge', cost: () => ({ sap: costEdge({ edgeLvl: node.edgeLvl || 0 }), resin: 0 }) });
+    if (metaLvl('empyrean') === 0) {
+      const pStart = canPolish(node) ? metaLvl('mythos') : 0;
+      for (let p = pStart; p < (plan.polish || 0); p++) steps.push({ kind: 'polish', cost: () => ({ sap: 0, resin: costPolish({ polish: node.polish || 0 }) }) });
+    }
+    const total = bpUpgradeCost(plan);
+    return { node, plan, steps, done: 0, total, remaining: total.sap + total.resin };
+  }).filter(x => x.steps.length);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    upgrades.sort((a, b) => {
+      const af = a.total.sap + a.total.resin ? (a.total.sap + a.total.resin - (a.remaining || 0)) / (a.total.sap + a.total.resin) : 1;
+      const bf = b.total.sap + b.total.resin ? (b.total.sap + b.total.resin - (b.remaining || 0)) / (b.total.sap + b.total.resin) : 1;
+      return af - bf;
+    });
+    for (const u of upgrades) {
+      const step = u.steps[0]; if (!step) continue;
+      const cost = step.cost();
+      if (!bpTakeAffordable(cost)) continue;
+      if (step.kind === 'lvl') u.node.lvl++;
+      else if (step.kind === 'edge') u.node.edgeLvl = (u.node.edgeLvl || 0) + 1;
+      else u.node.polish = (u.node.polish || 0) + 1;
+      u.steps.shift(); u.done++; u.remaining = u.steps.reduce((sum, x) => { const c = x.cost(); return sum + c.sap + c.resin; }, 0);
+      changed = true;
+    }
+  }
   if (grafted) grantAchievement('firstGraft');
   sfx('buy');
   pulseNode(target, 0.85, 0.75);
   spawnBurst(target.x, target.y, '#9fd0ff', 20, 120, 0.95);
-  toast('📐 Blueprint grafted on');
+  toast(`📐 Blueprint pasted: ${nodes.length}/${bp.count} nodes`);
   layout();
   selected = rootNode.id;
   buildPanel(); save();
@@ -3226,10 +3302,10 @@ function bpWorldClick(id) {
     bpCandidate = id; refreshBlueprint();
     return true;
   }
-  if (bpMode === 'paste') {
+  if (bpMode === 'paste' || bpMode === 'paste-partial') {
     if (!n || !bpCanPaste(n)) { toast('📐 Can’t graft here — needs a free slot and room under type caps.'); return true; }
     const c = bpCost();
-    if (S.sap < c.sap || S.resin < c.resin) { toast(`Need ${fmt(c.sap)} sap + ${fmt(c.resin)} resin to graft this.`); return true; }
+    if (bpMode === 'paste' && (S.sap < c.sap || S.resin < c.resin)) { toast(`Need ${fmt(c.sap)} sap + ${fmt(c.resin)} resin. Choose “Paste what you can” for a partial copy.`); return true; }
     if (bpPaste(id)) setBpMode(null);
     return true;
   }
@@ -3261,9 +3337,9 @@ function refreshBlueprint() {
     }
   } else if (bpMode === 'menu') {
     html = `<div class="bptext">📐 Blueprint stored: <b>${S.blueprint.count} nodes</b>.</div>
-      <div class="bprow"><button data-bp="paste">Paste</button><button data-bp="discard" class="bpdanger">Discard</button><button data-bp="cancel">Close</button></div>`;
-  } else if (bpMode === 'paste') {
-    html = `<div class="bptext">📐 Tap a node to graft the stored <b>${S.blueprint.count}-node</b> branch onto (full sap+resin price).</div>
+      <div class="bprow"><button data-bp="paste">Paste full</button><button data-bp="partial">Paste what you can</button><button data-bp="discard" class="bpdanger">Discard</button><button data-bp="cancel">Close</button></div>`;
+  } else if (bpMode === 'paste' || bpMode === 'paste-partial') {
+    html = `<div class="bptext">📐 Tap a node to graft the stored <b>${S.blueprint.count}-node</b> branch onto${bpMode === 'paste-partial' ? ' with available sap and resin' : ' (full sap+resin price)'}.</div>
       <div class="bprow"><button data-bp="cancel">Cancel</button></div>`;
   }
   bar.innerHTML = html;
@@ -3276,6 +3352,7 @@ document.getElementById('bpbar')?.addEventListener('click', e => {
   if (act === 'cancel') setBpMode(null);
   else if (act === 'confirmcopy') { if (bpCandidate != null && bpCopy(bpCandidate)) setBpMode(null); }
   else if (act === 'paste') setBpMode('paste');
+  else if (act === 'partial') setBpMode('paste-partial');
   else if (act === 'discard') { S.blueprint = null; toast('📐 Blueprint discarded'); sfx('plink'); setBpMode(null); save(); }
 });
 function polish(id) {
@@ -4873,7 +4950,7 @@ function draw(time) {
       ctx.setLineDash([4, 4]); ctx.lineDashOffset = -time * 22;
       ctx.lineWidth = 2; ctx.strokeStyle = '#9fd0ff'; ctx.stroke();
       ctx.setLineDash([]);
-    } else if (bpMode === 'paste' && n.type !== 'core' && bpCanPaste(n)) {
+    } else if ((bpMode === 'paste' || bpMode === 'paste-partial') && n.type !== 'core' && bpCanPaste(n)) {
       ctx.beginPath(); ctx.arc(px, py, rr + 6 * cam.scale, 0, TAU);
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(159,208,255,0.6)'; ctx.stroke();
     }
