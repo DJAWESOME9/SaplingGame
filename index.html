@@ -191,7 +191,7 @@
   #leaderboard .lb-player { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #leaderboard .lb-score { color:#f5d997; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
   #leaderboard .lb-strike { padding:4px 6px; font-size:10px; white-space:nowrap; }
-  #leaderboard .lb-strike:disabled { opacity:.4; filter:saturate(.55); cursor:default; }
+  #leaderboard .lb-strike.cooldown { opacity:.4; filter:saturate(.55); cursor:default; }
   #leaderboard li.lb-empty { display:block; padding:22px 12px; border:1px dashed #65744f; border-radius:8px; color:#c8d4b6; text-align:center; line-height:1.5; }
   #leaderboard li.lb-empty strong { display:block; margin-bottom:3px; color:#f0d393; font-size:12px; }
   #liveChallenges { position:fixed; z-index:56; top:52px; right:16px; display:none; box-sizing:border-box; width:min(340px, calc(100vw - 16px)); max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain; padding:14px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
@@ -1384,6 +1384,9 @@ const UPDATE_LOG = [
   { id:'2026-10-11-species-on-cut', date:'October 11, 2026', title:'Choose tree species when you cut', notes:[
     'Tree species can now be changed only after cutting down your tree, so each planted tree keeps its species for its whole run.'
   ] },
+  {id:'2026-10-12-leaderboard-strike-availability',date:'October 12, 2026',title:'Leaderboard strike availability',notes:[
+    'Lightning strikes can now be used from any leaderboard while you have strikes remaining. Strike buttons dim when your daily strikes are used up or while the one-minute cooldown is active.'
+  ]},
   {id:'2026-10-11-leaderboard-lightning-cooldown',date:'October 11, 2026',title:'Leaderboard lightning cooldown',notes:[
     'Top-three players can see how many leaderboard lightning strikes remain today. Sending a strike starts a one-minute cooldown before another can be sent.'
   ]},
@@ -6445,9 +6448,9 @@ async function loadLeaderboard() {
     } else lbStrikeState = {availableBoards:[], remaining:0, cooldownUntil:0};
     lbRows.innerHTML = rows.map((row, i) => {
       const canStrike = myPlace >= 0 && myPlace < 3 && row.player_id !== lbPlayerId;
-      const available = lbStrikeState.availableBoards.includes(selectedLeaderboard);
+      const available = lbStrikeState.remaining > 0;
       const coolingDown = lbStrikeState.cooldownUntil > Date.now();
-      return `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span>${canStrike ? `<button type="button" class="lb-strike" data-lb-strike="${escapeHtml(row.player_id)}" data-lb-board="${selectedLeaderboard}" aria-label="Send a lightning strike to ${escapeHtml(row.display_name)}" ${!available || coolingDown ? 'disabled' : ''}>⚡ Strike</button>` : ''}</li>`;
+      return `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span>${canStrike ? `<button type="button" class="lb-strike${coolingDown || !available ? ' cooldown' : ''}" data-lb-strike="${escapeHtml(row.player_id)}" data-lb-board="${selectedLeaderboard}" aria-label="Send a lightning strike to ${escapeHtml(row.display_name)}" ${!available || coolingDown ? 'disabled' : ''}>⚡ Strike</button>` : ''}</li>`;
     }).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
     if (lbPlayerId && !strikeStatusError) renderLeaderboardStrikeStatus();
     else lbStatus.textContent = `Updated just now${strikeStatusError}`;
@@ -6469,7 +6472,8 @@ setInterval(() => {
   if (lbStrikeState.cooldownUntil <= Date.now()) {
     lbStrikeState.cooldownUntil = 0;
     lbRows.querySelectorAll('button[data-lb-strike]').forEach(button => {
-      button.disabled = !lbStrikeState.availableBoards.includes(button.dataset.lbBoard);
+      button.disabled = lbStrikeState.remaining <= 0;
+      button.classList.toggle('cooldown', lbStrikeState.remaining <= 0);
     });
   }
   renderLeaderboardStrikeStatus();
@@ -6477,7 +6481,7 @@ setInterval(() => {
 lbRows.addEventListener('click', async e => {
   const button = e.target.closest('button[data-lb-strike]');
   if (!button || !lbConfigured || !lbPlayerId) return;
-  if (lbStrikeState.cooldownUntil > Date.now() || !lbStrikeState.availableBoards.includes(button.dataset.lbBoard)) return;
+  if (lbStrikeState.cooldownUntil > Date.now() || lbStrikeState.remaining <= 0) return;
   button.disabled = true;
   lbStatus.textContent = 'Sending leaderboard strike…';
   try {
@@ -6493,12 +6497,16 @@ lbRows.addEventListener('click', async e => {
       cooldownUntil:Date.now()+Math.max(0, Number(result?.cooldown_seconds)||60)*1000
     };
     lbRows.querySelectorAll('button[data-lb-strike]').forEach(strikeButton => {
-      strikeButton.disabled = lbStrikeState.cooldownUntil > Date.now() || !lbStrikeState.availableBoards.includes(strikeButton.dataset.lbBoard);
+      const coolingDown = lbStrikeState.cooldownUntil > Date.now();
+      const outOfStrikes = lbStrikeState.remaining <= 0;
+      strikeButton.disabled = coolingDown || outOfStrikes;
+      strikeButton.classList.toggle('cooldown', coolingDown || outOfStrikes);
     });
     renderLeaderboardStrikeStatus();
   } catch (err) {
     lbStatus.textContent = err.message;
-    button.disabled = !lbStrikeState.availableBoards.includes(button.dataset.lbBoard);
+    button.disabled = lbStrikeState.cooldownUntil > Date.now() || lbStrikeState.remaining <= 0;
+    button.classList.toggle('cooldown', lbStrikeState.cooldownUntil > Date.now() || lbStrikeState.remaining <= 0);
   }
 });
 let liveChallenges = [];
