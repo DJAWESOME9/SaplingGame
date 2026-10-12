@@ -1384,6 +1384,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-12-nature-sounds',date:'October 12, 2026',title:'Hear birds, rain, and lightning',notes:[
+    'Added soft bird calls while visitors build nests, a quiet rain sound during showers, and a low rumble with lightning strikes. Adjust the effects with the existing sound volume setting.'
+  ]},
   {id:'2026-10-12-spellweaving-autocast',date:'October 12, 2026',title:'Autocast a spell from the Spellbook',notes:[
     'Max Spell Study to reveal Spellweaving in the Grove. Choose one studied spell to cast automatically when it has enough mana and its usual requirements are met; casts are at least one minute apart.'
   ]},
@@ -3534,7 +3537,7 @@ function updateWither(dt, idle) {
     }
     const was = n.wither || 0;
     n.wither = was + dt / wtime;
-    if (was <= 0) spawnFloaty(n.x, n.y, '🥀 withering', '#b59a5a'); // warn on the turn
+    if (was <= 0) { spawnFloaty(n.x, n.y, '🥀 withering', '#b59a5a'); sfx('wither-start'); } // warn on the turn
     if (n.wither >= 1) {
       // Last Gleam: a fully-withered node burns one polish to buy +10s per level
       // (capped at the upgrade's 3 levels) instead of dying outright.
@@ -3591,6 +3594,16 @@ function tone(freq, dur, type, gain, when) {
   o.connect(g); g.connect(AU.master);
   o.start(t); o.stop(t + dur + 0.02);
 }
+function noise(dur, gain, filterType, frequency, when = 0) {
+  if (!AU.ctx || AU.vol <= 0) return;
+  const t = AU.ctx.currentTime + when, size = Math.max(1, Math.floor(AU.ctx.sampleRate * dur));
+  const buffer = AU.ctx.createBuffer(1, size, AU.ctx.sampleRate), data = buffer.getChannelData(0);
+  for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+  const source = AU.ctx.createBufferSource(), filter = AU.ctx.createBiquadFilter(), g = AU.ctx.createGain();
+  source.buffer = buffer; filter.type = filterType; filter.frequency.value = frequency;
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  source.connect(filter); filter.connect(g); g.connect(AU.master); source.start(t); source.stop(t + dur);
+}
 function sfx(kind) {
   if (!AU.ctx) return;
   const now = performance.now();
@@ -3640,6 +3653,30 @@ function sfx(kind) {
     tone(523, 0.12, 'triangle', 0.09);
     tone(659, 0.12, 'triangle', 0.09, 0.1);
     tone(784, 0.22, 'sine', 0.09, 0.2);
+  } else if (kind === 'bird-nest') {
+    if (now - (AU.last.birdNest || 0) < 2600) return;
+    AU.last.birdNest = now;
+    const base = 1450 + Math.random() * 500;
+    tone(base, 0.09, 'sine', 0.025);
+    tone(base * 1.34, 0.12, 'sine', 0.022, 0.12);
+    tone(base * 1.12, 0.1, 'sine', 0.02, 0.3);
+  } else if (kind === 'wither-start') {
+    if (now - (AU.last.witherStart || 0) < 500) return;
+    AU.last.witherStart = now;
+    tone(420, 0.22, 'triangle', 0.035);
+    tone(280, 0.34, 'sine', 0.035, 0.12);
+    tone(190, 0.46, 'sine', 0.03, 0.28);
+  } else if (kind === 'rain') {
+    if (now - (AU.last.rain || 0) < 1800) return;
+    AU.last.rain = now;
+    noise(1.6, 0.012, 'lowpass', 1100);
+    noise(1.2, 0.007, 'highpass', 2200, 0.35);
+  } else if (kind === 'lightning') {
+    if (now - (AU.last.lightning || 0) < 900) return;
+    AU.last.lightning = now;
+    tone(72 + Math.random() * 18, 1.1, 'sine', 0.12, 0.12);
+    noise(0.22, 0.035, 'lowpass', 420);
+    noise(0.9, 0.025, 'lowpass', 260, 0.18);
   } else if (kind === 'bug') {
     // Short squishy thwack when you swat a critter.
     if (now - (AU.last.bug || 0) < 50) return;
@@ -4111,6 +4148,7 @@ function updateCritters(dt) {
         c.x = node.x; c.y = node.y;
         c.t += dt;
         if (c.type === 'bird' && metaLvl('critterhub') > 0 && !document.hidden && !frozenOn() && Date.now()-lastInput <= IDLE_AFTER_MS) {
+          if (!c.nested) sfx('bird-nest');
           c.nestProgress = Math.min(BIRD_SPECIES[c.species].seconds, (c.nestProgress||0)+dt);
           c.retry = Math.max(0,(c.retry||0)-dt);
           if (!c.nested && c.nestProgress >= BIRD_SPECIES[c.species].seconds) {
@@ -4465,6 +4503,7 @@ function startNaturalEvent(kind, level = 2, source = 'Natural weather') {
   naturalWeather.strike = null;
   naturalWeather.struck = false;
   const rain = RAIN_LEVELS[naturalWeather.level];
+  if (kind === 'rain') sfx('rain');
   toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : `⚡ Thunderclouds gather · From: ${naturalWeather.source}`);
 }
 function illuminateLightning(x, y) {
@@ -4479,6 +4518,7 @@ function illuminateLightning(x, y) {
   setTimeout(() => glow.remove(), 1200);
 }
 function strikeTree(cause = 'lightning') {
+  if (cause !== 'wind') sfx('lightning');
   const attribution = cause === 'wind' ? '' : ` From: ${naturalWeather.source}.`;
   // One terminal node per strike bounds the loss, even on large upgraded trees.
   const candidates = Object.values(S.nodes).filter(n => n.parent != null && !n.children.length &&
@@ -4534,6 +4574,7 @@ function tickNaturalEvents(dt) {
       if (!w.kind && w.next <= 0) { startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning', randomRainLevel()); save(); }
     } else {
       w.age += dt;
+      if (w.kind === 'rain') sfx('rain');
       if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); finishAdminWeather(); }
       if (w.strike) w.strike.age += dt;
       if (w.kind === 'rain' && w.age < w.duration && w.age >= w.hazardAt) {
