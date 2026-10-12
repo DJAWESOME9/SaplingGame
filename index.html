@@ -1145,7 +1145,7 @@
       <h2>🌲 The Grove</h2>
       <button id="groveClose" aria-label="Close">×</button>
     </div>
-    <p class="grovesub">Fell a grown tree to gather <b>rings</b> from its trunk — then spend them on eternal upgrades and choose what species to plant next. Rings and upgrades are kept forever.</p>
+    <p class="grovesub">Fell a grown tree to gather <b>rings</b> from its trunk. Choose a new species after the cut; rings and eternal upgrades are kept forever.</p>
     <div id="ringbanner"></div>
     <div class="grovesect">Eternal upgrades <span id="ringtotal"></span></div>
     <div id="groveups"></div>
@@ -1371,6 +1371,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-11-species-on-cut', date:'October 11, 2026', title:'Choose tree species when you cut', notes:[
+    'Tree species can now be changed only after cutting down your tree, so each planted tree keeps its species for its whole run.'
+  ] },
   {id:'2026-10-11-offline-button-settings',date:'October 11, 2026',title:'Offline button settings',notes:[
     'Settings can now hide the Go offline button and assign a keyboard shortcut to go offline or return online.'
   ]},
@@ -3647,6 +3650,7 @@ function edgeHit(n, mx, my) {
 let wasteParts = [], floaties = [], sparkParts = [], critters = [];
 let critterSpawnT = 20 + Math.random() * 20;
 let cutAnim = null;
+let speciesChoiceOpen = false;
 const critterSlowMult = id => !spellWardOn() && critters.some(c => c.nodeId === id && c.state === 'sitting') ? 0.35 : 1;
 function spawnFloaty(x, y, txt, color) {
   if (floaties.length > 40) floaties.shift();
@@ -7454,6 +7458,10 @@ function renderGrove() {
   } else {
     renderGroveTree();
   }
+  const canChooseSpecies = speciesChoiceOpen;
+  const speciesSection = document.getElementById('grovespecies').previousElementSibling;
+  speciesSection.hidden = !canChooseSpecies;
+  document.getElementById('grovespecies').hidden = !canChooseSpecies;
   document.getElementById('grovespecies').innerHTML = Object.keys(SPECIES).filter(k => {
     // Chocolate is a secret species — stay hidden entirely until its code is used.
     if (k === 'chocolate') return !!(META && META.chocolateUnlocked);
@@ -7478,7 +7486,7 @@ function openGrove() {
   renderGrove();
   settings.classList.remove('open'); gear.classList.remove('open');
 }
-function closeGrove() { grove.classList.remove('open'); }
+function closeGrove() { grove.classList.remove('open'); speciesChoiceOpen = false; }
 function cutDown() {
   const gain = ringGain();
   if (!confirm(`Cut down the tree for ${gain} ring${gain === 1 ? '' : 's'}? Your current tree (and its amber) is lost, but stashed for Restore backup.`)) return;
@@ -7531,6 +7539,8 @@ function finalizeCut() {
   buildPanel(); save();
   refreshCheatBadges();  // first cut unlocks the "Exit Blight mode" option in Settings
   if (gain > 0) toast(`You felled your tree and gathered ${gain} ring${gain === 1 ? '' : 's'}.`);
+  // The species picker is available only in the post-cut Grove.
+  speciesChoiceOpen = true;
   renderGrove();
   openGrove();
 }
@@ -7544,7 +7554,7 @@ grove.addEventListener('click', e => {
   const sp = e.target.closest('.scard[data-sp]');
   if (sp) {
     const k = sp.dataset.sp;
-    if (SPECIES[k] && META.species !== k && speciesUnlocked(k)) {
+    if (speciesChoiceOpen && SPECIES[k] && META.species !== k && speciesUnlocked(k)) {
       META.species = k; saveMeta();
       sfx('buy'); replantIfPristine(); renderGrove();
     }
