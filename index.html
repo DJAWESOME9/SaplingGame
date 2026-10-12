@@ -141,6 +141,8 @@
   .adminnoticebox p { color:#cad9c8; white-space:pre-wrap; overflow-wrap:anywhere; }
   #adminNoticeClose { width:100%; background:#25402b; border:1px solid #63876a; color:#edf6e9; border-radius:9px; padding:10px; font-size:14px; cursor:pointer; }
   #settings .srow { display:flex; align-items:center; gap:10px; font-size:13px; color:#cfdcc9; margin-bottom:12px; }
+  #offlineHotkey { margin-left:auto; background:#1d2c20; border:1px solid #3c5340; border-radius:7px; color:#dceade; padding:5px 8px; font:inherit; cursor:pointer; }
+  #offlineHotkey:focus-visible { outline:2px solid #9fd9a8; outline-offset:2px; }
   #rightClickAction { flex:1; min-width:0; color:#dceade; background:#1d2c20; border:1px solid #3c5340; border-radius:7px; padding:5px; }
   #leaderboard { --lb-gold:#e4ba69; --lb-cream:#f3e9cf; --lb-muted:#b9c7a6; position:fixed; z-index:55; top:52px; right:16px;
     box-sizing:border-box; width:328px; height:min(70vh, 640px); min-height:190px; max-height:calc(100dvh - 16px); overflow:hidden;
@@ -176,7 +178,7 @@
   #leaderboard #lbRefresh:hover { background:#485a35; }
   #leaderboard .lb-status { min-height:15px; margin-top:8px; color:var(--lb-muted); font-size:11px; line-height:1.4; }
   #leaderboard ol { list-style:none; padding:0; margin:5px 0 0; max-height:330px; overflow:auto; scrollbar-color:#667a4e transparent; }
-  #leaderboard li { display:grid; grid-template-columns:25px minmax(0,1fr) auto; align-items:center; gap:8px; min-height:31px;
+  #leaderboard li { display:grid; grid-template-columns:25px minmax(0,1fr) auto auto; align-items:center; gap:8px; min-height:31px;
     padding:7px; border-top:1px solid rgba(171,193,145,.14); color:#e1e9d5; font-size:12px; }
   #leaderboard li:first-child { border-top:0; }
   #leaderboard li.lb-top { background:rgba(208,174,96,.08); }
@@ -188,6 +190,7 @@
   #leaderboard li:nth-child(3) .lb-rank { color:#30231d; border-color:#dcaa81; background:#bf8e69; }
   #leaderboard .lb-player { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #leaderboard .lb-score { color:#f5d997; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+  #leaderboard .lb-strike { padding:4px 6px; font-size:10px; white-space:nowrap; }
   #leaderboard li.lb-empty { display:block; padding:22px 12px; border:1px dashed #65744f; border-radius:8px; color:#c8d4b6; text-align:center; line-height:1.5; }
   #leaderboard li.lb-empty strong { display:block; margin-bottom:3px; color:#f0d393; font-size:12px; }
   #liveChallenges { position:fixed; z-index:56; top:52px; right:16px; display:none; box-sizing:border-box; width:min(340px, calc(100vw - 16px)); max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain; padding:14px; border:1px solid #3e5035; border-radius:10px; background:rgba(22,31,21,.78); }
@@ -1011,6 +1014,8 @@
   <div id="cheatbadges"></div>
   <div class="srow"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
   <div class="srow"><label for="hideReload">Hide reload button</label><input type="checkbox" id="hideReload"></div>
+  <div class="srow"><label for="hideOffline">Hide offline button</label><input type="checkbox" id="hideOffline"></div>
+  <div class="srow"><label for="offlineHotkey">Offline hotkey</label><button id="offlineHotkey" type="button">Set hotkey</button></div>
   <div class="srow"><label for="rightClickAction">Right-click</label><select id="rightClickAction"><option value="polish">Polish node</option><option value="thicken">Thicken branch</option><option value="off">Off</option></select></div>
   <div class="srow"><label for="branchWidthCap">Branch cap</label><input type="range" id="branchWidthCap" min="4" max="40" step="1"><output id="branchWidthCapValue" for="branchWidthCap">20 px</output></div>
   <button id="restore">Restore backup</button>
@@ -1366,6 +1371,15 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-11-offline-button-settings',date:'October 11, 2026',title:'Offline button settings',notes:[
+    'Settings can now hide the Go offline button and assign a keyboard shortcut to go offline or return online.'
+  ]},
+  {id:'2026-10-11-game-event-notifications',date:'October 11, 2026',title:'Notifications for grove events',notes:[
+    'If you enabled device notifications, Sapling can alert you when an expedition returns, an adventure needs a battle move or ends, a bug raid is reported, or offline earnings reached their cap while you were away. Raid and offline-cap alerts are detected on your next check-in; the game cannot run timers while fully closed.'
+  ]},
+  {id:'2026-10-11-player-lightning-strikes',date:'October 11, 2026',title:'Leaderboard lightning is yours to aim',notes:[
+    'Being in the top three no longer sends lightning at your own tree. The top three on each leaderboard can use one strike per board each day against another player; placements on multiple boards grant separate strikes.'
+  ]},
   {id:'2026-10-11-offline-session-rest',date:'October 11, 2026',title:'Offline mode now rests the grove',notes:[
     'Going offline now pauses the live grove and hides its activity. Your capped offline production is applied when you return, with a Welcome Back earnings summary.'
   ]},
@@ -4268,6 +4282,7 @@ function randomRainLevel() {
 function weatherSource(action) {
   if (typeof action.source === 'string' && action.source.trim()) return action.source.trim().slice(0, 500);
   const message = typeof action.message === 'string' ? action.message.trim() : '';
+  if (message.startsWith('Leaderboard strike by ')) return message;
   return message.startsWith('Daily leaderboard lightning:') ? message : `Admin (sender unknown)${message ? ' · ' + message : ''}`;
 }
 const naturalWeather = { source:'Natural weather', level:2, hazardAt:10, lightningHits:0, windHits:0, adminId:null, next:45 + Math.random() * 45, kind:null, age:0, duration:0, strike:null, struck:false };
@@ -5814,6 +5829,7 @@ function creditOffline(awaySecRaw, manual = false) {
   }
   const acornsRipened = acornsRipe() - beforeAcorns;
   const expeditionNews = advanceExpeditions(expeditionElapsed * offlineRateNow());
+  if (elapsed > away) showGameNotification('Offline earnings reached their limit', 'Your grove reached its offline earnings cap while you were away.', 'offline-cap');
   showWelcomeBack({ away: elapsed, credited: away, rate, sap, resin, acornsRipened, growthMs, expeditionNews }, manual);
 }
 // Fill and open the Welcome Back popup. Shared by the away paths (creditOffline)
@@ -5924,6 +5940,48 @@ hideReload.addEventListener('change', () => {
   try { localStorage.setItem('sapling-hide-reload', String(hideReload.checked)); } catch (e) {}
 });
 reloadButton.addEventListener('click', () => location.reload());
+const goOfflineButton = document.getElementById('goOffline');
+const hideOffline = document.getElementById('hideOffline');
+const offlineHotkey = document.getElementById('offlineHotkey');
+let offlineHotkeyCode = '';
+let offlineHotkeyCapturing = false;
+try { hideOffline.checked = localStorage.getItem('sapling-hide-offline') === 'true'; } catch (e) {}
+goOfflineButton.hidden = hideOffline.checked;
+hideOffline.addEventListener('change', () => {
+  goOfflineButton.hidden = hideOffline.checked || offlineModeRequested;
+  try { localStorage.setItem('sapling-hide-offline', String(hideOffline.checked)); } catch (e) {}
+});
+try { offlineHotkeyCode = localStorage.getItem('sapling-offline-hotkey') || ''; } catch (e) {}
+const formatOfflineHotkey = code => code ? code.replace(/^Key/, '').replace(/^Digit/, '') : 'Set hotkey';
+offlineHotkey.textContent = formatOfflineHotkey(offlineHotkeyCode);
+offlineHotkey.addEventListener('click', () => {
+  offlineHotkeyCapturing = true;
+  offlineHotkey.textContent = 'Press a key…';
+  offlineHotkey.focus();
+});
+offlineHotkey.addEventListener('keydown', event => {
+  event.preventDefault(); event.stopPropagation();
+  if (event.key === 'Escape') { offlineHotkeyCapturing = false; offlineHotkey.textContent = formatOfflineHotkey(offlineHotkeyCode); return; }
+  if (event.key === 'Backspace' || event.key === 'Delete') offlineHotkeyCode = '';
+  else if (/^Key[A-Z]$|^Digit[0-9]$|^F([1-9]|1[0-2])$/.test(event.code)) offlineHotkeyCode = event.code;
+  else return;
+  offlineHotkeyCapturing = false;
+  offlineHotkey.textContent = formatOfflineHotkey(offlineHotkeyCode);
+  try { localStorage.setItem('sapling-offline-hotkey', offlineHotkeyCode); } catch (e) {}
+});
+offlineHotkey.addEventListener('blur', () => {
+  if (!offlineHotkeyCapturing) return;
+  offlineHotkeyCapturing = false;
+  offlineHotkey.textContent = formatOfflineHotkey(offlineHotkeyCode);
+});
+document.addEventListener('keydown', event => {
+  if (offlineHotkeyCapturing) return;
+  if (!offlineHotkeyCode || event.code !== offlineHotkeyCode || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+  event.preventDefault();
+  if (offlineModeRequested) endOfflineMode(); else startOfflineMode();
+});
 function placeSettings() {
   const rect = gear.getBoundingClientRect();
   const gap = 8;
@@ -6053,6 +6111,7 @@ async function linkAccountLeaderboard() {
   localStorage.setItem('sapling-leaderboard-name-v1', claimedUsername);
   document.getElementById('usernamePrompt').classList.remove('open');
   lbPlayerId = profile.player_id;
+  loadLeaderboard();
 }
 async function checkCloud(onReload = false) {
   cloudReady = false;
@@ -6161,7 +6220,7 @@ document.getElementById('cloudRestoreLocal').addEventListener('click', () => acc
 document.getElementById('accountSignOut').addEventListener('click', () => accountAction(async () => {
   cloudReady = false;
   try { await refreshAccount(); await accountRequest('/auth/v1/logout?scope=local', {}, 'POST', true); }
-  finally { accountSession = null; lbPlayerId = lbDeviceId; claimedUsername = ''; localStorage.removeItem(LB_CLAIM_KEY); localStorage.removeItem(ACCOUNT_KEY); localStorage.removeItem(CLOUD_BINDING); accountView(); accountMessage('Signed out. Your game remains saved locally.'); }
+  finally { accountSession = null; lbPlayerId = lbDeviceId; loadLeaderboard(); claimedUsername = ''; localStorage.removeItem(LB_CLAIM_KEY); localStorage.removeItem(ACCOUNT_KEY); localStorage.removeItem(CLOUD_BINDING); accountView(); accountMessage('Signed out. Your game remains saved locally.'); }
 }));
 async function initAccount() {
   try {
@@ -6178,7 +6237,7 @@ async function initAccount() {
       accountSession = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
     }
     accountView();
-    if (!accountSession) lbPlayerId = lbDeviceId;
+    if (!accountSession) { lbPlayerId = lbDeviceId; loadLeaderboard(); }
     if (accountSession && lbConfigured) await accountAction(() => checkCloud(true));
   } catch (e) { cloudReady = false; accountMessage('Sign in again to reconnect cloud saving.'); }
 }
@@ -6237,7 +6296,7 @@ async function loadLeaderboard() {
   const loadId = ++leaderboardLoadId;
   lbStatus.textContent = 'Loading…';
   try {
-    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc,player_id.asc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/leaderboard?select=player_id,display_name,is_blight,${board.column}&fresh_score_reported_at=not.is.null&order=${board.column}.desc,player_id.asc&limit=25`, { headers: lbHeaders(), cache: 'no-store' });
     if (loadId !== leaderboardLoadId) return;
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
@@ -6245,7 +6304,11 @@ async function loadLeaderboard() {
     }
     const rows = await res.json();
     if (loadId !== leaderboardLoadId) return;
-    lbRows.innerHTML = rows.map((row, i) => `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span></li>`).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
+    const myPlace = rows.findIndex(row => row.player_id === lbPlayerId);
+    lbRows.innerHTML = rows.map((row, i) => {
+      const canStrike = myPlace >= 0 && myPlace < 3 && row.player_id !== lbPlayerId;
+      return `<li class="${i < 3 ? 'lb-top ' : ''}${row.is_blight ? 'blight-entry' : ''}"><span class="lb-rank" aria-label="Rank ${i + 1}">${i + 1}</span><span class="lb-player">${escapeHtml(row.display_name)}${row.is_blight ? ' 🥀' : ''}</span><span class="lb-score">${board.format(row[board.column])}</span>${canStrike ? `<button type="button" class="lb-strike" data-lb-strike="${escapeHtml(row.player_id)}" data-lb-board="${selectedLeaderboard}" aria-label="Send a lightning strike to ${escapeHtml(row.display_name)}">⚡ Strike</button>` : ''}</li>`;
+    }).join('') || '<li class="lb-empty"><strong>No fresh scores yet.</strong>Scores appear as players open the updated game.</li>';
     lbStatus.textContent = 'Updated just now';
   } catch (err) {
     if (loadId !== leaderboardLoadId) return;
@@ -6253,6 +6316,25 @@ async function loadLeaderboard() {
     lbStatus.textContent = `Could not load leaderboard: ${err.message}`;
   }
 }
+lbRows.addEventListener('click', async e => {
+  const button = e.target.closest('button[data-lb-strike]');
+  if (!button || !lbConfigured || !lbPlayerId) return;
+  button.disabled = true;
+  lbStatus.textContent = 'Sending leaderboard strike…';
+  try {
+    const res = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/rpc/player_leaderboard_strike`, {
+      method:'POST', headers:lbHeaders(),
+      body:JSON.stringify({p_player_id:lbPlayerId,p_target_id:button.dataset.lbStrike,p_board:button.dataset.lbBoard})
+    });
+    const result = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(result?.message || 'Strike unavailable');
+    lbStatus.textContent = '⚡ Strike sent. Your strike for this leaderboard is spent for today.';
+    lbRows.querySelectorAll(`button[data-lb-board="${button.dataset.lbBoard}"]`).forEach(strikeButton => strikeButton.remove());
+  } catch (err) {
+    lbStatus.textContent = err.message;
+    button.disabled = false;
+  }
+});
 let liveChallenges = [];
 const liveChallengeClaimsInFlight = new Set();
 const liveChallengeLastClaimAttempt = new Map();
@@ -6686,6 +6768,12 @@ async function processAdminActions() {
         if (action.acorns_delta) changes.push(`${action.acorns_delta > 0 ? 'Granted' : 'Removed'} ${fmt(Math.abs(META.acorns - oldAcorns))} acorns`);
         const notices = adminNotices();
         notices.push({ change: changes.join(' · '), message: typeof action.message === 'string' ? action.message : '' });
+        if (typeof action.message === 'string' && action.message.startsWith('An opposing bug raided your grove.')) {
+          const loss = action.sap_delta < 0
+            ? `${fmt(Math.abs(S.sap - oldSap))} sap`
+            : `${fmt(Math.abs(S.resin - oldResin))} resin`;
+          showGameNotification('Your grove was raided', `An opposing bug took ${loss}. Assigned defenders reduce the loss.`, `raid-${action.id}`);
+        }
         localStorage.setItem(ADMIN_NOTICES_KEY, JSON.stringify(notices));
         recordHighestBalances();
         save();
@@ -8440,8 +8528,12 @@ function finishAdventure(i, won) {
     recordChallengeEvent('rings',rings); if(boost) applyBloom('expedition',300);
     const gear=adventureGear(); bugXp(b,30+r.tier*15);
     toast(`⚔️ ${r.name} complete: ${fmt(sap)} sap, ${fmt(resin)} resin, ${rings} rings${acorns?', 🌰1':''}${boost?', 5 min boost':''}, ${gear.name} (tier ${gear.tier}).`,10000);
+    showGameNotification('Adventure complete', `${r.name} finished. Your bug returned with rewards and new gear.`, `adventure-${i}-${Date.now()}`);
     recordHighestBalances();
-  } else { bugXp(b,5+a.stage*5); toast(`${BUG_KINDS[b.kind].name} returned safely. No loot this time; experience kept.`); }
+  } else {
+    bugXp(b,5+a.stage*5); toast(`${BUG_KINDS[b.kind].name} returned safely. No loot this time; experience kept.`);
+    showGameNotification('Adventure ended', `${BUG_KINDS[b.kind].name} returned safely with experience.`, `adventure-${i}-${Date.now()}`);
+  }
   META.adventures.entries[i]=null; storeReturningBug(b); refreshAcorns(); renderCritterHub(); save();
 }
 function adventureMove(i, move, automatic=false) {
@@ -8482,7 +8574,12 @@ function advanceAdventures(seconds, now=Date.now()) {
         if(a.travel<leg) break;
         if(a.stage>=r.foes.length) {finishAdventure(i,true); break;}
         a.enemyHp=adventureEnemy(a).hp; a.autoTime=0; a.log='Enemy spotted — choose your move!';
-        if(!metaLvl('bugtactics')) toast(`⚔️ ${BUG_KINDS[META.critterHub.roster.find(b=>b.id===a.bugId).kind].name} reached an enemy in ${r.name}!`,9000);
+        if(!metaLvl('bugtactics')) {
+          const bugName=BUG_KINDS[META.critterHub.roster.find(b=>b.id===a.bugId).kind].name;
+          const enemyName=adventureEnemy(a).name;
+          toast(`⚔️ ${bugName} reached an enemy in ${r.name}!`,9000);
+          showGameNotification('Adventure needs you', `${bugName} encountered ${enemyName} on ${r.name}. Choose a battle move.`, `adventure-encounter-${i}-${Date.now()}`);
+        }
       }
     }
   }
@@ -8761,6 +8858,7 @@ function advanceExpeditions(seconds, now = Date.now()) {
     recordHighestBalances();
     const rewards = [sap ? `${fmt(sap)} sap` : '', resin ? `${fmt(resin)} resin` : '', rings ? `${rings} rings` : '', acorn ? '🌰 1 acorn' : '', buff ? '5 min boost' : ''].filter(Boolean).join(', ');
     news.push(`Slot ${i + 1} complete: ${rewards || 'critters returned'}`);
+    showGameNotification('Expedition complete', `${t.name}: ${rewards || 'your critters returned safely'}.`, `expedition-${i}-${Date.now()}`);
     const returned=(a.bugIds||[]).map(id=>META.critterHub.roster.find(b=>b.id===id)).filter(Boolean);
     for(const b of returned) { bugXp(b,20); META.critterHub.roster.splice(META.critterHub.roster.indexOf(b),1); }
     slot.active = null;
@@ -9281,7 +9379,6 @@ let manualOfflineStartedAt = 0;
 // Accumulators for the foreground-idle stretch, summed into the Welcome Back
 // popup shown when input resumes.
 let idleSap = 0, idleResin = 0, idleGrowth = 0, idleRipeStart = 0, idleEnteredAt = 0, idleExpeditionNews = [], idleExpeditionStart = [];
-const goOfflineButton = document.getElementById('goOffline');
 const offlineDim = document.getElementById('offlineDim');
 function startOfflineMode() {
   if (offlineModeRequested) return;
@@ -9301,7 +9398,7 @@ function endOfflineMode() {
   lastInput = Date.now();
   wasIdle = false;
   offlineDim.hidden = true;
-  goOfflineButton.hidden = false;
+  goOfflineButton.hidden = hideOffline.checked;
   last = performance.now();
   wallLast = Date.now();
   creditOffline(away, true);
@@ -9652,6 +9749,16 @@ const pushButton = document.getElementById('pushNotifications');
 const pushStatus = document.getElementById('pushStatus');
 let pushPublicKey = '';
 let hasPushSubscription = false;
+function showGameNotification(title, body, tag) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || Notification.permission !== 'granted') return;
+  navigator.serviceWorker.ready.then(async registration => {
+    if (!await registration.pushManager.getSubscription()) return;
+    return registration.showNotification(title, {
+      body, icon:'./apple-touch-icon.png', badge:'./favicon.png', tag,
+      data:{url:'./'}
+    });
+  }).catch(() => {});
+}
 function refreshPushControls() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     pushButton.hidden = true; pushStatus.textContent = 'Push notifications are not supported by this browser.'; return;

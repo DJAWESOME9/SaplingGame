@@ -1,57 +1,85 @@
--- Apply after leaderboard.sql and admin_weather.sql. Runs only as database owner.
+-- Apply after leaderboard.sql and admin_weather.sql.
+-- Replaces the old automatic winner-targeting job with one player-aimed strike
+-- per current top-three placement, per Eastern calendar day.
 create schema if not exists private;
-create extension if not exists pg_cron;
-
-create table if not exists private.sapling_leaderboard_lightning_days (
-  strike_day date primary key,
-  queued_at timestamptz not null default now(),
-  strikes integer not null default 0
+create table if not exists private.sapling_leaderboard_lightning_usage (
+  player_id uuid not null,
+  usage_day date not null,
+  board text not null check (board in ('lifetime_sap','lifetime_resin','highest_sap','highest_resin','production_sap','production_resin','gold_leaves')),
+  target_id uuid not null,
+  used_at timestamptz not null default now(),
+  primary key (player_id, usage_day, board),
+  check (player_id <> target_id)
 );
-alter table private.sapling_leaderboard_lightning_days enable row level security;
-revoke all on private.sapling_leaderboard_lightning_days from public, anon, authenticated;
+alter table private.sapling_leaderboard_lightning_usage enable row level security;
+revoke all on private.sapling_leaderboard_lightning_usage from public, anon, authenticated;
 
-create or replace function private.queue_leaderboard_daily_lightning()
-returns integer language plpgsql security invoker set search_path = '' as $$
-declare
-  today date := (now() at time zone 'America/New_York')::date;
-  claimed date;
-  queued integer;
+-- Stop the previously installed midnight job. Its historical day ledger may remain.
+do $$
+declare scheduled_job record;
 begin
-  -- One snapshot per Eastern date; concurrent calls serialize on the daily key.
-  -- This marker and all queued strikes commit together or roll back together.
-  insert into private.sapling_leaderboard_lightning_days(strike_day)
-    values (today) on conflict do nothing returning strike_day into claimed;
-  if claimed is null then return 0; end if;
-
-  with scores as (
-    select l.player_id, b.board, b.label, b.score
-    from public.leaderboard l
-    cross join lateral (values
-      ('lifetime_sap', 'Lifetime sap', l.lifetime_sap),
-      ('lifetime_resin', 'Lifetime resin', l.lifetime_resin),
-      ('production_sap', 'Sap production', l.current_sap_production),
-      ('production_resin', 'Resin production', l.current_resin_production),
-      ('highest_sap', 'Current sap', l.current_sap),
-      ('highest_resin', 'Current resin', l.current_resin),
-      ('gold_leaves', 'Gold leaves', l.gold_leaves::double precision)
-    ) b(board, label, score)
-    where l.fresh_score_reported_at is not null
-  ), ranked as (
-    select *, row_number() over (partition by board order by score desc, player_id) as place
-    from scores
-  )
-  insert into public.admin_actions(player_id, action_type, weather_level, message)
-    select player_id, 'lightning', 1,
-      format('Daily leaderboard lightning: #%s in %s on %s (Eastern). One strike per top-three placement.', place, label, today)
-    from ranked where place <= 3 order by board, place;
-  get diagnostics queued = row_count;
-  update private.sapling_leaderboard_lightning_days set strikes = queued where strike_day = today;
-  return queued;
+  if to_regclass('cron.job') is not null then
+    for scheduled_job in select jobid from cron.job where jobname = 'sapling-leaderboard-daily-lightning' loop
+      perform cron.unschedule(scheduled_job.jobid);
+    end loop;
+  end if;
 end; $$;
-revoke all on function private.queue_leaderboard_daily_lightning() from public, anon, authenticated;
+drop function if exists private.queue_leaderboard_daily_lightning();
+-- Do not deliver automatic winner strikes already waiting in the shared queue.
+delete from public.admin_actions
+  where action_type = 'lightning' and acknowledged_at is null
+    and message like 'Daily leaderboard lightning:%';
 
--- Midnight Eastern is 04:00 UTC in summer and 05:00 UTC in winter.
--- The Eastern-hour guard handles daylight saving without a second daily run.
-select cron.schedule('sapling-leaderboard-daily-lightning', '0 4,5 * * *',
-  $$select private.queue_leaderboard_daily_lightning()
-    where extract(hour from now() at time zone 'America/New_York') = 0;$$);
+create or replace function public.player_leaderboard_strike(
+  p_player_id uuid, p_target_id uuid, p_board text
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  score_column text;
+  attacker_name text;
+  target_name text;
+  rank_position bigint;
+  action_id uuid;
+  today date := (now() at time zone 'America/New_York')::date;
+begin
+  if p_player_id is null or p_target_id is null or p_player_id = p_target_id then
+    raise exception 'Choose another player to strike';
+  end if;
+  score_column := case p_board
+    when 'lifetime_sap' then 'lifetime_sap'
+    when 'lifetime_resin' then 'lifetime_resin'
+    when 'highest_sap' then 'current_sap'
+    when 'highest_resin' then 'current_resin'
+    when 'production_sap' then 'current_sap_production'
+    when 'production_resin' then 'current_resin_production'
+    when 'gold_leaves' then 'gold_leaves'
+    else null end;
+  if score_column is null then raise exception 'Unknown leaderboard'; end if;
+
+  execute format(
+    'select place, display_name from (
+       select player_id, display_name, row_number() over (order by %I desc, player_id asc) as place
+       from public.leaderboard where fresh_score_reported_at is not null
+     ) ranked where player_id = $1', score_column)
+    into rank_position, attacker_name using p_player_id;
+  if rank_position is null or rank_position > 3 then
+    raise exception 'Only the top three on this leaderboard can send a strike';
+  end if;
+  select display_name into target_name from public.leaderboard
+    where player_id = p_target_id and fresh_score_reported_at is not null;
+  if target_name is null then raise exception 'Target player is not on the leaderboard'; end if;
+
+  insert into private.sapling_leaderboard_lightning_usage(player_id, usage_day, board, target_id)
+    values (p_player_id, today, p_board, p_target_id)
+    on conflict do nothing;
+  if not found then raise exception 'Your strike for this leaderboard has already been used today'; end if;
+
+  insert into public.admin_actions(player_id, action_type, weather_level, message)
+    values (p_target_id, 'lightning', 1,
+      format('Leaderboard strike by %s for #%s on %s', left(attacker_name,20), rank_position, p_board))
+    returning id into action_id;
+  return jsonb_build_object('action_id', action_id, 'remaining', 0, 'board', p_board);
+end; $$;
+revoke all on function public.player_leaderboard_strike(uuid, uuid, text) from public;
+grant execute on function public.player_leaderboard_strike(uuid, uuid, text) to anon, authenticated;
+notify pgrst, 'reload schema';
