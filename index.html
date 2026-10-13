@@ -3256,8 +3256,9 @@ function bpPaste(targetId) {
     return n;
   };
   const rootNode = build(bp.root, targetId);
-  // Spread upgrade progress by fraction of each node's copied upgrade bill
-  // completed, buying one level/edge/polish step at a time while funds allow.
+  // Build per-node upgrade steps. Resin upgrades are allocated first so resin
+  // can always buy every available polish/cap level before sap upgrades spend
+  // the remaining budget.
   const upgrades = nodes.map(({ node, plan }) => {
     const steps = [];
     for (let l = startLvl(plan.type); l < plan.lvl; l++) steps.push({ kind: 'lvl', cost: () => ({ sap: plan.type === 'cap' ? 0 : costUp({ type: plan.type, lvl: node.lvl }), resin: plan.type === 'cap' ? costUp({ type: plan.type, lvl: node.lvl }) : 0 }) });
@@ -3269,25 +3270,32 @@ function bpPaste(targetId) {
     const total = bpUpgradeCost(plan);
     return { node, plan, steps, done: 0, total, remaining: total.sap + total.resin };
   }).filter(x => x.steps.length);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    upgrades.sort((a, b) => {
-      const af = a.total.sap + a.total.resin ? (a.total.sap + a.total.resin - (a.remaining || 0)) / (a.total.sap + a.total.resin) : 1;
-      const bf = b.total.sap + b.total.resin ? (b.total.sap + b.total.resin - (b.remaining || 0)) / (b.total.sap + b.total.resin) : 1;
-      return af - bf;
-    });
-    for (const u of upgrades) {
-      const step = u.steps[0]; if (!step) continue;
-      const cost = step.cost();
-      if (!bpTakeAffordable(cost)) continue;
-      if (step.kind === 'lvl') u.node.lvl++;
-      else if (step.kind === 'edge') u.node.edgeLvl = (u.node.edgeLvl || 0) + 1;
-      else u.node.polish = (u.node.polish || 0) + 1;
-      u.steps.shift(); u.done++; u.remaining = u.steps.reduce((sum, x) => { const c = x.cost(); return sum + c.sap + c.resin; }, 0);
-      changed = true;
+  const allocate = resinOnly => {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const available = upgrades.map(u => ({ u, step: u.steps.find(x => (x.kind === 'polish' || (x.kind === 'lvl' && u.plan.type === 'cap')) === resinOnly) }))
+        .filter(x => x.step);
+      if (!available.length) break;
+      available.sort((a, b) => {
+        const af = a.total.sap + a.total.resin ? (a.total.sap + a.total.resin - (a.remaining || 0)) / (a.total.sap + a.total.resin) : 1;
+        const bf = b.total.sap + b.total.resin ? (b.total.sap + b.total.resin - (b.remaining || 0)) / (b.total.sap + b.total.resin) : 1;
+        return af - bf;
+      });
+      for (const { u, step } of available) {
+        const cost = step.cost();
+        if (!bpTakeAffordable(cost)) continue;
+        if (step.kind === 'lvl') u.node.lvl++;
+        else if (step.kind === 'edge') u.node.edgeLvl = (u.node.edgeLvl || 0) + 1;
+        else u.node.polish = (u.node.polish || 0) + 1;
+        u.steps.splice(u.steps.indexOf(step), 1); u.done++;
+        u.remaining = u.steps.reduce((sum, x) => { const c = x.cost(); return sum + c.sap + c.resin; }, 0);
+        changed = true;
+      }
     }
-  }
+  };
+  allocate(true);
+  allocate(false);
   if (grafted) grantAchievement('firstGraft');
   sfx('buy');
   pulseNode(target, 0.85, 0.75);
