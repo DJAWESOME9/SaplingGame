@@ -1385,7 +1385,7 @@ const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
   {id:'2026-10-12-nature-sounds',date:'October 12, 2026',title:'Hear birds, rain, and lightning',notes:[
-    'Added soft bird calls while visitors build nests, a quiet rain sound during showers, and a low rumble with lightning strikes. Adjust the effects with the existing sound volume setting.'
+    'Added soft bird calls while visitors build nests, a quiet rain sound during showers, a sharp crack and rolling thunder for lightning, and a cue when nodes start to wither. Adjust the effects with the existing sound volume setting.'
   ]},
   {id:'2026-10-12-spellweaving-autocast',date:'October 12, 2026',title:'Autocast a spell from the Spellbook',notes:[
     'Max Spell Study to reveal Spellweaving in the Grove. Choose one studied spell to cast automatically when it has enough mana and its usual requirements are met; casts are at least one minute apart.'
@@ -3674,9 +3674,13 @@ function sfx(kind) {
   } else if (kind === 'lightning') {
     if (now - (AU.last.lightning || 0) < 900) return;
     AU.last.lightning = now;
-    tone(72 + Math.random() * 18, 1.1, 'sine', 0.12, 0.12);
-    noise(0.22, 0.035, 'lowpass', 420);
-    noise(0.9, 0.025, 'lowpass', 260, 0.18);
+    // A sharp broadband crack followed by a lower, uneven thunder roll.
+    noise(0.16, 0.11, 'highpass', 1500);
+    noise(0.32, 0.07, 'lowpass', 900, 0.025);
+    tone(105 + Math.random() * 25, 0.72, 'sawtooth', 0.045, 0.06);
+    tone(58 + Math.random() * 12, 1.35, 'sine', 0.095, 0.16);
+    noise(1.25, 0.035, 'lowpass', 380, 0.2);
+    noise(0.8, 0.022, 'lowpass', 250, 0.75);
   } else if (kind === 'bug') {
     // Short squishy thwack when you swat a critter.
     if (now - (AU.last.bug || 0) < 50) return;
