@@ -1385,7 +1385,7 @@ const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
   {id:'2026-10-12-nature-sounds',date:'October 12, 2026',title:'Hear birds, rain, and lightning',notes:[
-    'Added soft bird calls while visitors build nests, a quiet rain sound during showers, a sharp crack and rolling thunder for lightning, and a cue when nodes start to wither. Adjust the effects with the existing sound volume setting.'
+    'Added soft bird calls while visitors build nests, gentle continuous rain pitter-patter, a sharp crack and rolling thunder for lightning, and a cue when nodes start to wither. Adjust the effects with the existing sound volume setting.'
   ]},
   {id:'2026-10-12-spellweaving-autocast',date:'October 12, 2026',title:'Autocast a spell from the Spellbook',notes:[
     'Max Spell Study to reveal Spellweaving in the Grove. Choose one studied spell to cast automatically when it has enough mana and its usual requirements are met; casts are at least one minute apart.'
@@ -3568,7 +3568,7 @@ function fmt(v) {
 }
 
 // ---------- audio: tiny WebAudio synth, no assets ----------
-const AU = { ctx: null, master: null, vol: 0.5, last: {} };
+const AU = { ctx: null, master: null, vol: 0.5, last: {}, rain: null };
 try { AU.vol = clamp(parseFloat(localStorage.getItem('sapling-vol') ?? '0.5'), 0, 1); } catch (e) {}
 function auInit() {
   if (AU.ctx) return;
@@ -3603,6 +3603,23 @@ function noise(dur, gain, filterType, frequency, when = 0) {
   source.buffer = buffer; filter.type = filterType; filter.frequency.value = frequency;
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   source.connect(filter); filter.connect(g); g.connect(AU.master); source.start(t); source.stop(t + dur);
+}
+function syncRainSound(playing) {
+  if (!AU.ctx || AU.vol <= 0 || !playing) {
+    if (AU.rain) { try { AU.rain.gain.gain.setTargetAtTime(0, AU.ctx.currentTime, 0.18); AU.rain.source.stop(AU.ctx.currentTime + 0.7); } catch (e) {} AU.rain = null; }
+    return;
+  }
+  if (AU.rain) return;
+  const size = AU.ctx.sampleRate * 3, buffer = AU.ctx.createBuffer(1, size, AU.ctx.sampleRate), data = buffer.getChannelData(0);
+  for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+  const source = AU.ctx.createBufferSource(), low = AU.ctx.createBiquadFilter(), high = AU.ctx.createBiquadFilter(), gain = AU.ctx.createGain();
+  source.buffer = buffer; source.loop = true;
+  low.type = 'lowpass'; low.frequency.value = 1250; low.Q.value = 0.35;
+  high.type = 'highpass'; high.frequency.value = 280; high.Q.value = 0.25;
+  gain.gain.setValueAtTime(0.0001, AU.ctx.currentTime);
+  gain.gain.setTargetAtTime(0.012, AU.ctx.currentTime, 0.45);
+  source.connect(low); low.connect(high); high.connect(gain); gain.connect(AU.master);
+  source.start(); AU.rain = {source, gain};
 }
 function sfx(kind) {
   if (!AU.ctx) return;
@@ -3666,11 +3683,6 @@ function sfx(kind) {
     tone(420, 0.22, 'triangle', 0.035);
     tone(280, 0.34, 'sine', 0.035, 0.12);
     tone(190, 0.46, 'sine', 0.03, 0.28);
-  } else if (kind === 'rain') {
-    if (now - (AU.last.rain || 0) < 1800) return;
-    AU.last.rain = now;
-    noise(1.6, 0.012, 'lowpass', 1100);
-    noise(1.2, 0.007, 'highpass', 2200, 0.35);
   } else if (kind === 'lightning') {
     if (now - (AU.last.lightning || 0) < 900) return;
     AU.last.lightning = now;
@@ -4507,7 +4519,6 @@ function startNaturalEvent(kind, level = 2, source = 'Natural weather') {
   naturalWeather.strike = null;
   naturalWeather.struck = false;
   const rain = RAIN_LEVELS[naturalWeather.level];
-  if (kind === 'rain') sfx('rain');
   toast(kind === 'rain' ? `${rain.icon} Level ${naturalWeather.level}: ${rain.name} · ×${rain.boost} sap & resin!` : `⚡ Thunderclouds gather · From: ${naturalWeather.source}`);
 }
 function illuminateLightning(x, y) {
@@ -4565,6 +4576,7 @@ function strikeTree(cause = 'lightning') {
 function tickNaturalEvents(dt) {
   const w = naturalWeather;
   const blocked = weatherBlocked();
+  syncRainSound(w.kind === 'rain' && !blocked);
   if (!blocked) {
     if (!w.kind) {
       const queued = pendingAdminWeather()[0];
@@ -4578,7 +4590,6 @@ function tickNaturalEvents(dt) {
       if (!w.kind && w.next <= 0) { startNaturalEvent(Math.random() < .65 ? 'rain' : 'lightning', randomRainLevel()); save(); }
     } else {
       w.age += dt;
-      if (w.kind === 'rain') sfx('rain');
       if (w.kind === 'lightning' && !w.struck && w.age >= 2) { w.struck = true; strikeTree(); finishAdminWeather(); }
       if (w.strike) w.strike.age += dt;
       if (w.kind === 'rain' && w.age < w.duration && w.age >= w.hazardAt) {
@@ -4592,6 +4603,7 @@ function tickNaturalEvents(dt) {
       }
       if (w.age >= w.duration) {
         w.kind = null; w.strike = null; w.next = 180 + Math.random() * 180; save();
+        syncRainSound(false);
       }
     }
   }
