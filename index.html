@@ -1248,8 +1248,8 @@ const SPECIES = {
            perk:'Vines: +1 branch slot everywhere, amps ×1.25.', bane:'Each leaf gives −15%.' },
   maple: { name:'Maple', glyph:'🍁', tint:'#b46d2e', outline:'#e4a560', leaf:0.9,  amp:1,    ref:1, edge:1,    gold:1,   ring:1.5, cost:1,    offline:1,   kids:0,
            perk:'Sap-rich: +50% amber & rings.', bane:'Production −10%.' },
-  pine:  { name:'Pine',  glyph:'🌲', tint:'#3f7a6e', outline:'#7ad0b0', leaf:1,    amp:1,    ref:1, edge:1.6,  gold:0,   ring:1,   cost:0.85, offline:1.6, kids:0,
-           perk:'Hardy: ×1.6 capacity, +60% offline, cheaper growth.', bane:'Evergreen — bears no gold leaves.' },
+  pine:  { name:'Pine',  glyph:'🌲', tint:'#3f7a6e', outline:'#7ad0b0', leaf:1,    amp:1,    ref:1, edge:1.6,  gold:0,   ring:1,   cost:1.05, offline:1, kids:0,
+           perk:'Hardy: ×1.6 capacity.', bane:'Evergreen — bears no gold leaves or offline bonus; growth costs 5% more.' },
   chocolate: { name:'Chocolate', glyph:'🍫', tint:'#5a3320', outline:'#a26240', leaf:1.20, amp:1.20, ref:1.10, edge:1, gold:1.6, ring:0.85, cost:1.10, offline:1, kids:0,
            perk:'Rich syrup: +20% leaf and amp, +60% gold leaf value.', bane:'Cuts pay 15% fewer rings, growth costs +10%.' },
 };
@@ -1384,6 +1384,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  { id:'2026-10-14-pine-offline-bonus', date:'October 14, 2026', title:'Pine has no offline bonus', notes:[
+    'Pine trees no longer receive the 60% increase to the offline earnings time cap. Their capacity perk remains, and growing new nodes costs 5% more.'
+  ]},
   {id:'2026-10-14-wider-wither-stagger',date:'October 14, 2026',title:'More time between withering nodes',notes:[
     'In Blight mode, neglected nodes now start withering across a wider span of time, giving you more room to respond to each warning.'
   ]},
