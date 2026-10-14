@@ -1384,6 +1384,15 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-14-wider-wither-stagger',date:'October 14, 2026',title:'More time between withering nodes',notes:[
+    'In Blight mode, neglected nodes now start withering across a wider span of time, giving you more room to respond to each warning.'
+  ]},
+  {id:'2026-10-14-amplifier-strengthening-cost',date:'October 14, 2026',title:'Amplifier strengthening costs more',notes:[
+    'Strengthening an amplifier now costs 50% more sap at every level.'
+  ]},
+  {id:'2026-10-14-blueprint-upgrade-cost-order',date:'October 14, 2026',title:'Blueprint upgrades use the right cost',notes:[
+    'Fixed blueprint pricing so graft costs no longer take resources reserved for copied upgrades. The paste message now reports how many upgrades were applied.'
+  ]},
   {id:'2026-10-14-blueprint-paste-fix',date:'October 14, 2026',title:'Blueprints paste completely',notes:[
     'Full blueprint pastes now include every copied upgrade in their price and apply it immediately. Paste what you can builds the affordable part of a branch, respects node caps, and spends any remaining resources on upgrades. Pasted branches spread into place right away.'
   ]},
@@ -2435,6 +2444,7 @@ const BUG_EAT_WARN = 6;
 const WITHER_GRACE = 70;
 const WITHER_TIME = 60;
 const WITHER_PENALTY = 0.7;
+const WITHER_STAGGER_MULT = 1.6; // saved ±25% offsets now spread grace periods by ±40%
 const WITHER_PER_NODE = 1.5;   // both windows stretch a little per node you own —
                                // a bigger tree gives you more runway to tend it
 const WITHER_SLOW_MULT = 1.6;  // Blight 'Resilience' (ex-Symbiosis) stretches both
@@ -2559,7 +2569,7 @@ const growUnlocked = t =>
 const upCur  = n => n.type === 'cap' ? 'resin' : 'sap';
 const costUp = n => ({
   leaf: 20 * Math.pow(2.0, n.lvl - 1) * Math.pow(1.25, Math.max(0, S.counts.leaf - 1)) * Math.pow(1.5, Math.max(0, n.lvl - 3)),
-  amp:  100 * Math.pow(3.0, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
+  amp:  150 * Math.pow(3.0, n.lvl - 1) * Math.pow(1.5, Math.max(0, S.counts.amp - 1)),
   ref:  150 * Math.pow(2.2, n.lvl - 1),
   cap:  32 * Math.pow(2.3, n.lvl - 1),
 }[n.type] * crowdMult());
@@ -3164,15 +3174,25 @@ function bpCost() {
   const savedCounts = { ...S.counts }, savedGrafts = S.graftsBought;
   let sap = 0, resin = 0;
   const add = (cur, v) => { if (cur === 'resin') resin += v; else sap += v; };
-  const walk = s => {
+  const plans = [], parentOf = new Map();
+  (function collect(s) {
+    plans.push(s);
+    for (const c of s.children) { parentOf.set(c, s); collect(c); }
+  })(bp.root);
+  const selectedKids = new Map();
+  for (const s of plans) {
     const g = GROW[s.type];
     add(g.cur, g.cost());
     S.counts[s.type] = (S.counts[s.type] || 0) + 1;
-    const ng = bpNeededGrafts(s.type, s.children.length);
-    for (let k = 0; k < ng; k++) { add('resin', costGraft()); S.graftsBought++; }
-    s.children.forEach(walk);
-  };
-  walk(bp.root);
+    const parent = parentOf.get(s);
+    if (parent) {
+      const kids = selectedKids.get(parent) || 0;
+      const before = bpNeededGrafts(parent.type, kids);
+      const after = bpNeededGrafts(parent.type, kids + 1);
+      for (let k = before; k < after; k++) { add('resin', costGraft()); S.graftsBought++; }
+      selectedKids.set(parent, kids + 1);
+    }
+  }
   // Upgrades are purchased after every new node exists, when the crowding
   // surcharge matches the one bpPaste actually charges.
   (function upgrades(s) {
@@ -3298,6 +3318,7 @@ function bpPaste(targetId, mode = 'partial') {
     const total = bpUpgradeCost(plan);
     return { node, plan, steps, done: 0, total, remaining: total.sap + total.resin };
   }).filter(x => x.steps.length);
+  let upgradesApplied = 0;
   const allocate = resinOnly => {
     let changed = true;
     while (changed) {
@@ -3316,6 +3337,7 @@ function bpPaste(targetId, mode = 'partial') {
         if (step.kind === 'lvl') u.node.lvl++;
         else if (step.kind === 'edge') u.node.edgeLvl = (u.node.edgeLvl || 0) + 1;
         else u.node.polish = (u.node.polish || 0) + 1;
+        upgradesApplied++;
         u.steps.splice(u.steps.indexOf(step), 1); u.done++;
         u.remaining = u.steps.reduce((sum, x) => { const c = x.cost(); return sum + c.sap + c.resin; }, 0);
         changed = true;
@@ -3328,7 +3350,7 @@ function bpPaste(targetId, mode = 'partial') {
   sfx('buy');
   pulseNode(target, 0.85, 0.75);
   spawnBurst(target.x, target.y, '#9fd0ff', 20, 120, 0.95);
-  toast(`📐 Blueprint pasted: ${nodes.length}/${bp.count} nodes`);
+  toast(`📐 Blueprint pasted: ${nodes.length}/${bp.count} nodes · ${upgradesApplied} upgrades`);
   layout();
   // A whole branch starts at the same point otherwise; show the completed
   // shape immediately instead of waiting for the ordinary growth animation.
@@ -3571,7 +3593,7 @@ function updateWither(dt, idle) {
       n.idle = 0; if (n.wither) n.wither = 0; continue;
     }
     n.idle = (n.idle || 0) + dt;
-    const nodeGrace = grace * (1 + (n.witherGraceOffset || 0));
+    const nodeGrace = grace * (1 + (n.witherGraceOffset || 0) * WITHER_STAGGER_MULT);
     if (n.idle < nodeGrace) {
       if (n.wither) n.wither = Math.max(0, n.wither - dt / wtime);
       continue;
