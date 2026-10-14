@@ -1384,6 +1384,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-14-bug-hub-away-capacity',date:'October 14, 2026',title:'Bug Hub capacity includes bugs away',notes:[
+    'The Bug Hub count now shows bugs at home and away. New bugs stop spawning and cannot be caught when those bugs together fill the hub.'
+  ]},
   {id:'2026-10-14-blight-leaderboard-strikes',date:'October 14, 2026',title:'Extra leaderboard strikes in Blight',notes:[
     'Blight mode now grants two lightning strikes for each top-three leaderboard placement per day, instead of one.'
   ]},
@@ -4037,6 +4040,7 @@ const BIRD_SPECIES = [
 ];
 function spawnCritter() {
   if (spellWardOn()) return;
+  if (metaLvl('critterhub') > 0 && META.critterHub.bugs + awayBugCount() >= hubCapacity()) return;
   if (critters.length >= critterCap()) return;
   const ids = Object.keys(S.nodes).filter(id => {
     const n = N(id);
@@ -4115,13 +4119,14 @@ function renderCritterHub() {
   const h = META.critterHub;
   hubEl.classList.toggle('open', metaLvl('critterhub') > 0);
   hubEl.classList.toggle('minimized', !!h.minimized);
-  hubEl.querySelector('.hubCount').textContent = `${h.bugs}/${hubCapacity()}`;
+  const away = awayBugCount();
+  hubEl.querySelector('.hubCount').textContent = away ? `${h.bugs}+${away}/${hubCapacity()}` : `${h.bugs}/${hubCapacity()}`;
   const btn = document.getElementById('hubUpgrade');
   btn.textContent = h.extra >= 10 ? 'Max' : `+ 🌰${h.extra + 1}`;
   btn.disabled = h.extra >= 10;
   hubPopover.querySelector('.hubUpgradeText').textContent = h.extra >= 10
     ? 'All 13 critter spaces unlocked' : `Add 1 space for 🌰 ${h.extra + 1} acorn${h.extra ? 's' : ''}`;
-  hubEl.title = `${h.bugs} stored bug${h.bugs === 1 ? '' : 's'} · −${Math.min(12,h.bugs)}% sap production · drag to move`;
+  hubEl.title = `${h.bugs} bugs home, ${away} away · ${hubCapacity()} total spaces · −${Math.min(12,h.bugs)}% sap production · drag to move`;
   placeHub();
 }
 hubEl.addEventListener('pointerdown', e => {
@@ -4181,7 +4186,7 @@ function dropBug(x, y, escaped = false) {
   carriedBugEl.style.display = 'none';
   const r = hubEl.getBoundingClientRect();
   const inside = !escaped && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-  if (inside && META.critterHub.bugs < hubCapacity()) {
+  if (inside && META.critterHub.bugs + awayBugCount() < hubCapacity()) {
     const i = critters.indexOf(c);
     if (i >= 0) critters.splice(i, 1);
     META.critterHub.roster.push(makeBug()); syncHubBugs();
@@ -8845,6 +8850,7 @@ function bugBusy(id) {
   return critters.some(c=>c.battle?.bugId===id) || META.expeditions.entries.some(s=>s?.active?.bugIds?.includes(id)) || META.adventures.entries.some(a=>a?.bugId===id) || META.training?.entries.some(t=>t?.bugId===id) || META.bugRaid?.defenders?.includes(id) || META.bugRaid?.trip?.bugId===id || (b?.raidTrainingUntil>Date.now()) || (b?.raidCooldownUntil>Date.now());
 }
 function availableBugs() { return META.critterHub.roster.filter(b=>!bugBusy(b.id)); }
+function awayBugCount() { return META.critterHub.roster.filter(b=>bugBusy(b.id)).length; }
 function syncHubBugs() { META.critterHub.bugs=availableBugs().length; }
 function storeReturningBug(b) {
   const h=META.critterHub;
