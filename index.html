@@ -1384,6 +1384,12 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-14-blueprint-paste-fix',date:'October 14, 2026',title:'Blueprints paste completely',notes:[
+    'Full blueprint pastes now include every copied upgrade in their price and apply it immediately. Paste what you can builds the affordable part of a branch, respects node caps, and spends any remaining resources on upgrades. Pasted branches spread into place right away.'
+  ]},
+  {id:'2026-10-13-ring-resin-balance',date:'October 13, 2026',title:'Balance resin in ring generation',notes:[
+    'Resin carried through your tree now contributes less to ring rewards when you cut it, so resin focused trees generate rings at a steadier pace.'
+  ]},
   {id:'2026-10-12-nature-sounds',date:'October 12, 2026',title:'Hear birds, rain, and lightning',notes:[
     'Added soft bird calls while visitors build nests, gentle continuous rain pitter-patter, a sharp crack and rolling thunder for lightning, and a cue when nodes start to wither. Adjust the effects with the existing sound volume setting.'
   ]},
@@ -3130,7 +3136,7 @@ function bpBaseCap(type) {
 }
 const bpNeededGrafts = (type, childCount) => Math.max(0, childCount - bpBaseCap(type).cap);
 // Could the stored blueprint be grafted onto `target` without breaking any rule?
-function bpCanPaste(target) {
+function bpCanPaste(target, partial = false) {
   const bp = S.blueprint;
   if (!bp || !target || target.locked) return false;
   if (target.type === 'leaf') return false;
@@ -3140,7 +3146,7 @@ function bpCanPaste(target) {
   (function walk(s) { cnt[s.type] = (cnt[s.type] || 0) + 1; s.children.forEach(walk); })(bp.root);
   for (const t in cnt) {
     if (!growUnlocked(t)) return false;
-    if ((S.counts[t] || 0) + cnt[t] > typeMax(t)) return false;
+    if (!partial && (S.counts[t] || 0) + cnt[t] > typeMax(t)) return false;
   }
   const fits = s => {
     if (s.type === 'ref' && s.children.some(c => c.type === 'ref')) return false;
@@ -3162,6 +3168,14 @@ function bpCost() {
     const g = GROW[s.type];
     add(g.cur, g.cost());
     S.counts[s.type] = (S.counts[s.type] || 0) + 1;
+    const ng = bpNeededGrafts(s.type, s.children.length);
+    for (let k = 0; k < ng; k++) { add('resin', costGraft()); S.graftsBought++; }
+    s.children.forEach(walk);
+  };
+  walk(bp.root);
+  // Upgrades are purchased after every new node exists, when the crowding
+  // surcharge matches the one bpPaste actually charges.
+  (function upgrades(s) {
     const upCurT = s.type === 'cap' ? 'resin' : 'sap';
     for (let l = startLvl(s.type); l < s.lvl; l++) add(upCurT, costUp({ type: s.type, lvl: l }));
     for (let e = metaLvl('birthright'); e < (s.edgeLvl || 0); e++) add('sap', costEdge({ edgeLvl: e }));
@@ -3169,11 +3183,8 @@ function bpCost() {
       const pStart = canPolish({ type: s.type }) ? metaLvl('mythos') : 0;
       for (let p = pStart; p < (s.polish || 0); p++) add('resin', costPolish({ polish: p }));
     }
-    const ng = bpNeededGrafts(s.type, s.children.length);
-    for (let k = 0; k < ng; k++) { add('resin', costGraft()); S.graftsBought++; }
-    s.children.forEach(walk);
-  };
-  walk(bp.root);
+    s.children.forEach(upgrades);
+  })(bp.root);
   S.counts = savedCounts; S.graftsBought = savedGrafts;
   return { sap, resin };
 }
@@ -3213,28 +3224,45 @@ function bpCopy(id) {
   buildPanel(); save();
   return true;
 }
-function bpPaste(targetId) {
+function bpPaste(targetId, mode = 'partial') {
   const bp = S.blueprint, target = N(targetId);
-  if (!bp || !target || !bpCanPaste(target)) return false;
+  const full = mode === 'full';
+  if (!bp || !target || !bpCanPaste(target, !full)) return false;
+  if (full) {
+    const cost = bpCost();
+    if (S.sap < cost.sap || S.resin < cost.resin) return false;
+  }
   const savedCounts = { ...S.counts }, savedGrafts = S.graftsBought;
   const plans = [];
   (function collect(s) { plans.push(s); s.children.forEach(collect); })(bp.root);
-  // Nodes are the priority: price them in normal tree order, including the
-  // graft slots needed to retain the copied shape, before buying any upgrades.
+  // Select an affordable preorder prefix. Charge a parent's next graft slot
+  // only when an included child actually needs it; missing later nodes should
+  // never make an otherwise affordable partial branch fail.
   const affordableNodes = [];
+  const selectedKids = new Map();
+  const parentOf = new Map();
+  (function link(s) { for (const c of s.children) { parentOf.set(c, s); link(c); } })(bp.root);
   for (const s of plans) {
     const g = GROW[s.type], cost = g.cost();
+    const parentPlan = parentOf.get(s);
+    if ((S.counts[s.type] || 0) >= typeMax(s.type) || S[g.cur] < cost) break;
     S.counts[s.type] = (S.counts[s.type] || 0) + 1;
-    const grafts = bpNeededGrafts(s.type, s.children.length);
-    let graftCost = 0;
-    for (let k = 0; k < grafts; k++) { graftCost += costGraft(); S.graftsBought++; }
-    if (bpTakeAffordable({ sap: g.cur === 'sap' ? cost : 0, resin: g.cur === 'resin' ? cost : 0 }) && bpTakeAffordable({ sap: 0, resin: 0 })) {
-      if (S.resin >= graftCost) { S.resin -= graftCost; affordableNodes.push(s); }
-      else { // Refund the node growth cost if its required slots cannot be bought.
-        S[g.cur] += cost;
-        break;
-      }
-    } else break;
+    let graftCost = 0, oldGraftsBought = S.graftsBought;
+    if (parentPlan) {
+      const parentSelected = selectedKids.get(parentPlan) || 0;
+      const before = bpNeededGrafts(parentPlan.type, parentSelected);
+      const after = bpNeededGrafts(parentPlan.type, parentSelected + 1);
+      for (let k = before; k < after; k++) { graftCost += costGraft(); S.graftsBought++; }
+    }
+    if (S.resin - (g.cur === 'resin' ? cost : 0) < graftCost) {
+      S.counts[s.type]--;
+      S.graftsBought = oldGraftsBought;
+      break;
+    }
+    S[g.cur] -= cost;
+    S.resin -= graftCost;
+    if (parentPlan) selectedKids.set(parentPlan, (selectedKids.get(parentPlan) || 0) + 1);
+    affordableNodes.push(s);
   }
   // Restore the simulation counters; the actual tree is created below.
   S.counts = savedCounts; S.graftsBought = savedGrafts;
@@ -3248,7 +3276,7 @@ function bpPaste(targetId) {
     const n = mkNode(s.type, parentId);
     S.counts[s.type] = (S.counts[s.type] || 0) + 1;
     nodes.push({ node: n, plan: s });
-    const ng = bpNeededGrafts(s.type, s.children.length);
+    const ng = bpNeededGrafts(s.type, selectedKids.get(s) || 0);
     if (ng > 0) { n.extraKids = (n.extraKids || 0) + ng; S.graftsBought += ng; grafted = true; }
     const p = N(parentId);
     n.x = p.x; n.y = p.y;
@@ -3302,6 +3330,10 @@ function bpPaste(targetId) {
   spawnBurst(target.x, target.y, '#9fd0ff', 20, 120, 0.95);
   toast(`📐 Blueprint pasted: ${nodes.length}/${bp.count} nodes`);
   layout();
+  // A whole branch starts at the same point otherwise; show the completed
+  // shape immediately instead of waiting for the ordinary growth animation.
+  for (const { node } of nodes) { node.x = node.tx; node.y = node.ty; }
+  prepareEdgeCache();
   selected = rootNode.id;
   buildPanel(); save();
   return true;
@@ -3339,10 +3371,11 @@ function bpWorldClick(id) {
     return true;
   }
   if (bpMode === 'paste' || bpMode === 'paste-partial') {
-    if (!n || !bpCanPaste(n)) { toast('📐 Can’t graft here — needs a free slot and room under type caps.'); return true; }
+    const full = bpMode === 'paste';
+    if (!n || !bpCanPaste(n, !full)) { toast('📐 Can’t graft here — needs a free slot and room under type caps.'); return true; }
     const c = bpCost();
     if (bpMode === 'paste' && (S.sap < c.sap || S.resin < c.resin)) { toast(`Need ${fmt(c.sap)} sap + ${fmt(c.resin)} resin. Choose “Paste what you can” for a partial copy.`); return true; }
-    if (bpPaste(id)) setBpMode(null);
+    if (bpPaste(id, full ? 'full' : 'partial')) setBpMode(null);
     return true;
   }
   return false; // 'menu' or idle: let the tap select normally
@@ -5049,7 +5082,7 @@ function draw(time) {
       ctx.setLineDash([4, 4]); ctx.lineDashOffset = -time * 22;
       ctx.lineWidth = 2; ctx.strokeStyle = '#9fd0ff'; ctx.stroke();
       ctx.setLineDash([]);
-    } else if ((bpMode === 'paste' || bpMode === 'paste-partial') && n.type !== 'core' && bpCanPaste(n)) {
+    } else if ((bpMode === 'paste' || bpMode === 'paste-partial') && n.type !== 'core' && bpCanPaste(n, bpMode === 'paste-partial')) {
       ctx.beginPath(); ctx.arc(px, py, rr + 6 * cam.scale, 0, TAU);
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(159,208,255,0.6)'; ctx.stroke();
     }
@@ -7433,10 +7466,14 @@ volSlider.value = AU.vol;
 volSlider.addEventListener('input', () => { setVol(parseFloat(volSlider.value)); sfx('plink'); });
 // ---------- the grove: prestige overlay ----------
 const RING_K = 9000;            // bigger = rings rarer (tunable)
+const RING_RESIN_WEIGHT = 0.35; // resin-carried flow contributes less to prestige than sap
 const grove = document.getElementById('grove');
 function treeValue() {
   let life = 0;
-  for (const id in S.nodes) life += N(id).life || 0;
+  for (const id in S.nodes) {
+    const n = N(id), resinLife = n.lifeR || 0;
+    life += Math.max(0, (n.life || 0) - resinLife) + resinLife * RING_RESIN_WEIGHT;
+  }
   return life;  // fresh saplings are worth ~nothing, so cut→replant can't farm rings
 }
 // Exponent < 0.5 slows ring scaling: the first rings stay early (treeValue≈RING_K
