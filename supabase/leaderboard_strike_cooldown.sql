@@ -10,17 +10,22 @@ declare
   today date := (now() at time zone 'America/New_York')::date;
   i integer;
   rank_position bigint;
+  strike_limit integer;
+  used_count integer;
+  remaining_count integer := 0;
 begin
   if p_player_id is null then raise exception 'Player is unavailable'; end if;
+  select case when coalesce(is_blight, false) then 2 else 1 end into strike_limit
+    from public.leaderboard where player_id = p_player_id;
   for i in 1..array_length(boards, 1) loop
     execute format(
       'select place from (select player_id, row_number() over (order by %I desc, player_id asc) as place from public.leaderboard where fresh_score_reported_at is not null) ranked where player_id = $1',
       score_columns[i]) into rank_position using p_player_id;
-    if rank_position between 1 and 3 and not exists (
-      select 1 from private.sapling_leaderboard_lightning_usage u
-      where u.player_id = p_player_id and u.usage_day = today and u.board = boards[i]
-    ) then
+    select count(*) into used_count from private.sapling_leaderboard_lightning_usage u
+      where u.player_id = p_player_id and u.usage_day = today and u.board = boards[i];
+    if rank_position between 1 and 3 and used_count < coalesce(strike_limit, 1) then
       available := array_append(available, boards[i]);
+      remaining_count := remaining_count + coalesce(strike_limit, 1) - used_count;
     end if;
     rank_position := null;
   end loop;
@@ -28,7 +33,7 @@ begin
     from private.sapling_leaderboard_lightning_usage where player_id = p_player_id;
   return jsonb_build_object(
     'available_boards', available,
-    'remaining', cardinality(available),
+    'remaining', remaining_count,
     'cooldown_seconds', greatest(0, ceil(extract(epoch from (latest_used + interval '1 minute' - clock_timestamp())))::integer)
   );
 end; $$;
@@ -48,6 +53,9 @@ declare
   latest_used timestamptz;
   today date := (now() at time zone 'America/New_York')::date;
   status jsonb;
+  strike_limit integer;
+  strike_number integer;
+  used_count integer;
 begin
   if p_player_id is null or p_target_id is null or p_player_id = p_target_id then
     raise exception 'Choose another player to strike';
@@ -77,14 +85,20 @@ begin
   if rank_position is null or rank_position > 3 then
     raise exception 'Only the top three on this leaderboard can send a strike';
   end if;
+  select case when coalesce(is_blight, false) then 2 else 1 end into strike_limit
+    from public.leaderboard where player_id = p_player_id;
+  select count(*) into used_count from private.sapling_leaderboard_lightning_usage
+    where player_id = p_player_id and usage_day = today and board = p_board;
+  if used_count >= coalesce(strike_limit, 1) then
+    raise exception 'Your strikes for this leaderboard have already been used today';
+  end if;
+  strike_number := used_count + 1;
   select display_name into target_name from public.leaderboard
     where player_id = p_target_id and fresh_score_reported_at is not null;
   if target_name is null then raise exception 'Target player is not on the leaderboard'; end if;
 
-  insert into private.sapling_leaderboard_lightning_usage(player_id, usage_day, board, target_id)
-    values (p_player_id, today, p_board, p_target_id)
-    on conflict do nothing;
-  if not found then raise exception 'Your strike for this leaderboard has already been used today'; end if;
+  insert into private.sapling_leaderboard_lightning_usage(player_id, usage_day, board, strike_number, target_id)
+    values (p_player_id, today, p_board, strike_number, p_target_id);
 
   insert into public.admin_actions(player_id, action_type, weather_level, message)
     values (p_target_id, 'lightning', 1,

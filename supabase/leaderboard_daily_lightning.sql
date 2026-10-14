@@ -1,14 +1,16 @@
 -- Apply after leaderboard.sql and admin_weather.sql.
 -- Replaces the old automatic winner-targeting job with one player-aimed strike
--- per current top-three placement, per Eastern calendar day.
+-- per current top-three placement, per Eastern calendar day. Blight players
+-- receive two uses per placement; other players receive one.
 create schema if not exists private;
 create table if not exists private.sapling_leaderboard_lightning_usage (
   player_id uuid not null,
   usage_day date not null,
   board text not null check (board in ('lifetime_sap','lifetime_resin','highest_sap','highest_resin','production_sap','production_resin','gold_leaves')),
+  strike_number smallint not null default 1 check (strike_number between 1 and 2),
   target_id uuid not null,
   used_at timestamptz not null default now(),
-  primary key (player_id, usage_day, board),
+  primary key (player_id, usage_day, board, strike_number),
   check (player_id <> target_id)
 );
 alter table private.sapling_leaderboard_lightning_usage enable row level security;
