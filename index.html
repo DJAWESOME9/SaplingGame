@@ -1384,6 +1384,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-15-bastion-roots-unlock',date:'October 15, 2026',title:'Bastion appears with Expanded Roots',notes:[
+    'Expanded Roots now reveals Bastion directly from Wells. Artesian remains a separate Rootstock unlock.'
+  ]},
   {id:'2026-10-14-bug-hub-away-capacity',date:'October 14, 2026',title:'Bug Hub capacity includes bugs away',notes:[
     'The Bug Hub count now shows bugs at home and away. New bugs stop spawning and cannot be caught when those bugs together fill the hub.'
   ]},
@@ -2645,7 +2648,7 @@ const ROOTS = {
                  desc: 'Each level: +25% to all branch capacity', gated: 'expandedRoots' },
   nimbus:      { name: 'Nimbus',        x:  60,  y: 480, parent: 'sunlight',  max: 4, cost: l => 16 * Math.pow(2, l),
                  desc: 'Each level: leaf production ×1.5', gated: 'expandedRoots' },
-  bastion:     { name: 'Bastion',       x: 200,  y: 470, parent: 'artesian',  max: 4, cost: l => 18 * Math.pow(2, l),
+  bastion:     { name: 'Bastion',       x: 200,  y: 470, parent: 'wells',     max: 4, cost: l => 18 * Math.pow(2, l),
                  desc: 'Each level: critters spawn 30% slower and have +1 HP', gated: 'expandedRoots' },
   artesian:    { name: 'Artesian',      x: 270,  y: 535, parent: 'wells',     max: 4, cost: l => 18 * Math.pow(2, l),
                  desc: 'Each level: capacitor storage ×1.2', gated: 'rootstock', gatedLevel: 1 },
