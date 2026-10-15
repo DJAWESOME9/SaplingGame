@@ -1209,11 +1209,11 @@ const CFG = {
   startSap: 12,
   offlineCapSec: 4 * 3600,
   pruneK: 200,                           // connected lifetime flow for the first amber (lifeAmber(pruneK)=1)
-  pruneResinWeight: 3,                    // resin-carrying lifetime counts this many × sap toward prune amber
+  pruneResinWeight: 2,                    // resin-carrying lifetime counts this many × sap toward prune amber
   // Gentle soft cap on a single node's amber: below the knee (in amber units) the
-  // ^0.40 curve is untouched; above it, growth rolls over into slow log accrual so
+  // ^0.35 curve is untouched; above it, growth rolls over into slow log accrual so
   // very high-lifetime branches keep paying more, just with shrinking returns.
-  amberSoftKnee: 6, amberSoftScale: 15,
+  amberSoftKnee: 4, amberSoftScale: 8,
 };
 // ---------- seasons: one hour each, anchored in persistent meta ----------
 const SEASON_MS = 60 * 60 * 1000;
@@ -1384,6 +1384,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-15-amber-pruning-balance',date:'October 15, 2026',title:'Amber grows more slowly on heavily used branches',notes:[
+    'Pruning now gives less amber from branches that have carried large amounts of sap and resin, with the reduction strongest on resin-heavy branches.'
+  ]},
   {id:'2026-10-15-bastion-roots-unlock',date:'October 15, 2026',title:'Bastion appears with Expanded Roots',notes:[
     'Expanded Roots now reveals Bastion directly from Wells. Artesian remains a separate Rootstock unlock.'
   ]},
@@ -2728,7 +2731,7 @@ const nodeAmberLife = n => (n.life || 0) + (CFG.pruneResinWeight - 1) * (n.lifeR
 // (Φ(pruneK)=1). Past the soft knee the diminishing returns steepen further into a
 // log roll-off, so very long-lived branches keep gaining amber ever more slowly.
 const lifeAmber = x => {
-  const u = Math.pow(Math.max(0, x) / CFG.pruneK, 0.40);
+  const u = Math.pow(Math.max(0, x) / CFG.pruneK, 0.35);
   const C = CFG.amberSoftKnee, k = CFG.amberSoftScale;
   // Smooth (C¹-continuous) knee: identity below C, log roll-off above it.
   return u <= C ? u : C + k * Math.log(1 + (u - C) / k);
