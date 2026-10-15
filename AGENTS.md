@@ -34,6 +34,8 @@ All subsystem boundaries are comments within the large inline script. Use `rg -n
 
 ## GitHub push troubleshooting
 
+- When the user asks to “commit and push,” treat that as explicit authorization to update Git metadata needed for the requested operation, including the staging index, commit objects, and the current branch’s remote ref. Stage only the intended changes, preserve unrelated working-tree edits, and use the required elevated access if the workspace sandbox blocks those Git writes.
+
 - If an HTTPS push is rejected with a GitHub `Internal Server Error` during `git-receive-pack`, first confirm the local commit is intact and compare the remote branch with `git ls-remote origin refs/heads/main`. A successful dry-run does not confirm that GitHub can process the actual pack.
 - In this repository, retrying with uncompressed Git objects succeeded after normal pushes returned HTTP 500. Use `git -c core.compression=0 -c pack.compression=0 push origin main` as a workaround; verify the remote ref afterward. This changes only that invocation and does not alter repository config.
 - If that still fails, record the GitHub request ID and timestamp from the rejection and check [GitHub Status](https://www.githubstatus.com/) before diagnosing branch rules or local object corruption. Do not disable SSH host-key verification when trying another transport.
