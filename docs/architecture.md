@@ -235,3 +235,24 @@ Admin dashboard sign-ins persist separately in `sapling-admin-session-v1`, scope
 Admin Lite can separately remove up to 100,000 sap per Eastern day using `supabase/admin_lite_sap_removal.sql` (apply after `admin_lite_sap.sql`). Its private atomic daily counter is independent of gifts; negative sap balance actions clamp player balances at zero. Both allowances count queued amounts, including for offline players, and do not carry over.
 
 Full admins can grant extra daily sap gift, sap removal, and lightning allowances in the Admin dashboard. Apply [`supabase/admin_lite_allowances.sql`](../supabase/admin_lite_allowances.sql) after `admin_lite_sap_removal.sql`. Grants increase today’s total without resetting usage, are shared per Lite login, and expire at midnight Eastern. Only authenticated allowlisted admins can read/grant allowances; Lite status and queue RPCs enforce the augmented totals atomically. Extra allowance is capped at 1,000,000,000 per type per day. Rerunning older Lite setup scripts afterward restores their base-only functions, so rerun the allowances script last.
+
+## Additional Grove progression
+
+Stout Boughs branches from Heartgirth and adds 25% capacity per level, multiplied
+with other Grove capacity bonuses. Stormbark independently resists 20% of weather
+hits per level. Raincatcher (`rainkeeper`) stores 25% of the last rain event’s
+extra production for 20 active seconds per level in the saved weather record;
+it pauses with weather, gives no offline credit, and clears on a tree cut.
+Seasonal Roots strengthens deviations from neutral seasonal multipliers by
+20% per level, including Spring’s discount and offline seasonal calculations.
+
+Berry Keeper harvests into available basket space in `tickGarden`, including
+offline growth, retaining bush storage when the basket fills. Training Grounds
+reduces quoted durations of new training sessions by 10% per level. Trailblazer
+reduces new adventure journey snapshots by 10% per level only for routes with
+recorded victories. Existing activity snapshots retain their durations.
+
+Amber Memory carries up to 25 unspent amber per level through `finalizeCut`.
+Run saves store `inheritedAmber` with a zero default so pristine species changes
+and Grove purchases preserve that carry without awarding it again. Starting
+amber remains separate; hard resets and other fresh runs receive no carry.
