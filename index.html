@@ -1397,6 +1397,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-16-prune-amber-midrange',date:'October 16, 2026',title:'More amber before large pruning payouts',notes:[
+    'Branch pruning gives up to 20% more amber below 3,000. The bonus tapers smoothly and is gone by 5,000 amber; larger payouts are unchanged.'
+  ]},
   {id:'2026-10-16-amber-high-flow-eased',date:'October 16, 2026',title:'A little more amber from high-flow branches',notes:[
     'The pruning soft cap now starts slightly later and gives a little more amber at high lifetime flow. The slower low-flow curve and reduced resin weighting remain.'
   ]},
@@ -2778,7 +2781,11 @@ const pruneGainRaw = n => {
     total += lifeAmber(nodeAmberLife(cur));
     for (const id of cur.children) stack.push(N(id));
   }
-  return total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult() * seasonNow().amber * (S.spells ? S.spells.amber : 1);
+  const gain = total * shearsMult() * SP().ring * pantheonAmberMult() * metaAmberMult() * seasonNow().amber * (S.spells ? S.spells.amber : 1);
+  // Ease midrange pruning payouts, fading the bonus to zero by 5,000 amber.
+  const fade = clamp((gain - 3000) / 2000, 0, 1);
+  const smoothFade = fade * fade * (3 - 2 * fade);
+  return gain * (1 + 0.2 * (1 - smoothFade));
 };
 // Amber is integer but cuts are fractional — carry the remainder between cuts so
 // small branches don't round their sub-1 payouts away.
