@@ -1209,11 +1209,11 @@ const CFG = {
   startSap: 12,
   offlineCapSec: 4 * 3600,
   pruneK: 200,                           // connected lifetime flow for the first amber (lifeAmber(pruneK)=1)
-  pruneResinWeight: 2,                    // resin-carrying lifetime counts this many × sap toward prune amber
+  pruneResinWeight: 2.5,                  // resin-carrying lifetime counts this many × sap toward prune amber
   // Gentle soft cap on a single node's amber: below the knee (in amber units) the
-  // ^0.35 curve is untouched; above it, growth rolls over into slow log accrual so
+  // ^0.37 curve is untouched; above it, growth rolls over into slow log accrual so
   // very high-lifetime branches keep paying more, just with shrinking returns.
-  amberSoftKnee: 4, amberSoftScale: 8,
+  amberSoftKnee: 5, amberSoftScale: 11,
 };
 // ---------- seasons: one hour each, anchored in persistent meta ----------
 const SEASON_MS = 60 * 60 * 1000;
@@ -1397,6 +1397,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-16-amber-pruning-eased',date:'October 16, 2026',title:'Slightly more amber from pruning',notes:[
+    'Amber from pruning has been eased partway back. High-flow branches still earn amber more slowly than before the balance change.'
+  ]},
   {id:'2026-10-15-growing-grove',date:'October 15, 2026',title:'Eight new Grove upgrades',notes:[
     'Stout Boughs adds affordable early and mid-game branch capacity: four levels at 4, 7, 10, and 13 rings, each adding 25% capacity.',
     'Stormbark can protect branches from lightning and wind. Raincatcher keeps part of the production bonus briefly after rain ends.',
@@ -2750,7 +2753,7 @@ const nodeAmberLife = n => (n.life || 0) + (CFG.pruneResinWeight - 1) * (n.lifeR
 // (Φ(pruneK)=1). Past the soft knee the diminishing returns steepen further into a
 // log roll-off, so very long-lived branches keep gaining amber ever more slowly.
 const lifeAmber = x => {
-  const u = Math.pow(Math.max(0, x) / CFG.pruneK, 0.35);
+  const u = Math.pow(Math.max(0, x) / CFG.pruneK, 0.37);
   const C = CFG.amberSoftKnee, k = CFG.amberSoftScale;
   // Smooth (C¹-continuous) knee: identity below C, log roll-off above it.
   return u <= C ? u : C + k * Math.log(1 + (u - C) / k);
