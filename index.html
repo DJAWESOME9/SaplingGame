@@ -1213,7 +1213,7 @@ const CFG = {
   // Gentle soft cap on a single node's amber: below the knee (in amber units) the
   // ^0.35 curve is untouched; above it, growth rolls over into slow log accrual so
   // very high-lifetime branches keep paying more, just with shrinking returns.
-  amberSoftKnee: 5, amberSoftScale: 11,
+  amberSoftKnee: 5.5, amberSoftScale: 12,
 };
 // ---------- seasons: one hour each, anchored in persistent meta ----------
 const SEASON_MS = 60 * 60 * 1000;
@@ -1397,6 +1397,9 @@ let peakMetaDirty = false;
 const MKEY = 'sapling-meta-v1';
 // Add new releases at the front. The first id is the one shown to returning players.
 const UPDATE_LOG = [
+  {id:'2026-10-16-amber-high-flow-eased',date:'October 16, 2026',title:'A little more amber from high-flow branches',notes:[
+    'The pruning soft cap now starts slightly later and gives a little more amber at high lifetime flow. The slower low-flow curve and reduced resin weighting remain.'
+  ]},
   {id:'2026-10-16-amber-low-flow-eased',date:'October 16, 2026',title:'A little more amber at lower flow',notes:[
     'Pruning gives a little more amber from branches with lower lifetime flow. The slowdown for high-flow and resin-heavy branches remains.'
   ]},
